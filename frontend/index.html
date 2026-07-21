@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CompressKro — Compress, Convert, Resize, Optimize</title>
+    <meta name="description" content="CompressKro is a free, privacy-first file optimization platform. Compress images to exact KB targets, resize for govt portals, convert formats, create passport photos, and manipulate PDFs — all in your browser." />
+    <meta name="keywords" content="image compressor, compress to 50kb, resize image, convert PNG to JPG, passport photo maker, PDF merge, PDF split, compress image online, UPSC SSC photo requirements" />
+    <meta property="og:title" content="CompressKro — One Platform for All File Optimization" />
+    <meta property="og:description" content="Compress, resize, convert and optimize files entirely in your browser. Privacy-first, no uploads, no accounts." />
+    <meta property="og:type" content="website" />
+    <!-- Google Fonts: Outfit (headings) + Inter (body) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <style>
+      /* Base font override before React loads */
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body, #root {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+      }
+      /* Prevent FOUC flash */
+      body { background: #0a0b14; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

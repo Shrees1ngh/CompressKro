@@ -1,0 +1,16 @@
+{
+  "name": "compresskro",
+  "version": "1.0.0",
+  "description": "CompressKro — Privacy-first file optimization platform. Compress, resize, convert, and optimize images and PDFs.",
+  "private": true,
+  "scripts": {
+    "frontend": "cd frontend && npm run dev",
+    "backend": "cd backend && npm run dev",
+    "dev": "start cmd /k \"cd frontend && npm run dev\" && start cmd /k \"cd backend && npm run dev\"",
+    "install:all": "cd frontend && npm install && cd ../backend && npm install"
+  },
+  "workspaces": [
+    "frontend",
+    "backend"
+  ]
+}
