@@ -14,8 +14,8 @@ export const STORAGE_KEYS = {
 export const HISTORY_LIMIT = 50;
 
 /** Maximum file size accepted (MB) */
-export const MAX_IMAGE_SIZE_MB = 50;
-export const MAX_PDF_SIZE_MB = 100;
+export const MAX_IMAGE_SIZE_MB = 20;
+export const MAX_PDF_SIZE_MB = 20;
 
 /** Supported image MIME types */
 export const SUPPORTED_IMAGE_TYPES = [

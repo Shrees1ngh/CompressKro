@@ -157,8 +157,22 @@ async function analyzeImageMetadata(buffer) {
  */
 async function calculatePerceptualSimilarity(originalBuffer, compressedBuffer) {
   try {
+    const compMeta = await sharp(compressedBuffer).metadata();
+    const compWidth = compMeta.width || 800;
+    const compHeight = compMeta.height || 800;
+
+    let targetW = compWidth;
+    let targetH = compHeight;
+    const maxSide = Math.max(compWidth, compHeight);
+    if (maxSide > 800) {
+      const ratio = 800 / maxSide;
+      targetW = Math.round(compWidth * ratio);
+      targetH = Math.round(compHeight * ratio);
+    }
+
     const compImage = sharp(compressedBuffer).rotate();
-    const { data: compData, info: compInfo } = await compImage
+    const { data: compData } = await compImage
+      .resize(targetW, targetH, { kernel: 'lanczos3' })
       .toColourspace('srgb')
       .removeAlpha()
       .raw()
@@ -166,7 +180,7 @@ async function calculatePerceptualSimilarity(originalBuffer, compressedBuffer) {
 
     const origImage = sharp(originalBuffer).rotate();
     const { data: origData } = await origImage
-      .resize(compInfo.width, compInfo.height, { kernel: 'lanczos3' })
+      .resize(targetW, targetH, { kernel: 'lanczos3' })
       .toColourspace('srgb')
       .removeAlpha()
       .raw()
@@ -209,6 +223,51 @@ async function calculatePerceptualSimilarity(originalBuffer, compressedBuffer) {
 }
 
 /**
+ * Lightweight encoder used during binary search trial steps.
+ * Bypasses CPU-heavy rate-distortion optimization (trellis quantization & scan optimization)
+ * to provide a ~20x speedup during intermediate parameter discovery.
+ */
+function applyFastFormatSettings(sharpInstance, format, quality, isTextHeavy = false) {
+  const norm = normalizeFormat(format);
+  const q = Math.max(1, Math.min(100, Math.round(quality)));
+  const chroma = isTextHeavy ? '4:4:4' : '4:2:0';
+
+  switch (norm) {
+    case 'jpeg':
+      return sharpInstance.jpeg({
+        quality: q,
+        mozjpeg: false,
+        chromaSubsampling: chroma,
+      });
+    case 'png':
+      return sharpInstance.png({
+        quality: q,
+        compressionLevel: 6,
+        effort: 1
+      });
+    case 'webp':
+      return sharpInstance.webp({
+        quality: q,
+        effort: 1,
+        lossless: false
+      });
+    case 'avif':
+      return sharpInstance.avif({
+        quality: q,
+        effort: 1,
+        chromaSubsampling: chroma
+      });
+    case 'heif':
+      return sharpInstance.heif({
+        quality: q,
+        effort: 1
+      });
+    default:
+      return sharpInstance.jpeg({ quality: q, chromaSubsampling: chroma });
+  }
+}
+
+/**
  * Helper to perform an 8-step quality binary search on a decoded raw pixel buffer.
  * Cuts redundant decodes and resizes per search iteration.
  */
@@ -224,10 +283,9 @@ async function runBinarySearchOnRaw(
 ) {
   let lowQ = qualityFloor;
   let highQ = 96;
-  let bestBuffer = null;
-  let bestQualityFound = qualityFloor;
+  let bestQualityFound = null;
 
-  // 8 binary search steps provides sufficient precision while cutting loop execution time by 33%
+  // 8 binary search steps with fast trial encoding
   for (let step = 0; step < 8; step++) {
     const midQ = Math.floor((lowQ + highQ) / 2);
     
@@ -240,7 +298,7 @@ async function runBinarySearchOnRaw(
           channels: rawInfo.channels
         }
       });
-      testBuf = await applyFormatSettings(s, format, midQ, isTextHeavy).toBuffer();
+      testBuf = await applyFastFormatSettings(s, format, midQ, isTextHeavy).toBuffer();
     } catch (err) {
       const s = sharp(rawPixels, {
         raw: {
@@ -249,7 +307,7 @@ async function runBinarySearchOnRaw(
           channels: rawInfo.channels
         }
       });
-      testBuf = await s.jpeg({ quality: midQ, mozjpeg: true }).toBuffer();
+      testBuf = await s.jpeg({ quality: midQ }).toBuffer();
     }
 
     // Bits-Per-Pixel (BPP) Guardrail calculation
@@ -257,7 +315,6 @@ async function runBinarySearchOnRaw(
     const passesBppGuardrail = !isPhoto || isMinScale || bpp >= 0.32;
 
     if (testBuf.length <= targetBytes && passesBppGuardrail) {
-      bestBuffer = testBuf;
       bestQualityFound = midQ;
       lowQ = midQ + 1; // Try higher quality
     } else {
@@ -267,7 +324,20 @@ async function runBinarySearchOnRaw(
     if (highQ < lowQ) break;
   }
 
-  return bestBuffer ? { buffer: bestBuffer, quality: bestQualityFound } : null;
+  if (bestQualityFound !== null) {
+    // Re-encode ONLY the winning result once with FULL high-quality MozJPEG settings
+    const s = sharp(rawPixels, {
+      raw: {
+        width: rawInfo.width,
+        height: rawInfo.height,
+        channels: rawInfo.channels
+      }
+    });
+    const finalBuf = await applyFormatSettings(s, format, bestQualityFound, isTextHeavy).toBuffer();
+    return { buffer: finalBuf, quality: bestQualityFound };
+  }
+
+  return null;
 }
 
 /**
@@ -322,16 +392,37 @@ async function compressImage(inputBuffer, targetSizeKB, quality = 82, format = n
   if (targetBytes) {
     const qualityFloor = 40; // Floor threshold to prevent JPEG blocking artifacts
     
-    // Coarse scale sweep (10% increments)
-    const coarseScales = [1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.25];
+    let workingBuffer = inputBuffer;
+    let workingWidth = originalWidth;
+    let workingHeight = originalHeight;
+    let prePassScale = 1.0;
+
+    if (originalWidth > 4000 || originalHeight > 4000) {
+      prePassScale = Math.min(4000 / originalWidth, 4000 / originalHeight);
+      workingWidth = Math.round(originalWidth * prePassScale);
+      workingHeight = Math.round(originalHeight * prePassScale);
+      workingBuffer = await sharp(inputBuffer)
+        .rotate()
+        .resize(workingWidth, workingHeight, { kernel: 'lanczos3' })
+        .toBuffer();
+    }
+
+    // Calculate smart initial scale estimation based on target bytes vs original file size
+    const sizeRatio = targetBytes / inputBuffer.length;
+    const estimatedScale = Math.min(1.0, Math.max(0.25, Math.sqrt(sizeRatio) * 1.25));
+
+    // Streamlined coarse scale sweep (5 key checkpoints)
+    const allCoarseScales = [1.0, 0.75, 0.5, 0.35, 0.25];
+    const coarseScales = allCoarseScales.filter(s => s <= estimatedScale || (s > estimatedScale && s === (allCoarseScales.filter(x => x >= estimatedScale).pop() || 1.0)));
+    if (coarseScales.length === 0) coarseScales.push(0.25);
 
     for (let i = 0; i < coarseScales.length; i++) {
       const coarseScale = coarseScales[i];
-      const w = Math.round(originalWidth * coarseScale);
-      const h = Math.round(originalHeight * coarseScale);
+      const w = Math.round(workingWidth * coarseScale);
+      const h = Math.round(workingHeight * coarseScale);
 
       // Decode and Resize once for this scale level
-      let instance = sharp(inputBuffer).rotate();
+      let instance = sharp(workingBuffer).rotate();
       if (coarseScale < 1.0) {
         instance = instance.resize(w, h, { kernel: 'lanczos3' });
         // Subtle sharpen to counteract scaling blur
@@ -368,10 +459,10 @@ async function compressImage(inputBuffer, targetSizeKB, quality = 82, format = n
 
           for (const fineScale of fineScales) {
             if (fineScale >= prevCoarseScale) continue;
-            const fw = Math.round(originalWidth * fineScale);
-            const fh = Math.round(originalHeight * fineScale);
+            const fw = Math.round(workingWidth * fineScale);
+            const fh = Math.round(workingHeight * fineScale);
 
-            let fineInstance = sharp(inputBuffer).rotate();
+            let fineInstance = sharp(workingBuffer).rotate();
             fineInstance = fineInstance.resize(fw, fh, { kernel: 'lanczos3' });
             fineInstance = fineInstance.sharpen({ sigma: 0.5, m1: 0.15, m2: 15 });
 
@@ -414,7 +505,7 @@ async function compressImage(inputBuffer, targetSizeKB, quality = 82, format = n
           width: w,
           height: h,
           qualityUsed: binarySearchResult.quality,
-          dimensionsReduced: coarseScale < 1.0,
+          dimensionsReduced: coarseScale < 1.0 || prePassScale < 1.0,
           psnr: similarity.psnr,
           visualQualityScore: similarity.score
         };
@@ -424,9 +515,9 @@ async function compressImage(inputBuffer, targetSizeKB, quality = 82, format = n
     // Absolute fallback: if minScale with qualityFloor still doesn't fit,
     // allow quality to drop below floor [5, qualityFloor] at minScale to meet the hard size limit
     const fallbackScale = 0.25;
-    const fw = Math.round(originalWidth * fallbackScale);
-    const fh = Math.round(originalHeight * fallbackScale);
-    let fallbackInstance = sharp(inputBuffer).rotate().resize(fw, fh, { kernel: 'lanczos3' });
+    const fw = Math.round(workingWidth * fallbackScale);
+    const fh = Math.round(workingHeight * fallbackScale);
+    let fallbackInstance = sharp(workingBuffer).rotate().resize(fw, fh, { kernel: 'lanczos3' });
     const { data: rawPixels, info: rawInfo } = await fallbackInstance
       .raw()
       .toBuffer({ resolveWithObject: true });

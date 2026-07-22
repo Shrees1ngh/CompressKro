@@ -46,6 +46,78 @@ export async function getPdfMetadata(file: File): Promise<any> {
   }
 }
 
+function lookupDictEntry(dict: any, key: any, context: any) {
+  if (!dict || !key || !context) return null;
+  const directOrRef = dict.get(key);
+  if (!directOrRef) return null;
+  return context.lookup(directOrRef);
+}
+
+function isImageSubtype(subtype: any): boolean {
+  if (!subtype) return false;
+  if (subtype === PDFName.of('Image')) return true;
+  const str = subtype.toString();
+  return str === '/Image' || str === 'Image';
+}
+
+function traverseResources(
+  resources: any,
+  context: any,
+  seenRefs: Set<any>,
+  results: { images: Map<string, any>; fonts: Set<string>; forms: Set<string> }
+) {
+  if (!resources) return results;
+  const resolvedRes = context.lookup(resources);
+  if (!(resolvedRes instanceof PDFDict)) return results;
+
+  // XObjects
+  const xObjectDict = resolvedRes.get(PDFName.of('XObject'));
+  if (xObjectDict) {
+    const resolvedXObjects = context.lookup(xObjectDict);
+    if (resolvedXObjects instanceof PDFDict) {
+      resolvedXObjects.entries().forEach(([, refOrObj]: [any, any]) => {
+        const refStr = refOrObj.toString();
+        const xObj = context.lookup(refOrObj);
+        if (xObj && xObj.dict) {
+          const subtype = context.lookup(xObj.dict.get(PDFName.of('Subtype')));
+          if (isImageSubtype(subtype)) {
+            results.images.set(refStr, xObj);
+          } else if (subtype === PDFName.of('Form')) {
+            if (seenRefs.has(refOrObj)) return;
+            seenRefs.add(refOrObj);
+            results.forms.add(refStr);
+            const nestedResources = xObj.dict.get(PDFName.of('Resources'));
+            if (nestedResources) {
+              traverseResources(nestedResources, context, seenRefs, results);
+            }
+          }
+        }
+      });
+    }
+  }
+
+  // Fonts
+  const fontDict = resolvedRes.get(PDFName.of('Font'));
+  if (fontDict) {
+    const resolvedFonts = context.lookup(fontDict);
+    if (resolvedFonts instanceof PDFDict) {
+      resolvedFonts.entries().forEach(([name, refOrObj]: [any, any]) => {
+        const fontObj = context.lookup(refOrObj);
+        if (fontObj instanceof PDFDict) {
+          const baseFont = context.lookup(fontObj.get(PDFName.of('BaseFont')));
+          if (baseFont) {
+            results.fonts.add(baseFont.toString().replace(/^\//, ''));
+          } else {
+            results.fonts.add(name.toString().replace(/^\//, ''));
+          }
+        }
+      });
+    }
+  }
+
+  return results;
+}
+
 /**
  * Analyzes a PDF file to return page count, size, and whether it contains image objects
  */
@@ -53,13 +125,27 @@ export async function analyzePdf(file: File): Promise<PDFAnalysis> {
   const arrayBuffer = await file.arrayBuffer();
   const pdfDoc = await PDFDocument.load(arrayBuffer, { updateMetadata: false });
   
-  let hasImages = false;
+  const traversal = {
+    images: new Map<string, any>(),
+    fonts: new Set<string>(),
+    forms: new Set<string>()
+  };
+  const seenRefs = new Set<any>();
+
+  const pages = pdfDoc.getPages();
+  for (const page of pages) {
+    const resources = page.node.get(PDFName.of('Resources'));
+    if (resources) {
+      traverseResources(resources, pdfDoc.context, seenRefs, traversal);
+    }
+  }
+
   try {
     pdfDoc.context.enumerateIndirectObjects().forEach(([_, obj]) => {
-      if (obj instanceof PDFDict) {
-        const subtype = obj.get(PDFName.of('Subtype'));
-        if (subtype === PDFName.of('Image')) {
-          hasImages = true;
+      if (obj && (obj as any).dict) {
+        const subtype = lookupDictEntry((obj as any).dict, PDFName.of('Subtype'), pdfDoc.context);
+        if (isImageSubtype(subtype)) {
+          traversal.images.set(obj.toString(), obj);
         }
       }
     });
@@ -68,10 +154,10 @@ export async function analyzePdf(file: File): Promise<PDFAnalysis> {
   }
 
   return {
-    pageCount: pdfDoc.getPageCount(),
+    pageCount: pages.length,
     fileSize: file.size,
     name: file.name,
-    hasImages
+    hasImages: traversal.images.size > 0
   };
 }
 

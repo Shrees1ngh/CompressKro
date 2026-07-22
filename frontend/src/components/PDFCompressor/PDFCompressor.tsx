@@ -193,7 +193,7 @@ export default function PDFCompressor() {
             Drag & Drop PDF here
           </h3>
           <p className="text-xs text-slate-450 dark:text-slate-500 mt-1.5 max-w-[280px] leading-relaxed">
-            or click to browse your files. Supports files up to 100 MB.
+            or click to browse your files. Supports files up to 20 MB.
           </p>
         </div>
       ) : (

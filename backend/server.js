@@ -14,7 +14,7 @@ const sharp = require('sharp');
 
 // Tune sharp global cache & concurrency to leverage libvips native performance
 sharp.cache({ memory: 50, files: 20, items: 100 });
-sharp.concurrency(0);
+sharp.concurrency(1);
 
 const app = express();
 
