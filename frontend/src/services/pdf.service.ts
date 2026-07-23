@@ -3,7 +3,7 @@
 // Coordinates backend API requests and client-side fallback operations.
 // ============================================================
 
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, PDFName, PDFDict, PDFRef, PDFArray, PDFRawStream } from 'pdf-lib';
 import { BACKEND_API_URL } from '../constants';
 import type { PDFCompressedResult, PDFCompressionLevel } from '../types';
 import { analyzePdf } from '../utils/pdf';
@@ -13,6 +13,106 @@ let activeAbortController: AbortController | null = null;
 interface PDFCompressionOptions {
   level: PDFCompressionLevel;
   targetSizeKB?: number;
+}
+
+/**
+ * Mark-and-sweep garbage collection: walks every reachable object
+ * starting from the document catalog and deletes anything left in the
+ * context that isn't reachable. pdf-lib's own save() does NOT do this —
+ * it happily writes out orphaned objects it finds via
+ * enumerateIndirectObjects(), even if nothing points to them anymore.
+ * This matters most for text-only PDFs which have no images for any
+ * image pipeline to touch — their whole compressibility depends on
+ * structural cleanup like this. Real-world exported PDFs (Word, Google
+ * Docs, LaTeX toolchains, Canva, etc.) frequently carry leftover
+ * objects from edit/revision history that a mark-and-sweep removes for
+ * free, with zero risk of visual changes since only genuinely
+ * unreachable objects are ever removed.
+ */
+function garbageCollectPdf(pdfDoc: PDFDocument): number {
+  const context = pdfDoc.context;
+  const trailerRoot = context.trailerInfo && context.trailerInfo.Root;
+  if (!trailerRoot) return 0;
+
+  const reachable = new Set<string>();
+
+  function visit(val: any): void {
+    if (val == null) return;
+    if (val instanceof PDFRef) {
+      const key = val.toString();
+      if (reachable.has(key)) return;
+      reachable.add(key);
+      visit(context.lookup(val));
+      return;
+    }
+    if (val instanceof PDFRawStream) {
+      visit(val.dict);
+      return;
+    }
+    if (val instanceof PDFDict) {
+      for (const [, v] of val.entries()) visit(v);
+      return;
+    }
+    if (val instanceof PDFArray) {
+      for (let i = 0; i < val.size(); i++) visit(val.get(i));
+      return;
+    }
+  }
+
+  visit(trailerRoot);
+  if (context.trailerInfo.Info) visit(context.trailerInfo.Info);
+
+  let removed = 0;
+  context.enumerateIndirectObjects().forEach(([ref]: [PDFRef, any]) => {
+    if (!reachable.has(ref.toString())) {
+      context.delete(ref);
+      removed++;
+    }
+  });
+
+  return removed;
+}
+
+/**
+ * Strips structural metadata, accessibility tag trees, and application-
+ * private dictionaries document-wide. This mirrors the backend's
+ * prepareDocForCompression metadata sweep.
+ */
+function stripMetadataAndClean(pdfDoc: PDFDocument): void {
+  const context = pdfDoc.context;
+  const catalog = pdfDoc.catalog;
+
+  // Trailer Info dictionary (Author, Creator, Producer, etc.)
+  if (context.trailerInfo) {
+    delete context.trailerInfo.Info;
+  }
+
+  // Catalog-level bloat
+  if (catalog instanceof PDFDict) {
+    catalog.delete(PDFName.of('Metadata'));
+    catalog.delete(PDFName.of('StructTreeRoot'));
+    catalog.delete(PDFName.of('MarkInfo'));
+    catalog.delete(PDFName.of('PieceInfo'));
+    catalog.delete(PDFName.of('OutputIntents'));
+
+    const names = catalog.get(PDFName.of('Names'));
+    if (names) {
+      const resolvedNames = context.lookup(names);
+      if (resolvedNames instanceof PDFDict) {
+        resolvedNames.delete(PDFName.of('EmbeddedFiles'));
+      }
+    }
+  }
+
+  // Document-wide sweep of all indirect objects
+  context.enumerateIndirectObjects().forEach(([, obj]: [PDFRef, any]) => {
+    if (obj instanceof PDFDict) {
+      obj.delete(PDFName.of('Metadata'));
+      obj.delete(PDFName.of('PieceInfo'));
+      obj.delete(PDFName.of('StructParents'));
+      obj.delete(PDFName.of('StructParent'));
+    }
+  });
 }
 
 /**
@@ -116,12 +216,24 @@ export async function compressPdf(
       console.warn('Backend PDF compression failed, falling back to local client.');
     }
 
-    // Client-side Browser Fallback (pdf-lib object stream optimization)
+    // Client-side Browser Fallback (structural cleanup + garbage collection + object stream optimization)
     clearInterval(progressInterval);
-    if (progressCallback) progressCallback(50);
+    if (progressCallback) progressCallback(30);
 
     const arrayBuffer = await file.arrayBuffer();
     const pdfDoc = await PDFDocument.load(arrayBuffer, { updateMetadata: false });
+
+    if (progressCallback) progressCallback(50);
+
+    // Strip structural metadata, accessibility tags, and application-private dictionaries
+    stripMetadataAndClean(pdfDoc);
+
+    if (progressCallback) progressCallback(70);
+
+    // Mark-and-sweep garbage collection to remove all unreachable objects
+    garbageCollectPdf(pdfDoc);
+
+    if (progressCallback) progressCallback(85);
     
     const compressedBytes = await pdfDoc.save({
       useObjectStreams: true,
