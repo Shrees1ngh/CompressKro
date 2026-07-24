@@ -158,14 +158,14 @@ async function analyzeImageMetadata(buffer) {
 async function calculatePerceptualSimilarity(originalBuffer, compressedBuffer) {
   try {
     const compMeta = await sharp(compressedBuffer).metadata();
-    const compWidth = compMeta.width || 800;
-    const compHeight = compMeta.height || 800;
+    const compWidth = compMeta.width || 256;
+    const compHeight = compMeta.height || 256;
 
     let targetW = compWidth;
     let targetH = compHeight;
     const maxSide = Math.max(compWidth, compHeight);
-    if (maxSide > 800) {
-      const ratio = 800 / maxSide;
+    if (maxSide > 256) {
+      const ratio = 256 / maxSide;
       targetW = Math.round(compWidth * ratio);
       targetH = Math.round(compHeight * ratio);
     }
@@ -218,7 +218,7 @@ async function calculatePerceptualSimilarity(originalBuffer, compressedBuffer) {
     };
   } catch (err) {
     console.error('Error calculating perceptual similarity:', err);
-    return { psnr: 0, score: 90 }; // Standard high-quality placeholder fallback
+    return { psnr: 0, score: 90 };
   }
 }
 

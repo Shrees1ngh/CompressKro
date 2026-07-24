@@ -1,0 +1,17 @@
+# ============================================================
+# CompressKro — Render Blueprint Configuration
+# Backend Docker Web Service
+# ============================================================
+services:
+  - type: web
+    name: compresskro-backend
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CORS_ORIGIN
+        sync: false

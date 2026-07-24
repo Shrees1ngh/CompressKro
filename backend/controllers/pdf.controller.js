@@ -13,8 +13,9 @@ async function handleCompressPdf(req, res, next) {
 
     const level = req.body.level || 'balanced';
     const targetSizeKB = req.body.targetSizeKB ? parseInt(req.body.targetSizeKB) : null;
+    const doOcr = req.body.ocr === 'true' || req.body.ocr === true || req.query.ocr === 'true';
 
-    const result = await compressPdf(req.file.buffer, level, targetSizeKB);
+    const result = await compressPdf(req.file.buffer, level, targetSizeKB, { doOcr });
 
     res.set({
       'Content-Type': 'application/pdf',
