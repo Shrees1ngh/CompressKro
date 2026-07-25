@@ -68,13 +68,107 @@ function findCommand(cmdNames) {
   return null;
 }
 
+function findTesseract() {
+  const standard = findCommand(isWindows ? ['tesseract.exe', 'tesseract'] : ['tesseract']);
+  if (standard) return standard;
+
+  if (isWindows) {
+    const programFiles = process.env['ProgramFiles'] || 'C:\\Program Files';
+    const programFilesX86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
+    
+    for (const pf of [programFiles, programFilesX86]) {
+      if (fs.existsSync(pf)) {
+        try {
+          const subdirs = fs.readdirSync(pf);
+          for (const sub of subdirs) {
+            if (sub.toLowerCase().startsWith('tesseract')) {
+              const tPath = path.join(pf, sub, 'tesseract.exe');
+              if (fs.existsSync(tPath)) return tPath;
+            }
+          }
+        } catch {}
+      }
+      const tPath = path.join(pf, 'Tesseract-OCR', 'tesseract.exe');
+      if (fs.existsSync(tPath)) return tPath;
+    }
+  }
+  return null;
+}
+
+function findQpdf() {
+  const standard = findCommand(isWindows ? ['qpdf.exe', 'qpdf'] : ['qpdf']);
+  if (standard) return standard;
+
+  if (isWindows) {
+    const programFiles = process.env['ProgramFiles'] || 'C:\\Program Files';
+    const programFilesX86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
+    
+    for (const pf of [programFiles, programFilesX86]) {
+      if (fs.existsSync(pf)) {
+        try {
+          const subdirs = fs.readdirSync(pf);
+          for (const sub of subdirs) {
+            if (sub.toLowerCase().startsWith('qpdf')) {
+              const qPath = path.join(pf, sub, 'bin', 'qpdf.exe');
+              if (fs.existsSync(qPath)) return qPath;
+            }
+          }
+        } catch {}
+      }
+      const qPath = path.join(pf, 'qpdf', 'bin', 'qpdf.exe');
+      const qPathCaps = path.join(pf, 'QPDF', 'bin', 'qpdf.exe');
+      if (fs.existsSync(qPath)) return qPath;
+      if (fs.existsSync(qPathCaps)) return qPathCaps;
+    }
+  }
+  return null;
+}
+
+function findOcrmypdf() {
+  const standard = findCommand(isWindows ? ['ocrmypdf.exe', 'ocrmypdf'] : ['ocrmypdf']);
+  if (standard) return standard;
+
+  if (isWindows) {
+    const homedir = os.homedir();
+    const localAppData = process.env.LOCALAPPDATA || path.join(homedir, 'AppData', 'Local');
+    const roamingAppData = process.env.APPDATA || path.join(homedir, 'AppData', 'Roaming');
+
+    const searchDirs = [
+      path.join(localAppData, 'Programs', 'Python'),
+      path.join(roamingAppData, 'Python')
+    ];
+
+    for (const baseDir of searchDirs) {
+      if (fs.existsSync(baseDir)) {
+        try {
+          const versions = fs.readdirSync(baseDir);
+          for (const ver of versions) {
+            const scriptPath1 = path.join(baseDir, ver, 'Scripts', 'ocrmypdf.exe');
+            if (fs.existsSync(scriptPath1)) return scriptPath1;
+            
+            const nestedDir = path.join(baseDir, ver);
+            if (fs.statSync(nestedDir).isDirectory()) {
+              const subdirs = fs.readdirSync(nestedDir);
+              for (const sub of subdirs) {
+                const scriptPath2 = path.join(nestedDir, sub, 'Scripts', 'ocrmypdf.exe');
+                if (fs.existsSync(scriptPath2)) return scriptPath2;
+              }
+            }
+          }
+        } catch {}
+      }
+    }
+  }
+  return null;
+}
+
 function detectBinaries(forceRefresh = false) {
   if (cachedBinaries && !forceRefresh) return cachedBinaries;
 
   const gs = findGhostscript();
-  const qpdf = findCommand(isWindows ? ['qpdf.exe', 'qpdf'] : ['qpdf']);
-  const ocrmypdf = findCommand(isWindows ? ['ocrmypdf.exe', 'ocrmypdf'] : ['ocrmypdf']);
-  const tesseract = findCommand(isWindows ? ['tesseract.exe', 'tesseract'] : ['tesseract']);
+  const qpdf = findQpdf();
+  const ocrmypdf = findOcrmypdf();
+  const tesseract = findTesseract();
   const mutool = findCommand(isWindows ? ['mutool.exe', 'mutool'] : ['mutool']);
 
   cachedBinaries = {

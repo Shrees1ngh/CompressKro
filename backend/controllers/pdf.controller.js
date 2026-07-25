@@ -4,6 +4,9 @@ const os = require('os');
 const crypto = require('crypto');
 const { compressPdf } = require('../services/pdf.service');
 const { lockPdfWithGs, unlockPdfWithGs, cleanPdfWithGs } = require('../services/ghostscript.service');
+const { convertPdfToWord, convertPdfToExcel } = require('../services/convert.service');
+const { isOcrAvailable, processOcr } = require('../services/ocr.service');
+const { repairPdf, repairPdfBuffer } = require('../services/repair.service');
 
 async function handleCompressPdf(req, res, next) {
   try {
@@ -141,9 +144,129 @@ async function handleCleanPdf(req, res, next) {
   }
 }
 
+async function handlePdfToWord(req, res, next) {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No PDF file provided' });
+
+    const docxBuffer = await convertPdfToWord(req.file.buffer);
+    const outName = req.file.originalname.replace(/\.pdf$/i, '') + '.docx';
+
+    res.set({
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'Content-Disposition': `attachment; filename="${outName}"`,
+      'Content-Length': docxBuffer.length
+    });
+    res.send(docxBuffer);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function handlePdfToExcel(req, res, next) {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No PDF file provided' });
+
+    const xlsxBuffer = await convertPdfToExcel(req.file.buffer);
+    const outName = req.file.originalname.replace(/\.pdf$/i, '') + '.xlsx';
+
+    res.set({
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="${outName}"`,
+      'Content-Length': xlsxBuffer.length
+    });
+    res.send(Buffer.from(xlsxBuffer));
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function handleOcrPdf(req, res, next) {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No PDF file provided' });
+
+    if (!isOcrAvailable()) {
+      return res.status(503).json({ error: 'OCR engine (ocrmypdf/tesseract) is not installed on this server' });
+    }
+
+    const tempDir = os.tmpdir();
+    const id = crypto.randomBytes(8).toString('hex');
+    const inputPath = path.join(tempDir, `in_${id}.pdf`);
+    const outputPath = path.join(tempDir, `ocr_${id}.pdf`);
+
+    fs.writeFileSync(inputPath, req.file.buffer);
+
+    const success = processOcr(inputPath, outputPath);
+
+    try { if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath); } catch {}
+
+    if (!success || !fs.existsSync(outputPath)) {
+      return res.status(500).json({ error: 'OCR processing failed' });
+    }
+
+    const outputBuffer = fs.readFileSync(outputPath);
+    try { if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath); } catch {}
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="ocr_${req.file.originalname}"`,
+      'Content-Length': outputBuffer.length
+    });
+    res.send(outputBuffer);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function handleRepairPdf(req, res, next) {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No PDF file provided' });
+
+    const tempDir = os.tmpdir();
+    const id = crypto.randomBytes(8).toString('hex');
+    const inputPath = path.join(tempDir, `in_repair_${id}.pdf`);
+    const outputPath = path.join(tempDir, `repaired_${id}.pdf`);
+
+    fs.writeFileSync(inputPath, req.file.buffer);
+
+    let success = repairPdf(inputPath, outputPath);
+    let outputBuffer = null;
+
+    try {
+      if (success && fs.existsSync(outputPath) && fs.statSync(outputPath).size > 0) {
+        outputBuffer = fs.readFileSync(outputPath);
+      } else {
+        // Fall back to JS buffer repair
+        outputBuffer = await repairPdfBuffer(req.file.buffer);
+      }
+    } catch (err) {
+      console.warn('[Repair Controller] Repair failed for file:', err.message);
+    }
+
+    try { if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath); } catch {}
+    try { if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath); } catch {}
+
+    if (!outputBuffer || outputBuffer.length === 0) {
+      return res.status(400).json({ error: 'Could not repair PDF document. The file may be severely corrupted or missing a valid PDF header.' });
+    }
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="repaired_${req.file.originalname}"`,
+      'Content-Length': outputBuffer.length
+    });
+    res.send(outputBuffer);
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   handleCompressPdf,
   handleLockPdf,
   handleUnlockPdf,
-  handleCleanPdf
+  handleCleanPdf,
+  handlePdfToWord,
+  handlePdfToExcel,
+  handleOcrPdf,
+  handleRepairPdf
 };

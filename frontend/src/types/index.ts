@@ -133,6 +133,15 @@ export interface PDFFileItem {
 export interface PDFPageItem {
   originalIndex: number;
   rotation: number;
+  previewUrl?: string;
+}
+
+export interface PdfJpgResult {
+  pageNum: number;
+  dataUrl: string;
+  blob: Blob;
+  size: number;
+  filename: string;
 }
 
 export interface PDFAnalysis {

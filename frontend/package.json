@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/prerender.cjs",
     "lint": "oxlint",
     "preview": "vite preview"
   },
@@ -16,6 +16,8 @@
     "pdf-lib": "^1.17.1",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
+    "react-helmet-async": "^3.0.0",
+    "react-router-dom": "^7.18.1",
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {

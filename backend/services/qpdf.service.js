@@ -5,7 +5,7 @@
 // ============================================================
 
 const fs = require('fs');
-const { execSync } = require('child_process');
+const { execFileSync } = require('child_process');
 const { detectBinaries } = require('../utils/binaries');
 
 /**
@@ -23,10 +23,8 @@ function processQpdf(inputPath, outputPath) {
   const binaries = detectBinaries();
   if (!binaries.hasQpdf) return false;
 
-  const qpdfCmd = `${binaries.qpdf} --linearize --object-streams=generate "${inputPath}" "${outputPath}"`;
-
   try {
-    execSync(qpdfCmd, { stdio: 'ignore', timeout: 45000 });
+    execFileSync(binaries.qpdf, ['--linearize', '--object-streams=generate', inputPath, outputPath], { stdio: 'ignore', timeout: 45000 });
     return fs.existsSync(outputPath) && fs.statSync(outputPath).size > 0;
   } catch (err) {
     return false;

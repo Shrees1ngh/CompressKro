@@ -1,0 +1,390 @@
+// ============================================================
+// CompressKro — Add Watermark PDF Page Component
+// ============================================================
+
+import { useState, useRef } from 'react';
+import { PDFDocument, rgb, StandardFonts, degrees } from 'pdf-lib';
+import confetti from 'canvas-confetti';
+import { 
+  Upload, 
+  FileText, 
+  RefreshCw,
+  Droplets
+} from 'lucide-react';
+import { useToast } from '../../hooks/useToast';
+import { StorageService } from '../../services/storage.service';
+import { HistoryService } from '../../services/history.service';
+import { getFriendlySize } from '../../utils/format';
+import { ToolPageLayout } from '../../components/ToolPageLayout';
+import type { StepItem, BenefitItem, FAQItem, RelatedToolItem } from '../../components/ToolPageLayout';
+import { CompiledOutputView } from '../../components/CompiledOutputView';
+import type { PDFFileItem } from '../../types';
+
+export function AddWatermark() {
+  const [wmFile, setWmFile] = useState<PDFFileItem | null>(null);
+  const [wmType, setWmType] = useState<'text' | 'image'>('text');
+  const [wmText, setWmText] = useState<string>('CONFIDENTIAL');
+  const [wmFontSize, setWmFontSize] = useState<number>(48);
+  const [wmOpacity, setWmOpacity] = useState<number>(0.3);
+  const [wmRotation, setWmRotation] = useState<number>(45);
+  const [wmColor, setWmColor] = useState<'gray' | 'red' | 'blue' | 'black'>('gray');
+  const [wmPosition, setWmPosition] = useState<'center' | 'top' | 'bottom'>('center');
+  const [wmImageFile, setWmImageFile] = useState<File | null>(null);
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [progressMsg, setProgressMsg] = useState<string>('');
+
+  const [outputUrl, setOutputUrl] = useState<string>('');
+  const [outputSize, setOutputSize] = useState<number>(0);
+  const [outputName, setOutputName] = useState<string>('');
+
+  const wmInputRef = useRef<HTMLInputElement>(null);
+  const wmImageInputRef = useRef<HTMLInputElement>(null);
+  const { showSuccess, showError } = useToast();
+
+  const clearOutputs = () => {
+    setOutputUrl('');
+    setOutputSize(0);
+    setOutputName('');
+  };
+
+  const executeAddWatermark = async () => {
+    if (!wmFile) return;
+    setIsProcessing(true);
+    setProgressMsg('Applying watermark to all pages...');
+
+    try {
+      const arrayBuf = await wmFile.blob.arrayBuffer();
+      const pdfDoc = await PDFDocument.load(arrayBuf);
+      const pages = pdfDoc.getPages();
+
+      if (wmType === 'text') {
+        const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+        let rgbColor = rgb(0.5, 0.5, 0.5);
+        if (wmColor === 'red') rgbColor = rgb(0.9, 0.2, 0.2);
+        if (wmColor === 'blue') rgbColor = rgb(0.2, 0.4, 0.9);
+        if (wmColor === 'black') rgbColor = rgb(0.1, 0.1, 0.1);
+
+        const textStr = wmText || 'CONFIDENTIAL';
+        const fontSize = wmFontSize;
+        const textWidth = font.widthOfTextAtSize(textStr, fontSize);
+        const textHeight = fontSize * 0.75;
+
+        const rad = (wmRotation * Math.PI) / 180;
+        const cos = Math.cos(rad);
+        const sin = Math.sin(rad);
+
+        const cx = textWidth / 2;
+        const cy = textHeight / 2;
+
+        const rx = cx * cos - cy * sin;
+        const ry = cx * sin + cy * cos;
+
+        pages.forEach(page => {
+          const { width, height } = page.getSize();
+          let targetX = width / 2;
+          let targetY = height / 2;
+          if (wmPosition === 'top') targetY = height * 0.85;
+          if (wmPosition === 'bottom') targetY = height * 0.15;
+
+          const drawX = targetX - rx;
+          const drawY = targetY - ry;
+
+          page.drawText(textStr, {
+            x: drawX,
+            y: drawY,
+            size: fontSize,
+            font,
+            color: rgbColor,
+            opacity: wmOpacity,
+            rotate: degrees(wmRotation),
+          });
+        });
+      } else if (wmType === 'image' && wmImageFile) {
+        const imgBuf = await wmImageFile.arrayBuffer();
+        const embeddedImg = wmImageFile.name.toLowerCase().endsWith('.png')
+          ? await pdfDoc.embedPng(imgBuf)
+          : await pdfDoc.embedJpg(imgBuf);
+
+        pages.forEach(page => {
+          const { width, height } = page.getSize();
+          const imgScale = embeddedImg.scale(0.3);
+          let targetY = height / 2;
+          if (wmPosition === 'top') targetY = height * 0.85;
+          if (wmPosition === 'bottom') targetY = height * 0.15;
+
+          page.drawImage(embeddedImg, {
+            x: (width - imgScale.width) / 2,
+            y: targetY - (imgScale.height / 2),
+            width: imgScale.width,
+            height: imgScale.height,
+            opacity: wmOpacity,
+          });
+        });
+      }
+
+      const bytes = await pdfDoc.save();
+      const blob = new Blob([bytes as any], { type: 'application/pdf' });
+
+      setOutputUrl(URL.createObjectURL(blob));
+      setOutputSize(blob.size);
+      setOutputName(`watermarked_${wmFile.name}`);
+
+      StorageService.updateStats(1, 0);
+      HistoryService.addPdfEntry('Add Watermark', `watermarked_${wmFile.name}`, blob.size);
+
+      showSuccess('PDF ready!', `watermarked_${wmFile.name} · ${getFriendlySize(blob.size)}`);
+      confetti({ particleCount: 65, spread: 50, origin: { y: 0.85 } });
+    } catch (err) {
+      console.error(err);
+      showError('Watermark failed', 'Error adding watermark to PDF.');
+    } finally {
+      setIsProcessing(false);
+      setProgressMsg('');
+    }
+  };
+
+  const steps: StepItem[] = [
+    { step: 1, text: 'Click "Select PDF Document" and upload your target document.' },
+    { step: 2, text: 'Choose either Text or Image stamp watermark type, and configure styles (size, position, rotation, opacity).' },
+    { step: 3, text: 'Click "Apply Watermark" to overlay it onto all pages and download.' }
+  ];
+
+  const benefits: BenefitItem[] = [
+    { title: 'Text or Image Logo', desc: 'Allows stamping custom watermark strings or embedding PNG/JPG brand logos.' },
+    { title: 'Complete Style Control', desc: 'Adjust rotation angles, transparency opacity, and relative layout positioning.' },
+    { title: 'Privacy Guarantee', desc: 'Processing runs locally using pdf-lib, ensuring your document stays strictly confidential.' }
+  ];
+
+  const faqs: FAQItem[] = [
+    { question: 'What options can I customize for text watermarks?', answer: 'You can change the text string, font size, opacity (transparency), rotation angle, color, and vertical layout position (header, footer, center).' },
+    { question: 'Can I add transparent PNG logos?', answer: 'Yes. PNG alpha channel transparency is fully preserved when embedding image watermarks onto PDF pages.' },
+    { question: 'Will the watermark cover the text contents?', answer: 'Watermarks are placed over the existing page content. By setting opacity to a low value (like 0.2 or 0.3), the underlying text remains fully readable.' },
+    { question: 'Does this apply to all pages?', answer: 'Yes. The tool automatically loops over all pages in the PDF document and applies the watermark at the exact same relative coordinates on each page.' }
+  ];
+
+  const relatedTools: RelatedToolItem[] = [
+    { name: 'Remove Watermark', desc: 'Strip annotations and masks.', path: '/remove-watermark', icon: FileText },
+    { name: 'Page Numbers', desc: 'Add page indices.', path: '/page-numbers', icon: FileText },
+    { name: 'Lock PDF', desc: 'Encrypt with password.', path: '/lock-pdf', icon: FileText }
+  ];
+
+  return (
+    <ToolPageLayout
+      title="Add Watermark to PDF Online"
+      subtitle="Overlay custom text or brand image logos onto all pages of your PDF."
+      breadcrumbName="Add Watermark"
+      seoTitle="Add Watermark to PDF Free - Text/Image Logo Stamp | CompressKro"
+      seoDescription="Add watermarks to PDF files online for free. Custom text strings, brand logo images, adjustable rotation, and opacity options. Privacy-first browser process."
+      canonicalPath="/add-watermark"
+      steps={steps}
+      benefits={benefits}
+      faqs={faqs}
+      relatedTools={relatedTools}
+    >
+      <div className="space-y-6">
+        {outputUrl ? (
+          <CompiledOutputView
+            outputUrl={outputUrl}
+            outputSize={outputSize}
+            outputName={outputName}
+            onClear={() => {
+              clearOutputs();
+              setWmFile(null);
+              setWmImageFile(null);
+            }}
+          />
+        ) : (
+          <div className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/40 dark:bg-slate-900/40 glass-panel space-y-6 shadow-sm">
+            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+              <Droplets className="w-4 h-4 text-blue-500" />
+              <span>Add Watermark to PDF</span>
+            </h3>
+
+            <div className="space-y-4">
+              <input 
+                type="file" 
+                ref={wmInputRef} 
+                onChange={(e) => e.target.files?.[0] && setWmFile({ id: 'wm', name: e.target.files[0].name, size: e.target.files[0].size, blob: e.target.files[0] })} 
+                accept="application/pdf" 
+                className="hidden" 
+              />
+              <button
+                onClick={() => wmInputRef.current?.click()}
+                className="w-full py-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-500 bg-white/50 dark:bg-slate-950/20 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              >
+                <Upload className="w-4 h-4 text-blue-500" />
+                <span>{wmFile ? wmFile.name : 'Select PDF Document'}</span>
+              </button>
+
+              {wmFile && (
+                <div className="space-y-4 border-t border-slate-200/50 dark:border-slate-800/50 pt-4">
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setWmType('text')}
+                      className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        wmType === 'text'
+                          ? 'bg-blue-600 text-white shadow-md shadow-blue-500/10'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                      }`}
+                    >
+                      Text Watermark
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setWmType('image')}
+                      className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        wmType === 'image'
+                          ? 'bg-blue-600 text-white shadow-md shadow-blue-500/10'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                      }`}
+                    >
+                      Image Logo Watermark
+                    </button>
+                  </div>
+
+                  {wmType === 'text' ? (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                          Watermark Text
+                        </label>
+                        <input
+                          type="text"
+                          value={wmText}
+                          onChange={(e) => setWmText(e.target.value)}
+                          placeholder="CONFIDENTIAL"
+                          className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Size ({wmFontSize}px)</label>
+                          <input
+                            type="range"
+                            min={16}
+                            max={96}
+                            value={wmFontSize}
+                            onChange={(e) => setWmFontSize(Number(e.target.value))}
+                            className="w-full accent-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Opacity ({Math.round(wmOpacity * 100)}%)</label>
+                          <input
+                            type="range"
+                            min={0.1}
+                            max={1.0}
+                            step={0.05}
+                            value={wmOpacity}
+                            onChange={(e) => setWmOpacity(Number(e.target.value))}
+                            className="w-full accent-blue-500"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Angle</label>
+                          <select
+                            value={wmRotation}
+                            onChange={(e) => setWmRotation(Number(e.target.value))}
+                            className="w-full px-2 py-1 text-xs rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-200"
+                          >
+                            <option value={0}>0° Horizontal</option>
+                            <option value={45}>45° Diagonal</option>
+                            <option value={90}>90° Vertical</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Color</label>
+                          <select
+                            value={wmColor}
+                            onChange={(e) => setWmColor(e.target.value as any)}
+                            className="w-full px-2 py-1 text-xs rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-200"
+                          >
+                            <option value="gray">Gray</option>
+                            <option value="red">Red</option>
+                            <option value="blue">Blue</option>
+                            <option value="black">Black</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Position</label>
+                          <select
+                            value={wmPosition}
+                            onChange={(e) => setWmPosition(e.target.value as any)}
+                            className="w-full px-2 py-1 text-xs rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-200"
+                          >
+                            <option value="center">Center</option>
+                            <option value="top">Top Header</option>
+                            <option value="bottom">Bottom Footer</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div>
+                        <input
+                          type="file"
+                          ref={wmImageInputRef}
+                          onChange={(e) => e.target.files?.[0] && setWmImageFile(e.target.files[0])}
+                          accept="image/png, image/jpeg"
+                          className="hidden"
+                        />
+                        <button
+                          onClick={() => wmImageInputRef.current?.click()}
+                          className="w-full py-2 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer"
+                        >
+                          {wmImageFile ? wmImageFile.name : 'Upload Logo (PNG/JPG)'}
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Opacity ({Math.round(wmOpacity * 100)}%)</label>
+                          <input
+                            type="range"
+                            min={0.1}
+                            max={1.0}
+                            step={0.05}
+                            value={wmOpacity}
+                            onChange={(e) => setWmOpacity(Number(e.target.value))}
+                            className="w-full accent-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Position</label>
+                          <select
+                            value={wmPosition}
+                            onChange={(e) => setWmPosition(e.target.value as any)}
+                            className="w-full px-2 py-1 text-xs rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-200"
+                          >
+                            <option value="center">Center</option>
+                            <option value="top">Top Header</option>
+                            <option value="bottom">Bottom Footer</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={executeAddWatermark}
+              disabled={!wmFile || (wmType === 'image' && !wmImageFile) || isProcessing}
+              className="w-full py-3 rounded-xl font-bold text-xs text-white bg-gradient-to-r from-blue-500 to-indigo-650 hover:opacity-90 disabled:opacity-40 transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+            >
+              {isProcessing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Droplets className="w-4 h-4" />}
+              <span>{isProcessing ? progressMsg : 'Apply Watermark'}</span>
+            </button>
+          </div>
+        )}
+      </div>
+    </ToolPageLayout>
+  );
+}

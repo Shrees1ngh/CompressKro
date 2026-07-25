@@ -5,7 +5,7 @@
 // ============================================================
 
 const fs = require('fs');
-const { execSync } = require('child_process');
+const { execFileSync } = require('child_process');
 const { detectBinaries } = require('../utils/binaries');
 
 /**
@@ -23,10 +23,8 @@ function processOcr(inputPath, outputPath) {
   const binaries = detectBinaries();
   if (!binaries.ocrmypdf) return false;
 
-  const ocrCmd = `${binaries.ocrmypdf} --skip-text --optimize 1 "${inputPath}" "${outputPath}"`;
-
   try {
-    execSync(ocrCmd, { stdio: 'ignore', timeout: 120000 });
+    execFileSync(binaries.ocrmypdf, ['--skip-text', '--optimize', '1', inputPath, outputPath], { stdio: 'ignore', timeout: 120000 });
     return fs.existsSync(outputPath) && fs.statSync(outputPath).size > 0;
   } catch (err) {
     return false;
