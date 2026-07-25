@@ -273,7 +273,12 @@ routes.forEach((route) => {
 
   // Compile prerender content shell inside #root for SEO indexation
   const seoContentHtml = `
-    <div class="prerender-shell p-6 max-w-4xl mx-auto space-y-8" style="font-family: sans-serif; color: #334155; line-height: 1.6;">
+    <noscript>
+      <style>
+        .prerender-shell { display: block !important; }
+      </style>
+    </noscript>
+    <div class="prerender-shell p-6 max-w-4xl mx-auto space-y-8" style="display: none; font-family: sans-serif; color: #334155; line-height: 1.6;">
       <header class="space-y-2">
         <h1 style="font-size: 2.25rem; font-weight: 800; color: #0f172a; margin-bottom: 0.5rem;">${route.heading}</h1>
         <p style="font-size: 1.125rem; color: #475569;">${route.sub}</p>
