@@ -3,7 +3,7 @@
 > **One Platform for All Your File Optimization Needs**
 > *Compress. Convert. Resize. Optimize. All in One Place.*
 
-CompressKro is a modern, privacy-first web application for compressing, resizing, converting, and optimizing files — all inside your browser. No uploads to unknown servers.
+CompressKro is a modern, privacy-first web application for compressing, resizing, converting, and optimizing files. Most image operations run locally inside your browser, while advanced PDF optimization is securely processed in-memory without permanent storage.
 
 ---
 
@@ -56,14 +56,12 @@ Binary Search converges in ~8 iterations
 
 ---
 
-## 🔒 Privacy First
+## 🔒 Privacy First Architecture
 
-Most image operations happen **entirely in your browser** using Canvas API:
-- Files never leave your device
-- No accounts required
-- No telemetry
-
-PDF operations (merge, split, rotation) are also handled client-side using `pdf-lib`.
+- **Local Processing:** Most image operations and standard PDF utility tools (merge, split, rotate) run 100% locally in your browser via HTML5 Canvas API and `pdf-lib`.
+- **Transient Server Processing:** Heavy PDF optimizations and server fallbacks process files in temporary RAM (`multer.memoryStorage()`) and return results immediately.
+- **Zero Permanent Storage:** No files are stored to disk or kept in a database.
+- **No Accounts & No Telemetry:** No user registration or tracking history.
 
 ---
 

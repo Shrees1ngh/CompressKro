@@ -250,7 +250,7 @@ export default function ImageResizer({ initialFile, clearInitialFile, presetConf
                   className={`w-full py-2 px-4 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 border transition-all ${
                     lockAspectRatio 
                       ? 'bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950/20 dark:text-violet-400 dark:border-violet-800' 
-                      : 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-850 dark:text-slate-400 dark:border-slate-800'
+                      : 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-800'
                   }`}
                 >
                   {lockAspectRatio ? (

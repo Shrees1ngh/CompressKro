@@ -73,7 +73,7 @@ const tools = [
   {
     id: 'pdf',
     title: 'PDF Utilities',
-    desc: 'Merge, Split, Rotate, Delete pages, or convert Images to PDF — all in-browser.',
+    desc: 'Add Digital Signature, Page Numbers, PDF to JPG, Lock/Unlock, Watermarks, Merge & Split.',
     icon: FileText,
     color: 'from-red-500 to-rose-500'
   },
@@ -148,7 +148,7 @@ export default function Dashboard({ setActiveTab, onFileDrop }: DashboardProps) 
           Compress. Convert. Resize. Optimize.
         </h1>
         <p className="mt-3 text-lg text-slate-600 dark:text-slate-300 max-w-2xl mx-auto">
-          One unified platform for all your file optimization needs. 100% client-side — your files never leave your device.
+          One unified platform for all your file optimization needs. Most image tools run locally in your browser; advanced PDF optimization is securely processed without permanent storage.
         </p>
       </div>
 
@@ -191,15 +191,15 @@ export default function Dashboard({ setActiveTab, onFileDrop }: DashboardProps) 
         {[
           {
             label: 'Privacy Status',
-            value: '100% Private',
-            sub: 'No uploads · No servers',
+            value: 'Privacy First',
+            sub: 'No permanent file storage',
             icon: ShieldCheck,
             color: 'bg-violet-100 dark:bg-violet-950/30 text-violet-600 dark:text-violet-400'
           },
           {
             label: 'Files Processed',
             value: stats.filesProcessed.toString(),
-            sub: 'All processed client-side',
+            sub: 'Local & transient in-memory',
             icon: Image,
             color: 'bg-fuchsia-100 dark:bg-fuchsia-950/30 text-fuchsia-600 dark:text-fuchsia-400'
           },

@@ -224,7 +224,7 @@ export default function PDFCompressor() {
                   type="button"
                   onClick={handleCompress}
                   disabled={isAnalyzing}
-                  className="w-full py-3 rounded-2xl bg-violet-600 hover:bg-violet-750 disabled:bg-slate-200 dark:disabled:bg-slate-850 active:scale-[0.99] text-white text-xs font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full py-3 rounded-2xl bg-violet-600 hover:bg-violet-700 disabled:bg-slate-200 dark:disabled:bg-slate-800 active:scale-[0.99] text-white text-xs font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Sparkles className="w-4 h-4 text-violet-200" />
                   <span>Compress PDF</span>

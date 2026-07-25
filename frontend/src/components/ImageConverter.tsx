@@ -258,10 +258,10 @@ export default function ImageConverter({ initialFile, clearInitialFile }: ImageC
             <button 
               key={fmt}
               onClick={() => setTargetFormat(fmt)}
-              className={`px-4 py-2 text-xs font-semibold uppercase rounded-xl transition-all ${
+              className={`px-4 py-2 text-xs font-semibold uppercase rounded-xl transition-all border ${
                 targetFormat === fmt 
-                  ? 'bg-violet-600 text-white shadow-md shadow-violet-500/10' 
-                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-850 dark:text-slate-300 dark:hover:bg-slate-750'
+                  ? 'bg-violet-600 text-white border-violet-600 shadow-md shadow-violet-500/20' 
+                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'
               }`}
             >
               {fmt}
@@ -273,38 +273,38 @@ export default function ImageConverter({ initialFile, clearInitialFile }: ImageC
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Input panel */}
         <div className="lg:col-span-4 space-y-6">
-          <div className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/40 dark:bg-slate-900/40 glass-panel space-y-6">
-            <h3 className="text-md font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-              <span>Conversion Source</span>
+          <div 
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/40 dark:bg-slate-900/40 glass-panel space-y-6"
+          >
+            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+              Input Files ({files.length})
             </h3>
-
-            <div 
-              onDragOver={handleDragOver}
-              onDrop={handleDrop}
+            
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              multiple
+              accept="image/*,.heic"
+              className="hidden"
+            />
+            
+            <button
               onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-slate-200 dark:border-slate-800 hover:border-violet-400 dark:hover:border-violet-800 rounded-xl p-6 text-center cursor-pointer transition-colors"
+              className="w-full py-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-violet-500 dark:hover:border-violet-500 bg-white/50 dark:bg-slate-950/20 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-center gap-2 transition-colors"
             >
-              <input 
-                type="file" 
-                ref={fileInputRef}
-                multiple
-                accept="image/*,.heic,.svg"
-                className="hidden" 
-                onChange={handleFileChange}
-              />
-              <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-              <div className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                {files.length > 0 ? `${files.length} file(s) selected` : 'Select Files'}
-              </div>
-              <span className="text-[10px] text-slate-400">PNG, JPG, WebP, SVG, HEIC</span>
-            </div>
+              <Upload className="w-4 h-4 text-violet-500" />
+              <span>Select Files to Convert</span>
+            </button>
 
             {files.length > 0 && (
-              <div className="max-h-[200px] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/40 border border-slate-100 dark:border-slate-800/50 rounded-xl p-2 bg-white/10">
-                {files.map((f, i) => (
-                  <div key={i} className="flex justify-between items-center text-xs py-2 px-2">
-                    <span className="truncate font-medium text-slate-700 dark:text-slate-300 max-w-[150px]">{f.name}</span>
-                    <span className="text-slate-400 text-[10px]">{getFriendlySize(f.size)}</span>
+              <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                {files.map((file, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/40 text-xs">
+                    <span className="truncate font-semibold text-slate-700 dark:text-slate-300 max-w-[180px]">{file.name}</span>
+                    <span className="text-[10px] text-slate-400">({(file.size / 1024).toFixed(1)} KB)</span>
                   </div>
                 ))}
               </div>
@@ -315,7 +315,7 @@ export default function ImageConverter({ initialFile, clearInitialFile }: ImageC
               disabled={files.length === 0 || isProcessing}
               className={`w-full py-3 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 text-white shadow-lg ${
                 files.length === 0 
-                  ? 'bg-slate-300 dark:bg-slate-850 cursor-not-allowed text-slate-500' 
+                  ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed' 
                   : isProcessing 
                     ? 'bg-violet-500 cursor-wait' 
                     : 'bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 shadow-violet-600/10'
@@ -369,7 +369,7 @@ export default function ImageConverter({ initialFile, clearInitialFile }: ImageC
                     className="flex flex-col md:flex-row items-center justify-between border border-slate-100 dark:border-slate-800/80 rounded-xl p-4 bg-white/20 dark:bg-slate-950/20 gap-4"
                   >
                     <div className="flex items-center gap-4 w-full md:w-auto">
-                      <div className="w-14 h-14 rounded-lg bg-slate-100 dark:bg-slate-850 flex-shrink-0 flex items-center justify-center overflow-hidden border border-slate-200 dark:border-slate-800">
+                      <div className="w-14 h-14 rounded-lg bg-slate-100 dark:bg-slate-900 flex-shrink-0 flex items-center justify-center overflow-hidden border border-slate-200 dark:border-slate-800">
                         {res.targetFormat === 'pdf' ? (
                           <FileText className="w-6 h-6 text-red-500" />
                         ) : (

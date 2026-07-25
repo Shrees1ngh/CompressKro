@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   Image,
   FileText,
@@ -51,6 +51,15 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const [initialFile, setInitialFile] = useState<File | null>(null);
   const [presetConfig, setPresetConfig] = useState<any>(null);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (darkMode) {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+  }, [darkMode]);
 
   const toggleDarkMode = () => {
     const next = !darkMode;
@@ -119,7 +128,7 @@ function App() {
             {/* Privacy Badge */}
             <div className="mx-4 mt-4 px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 flex items-center gap-2">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-              <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">100% Client-Side Processing</span>
+              <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">Privacy-First Architecture</span>
             </div>
 
             {/* Navigation */}
@@ -175,7 +184,7 @@ function App() {
                 {/* Privacy Indicator */}
                 <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">Private · No Uploads</span>
+                  <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">Private · No Permanent Storage</span>
                 </div>
 
                 {/* Dark Mode Toggle */}

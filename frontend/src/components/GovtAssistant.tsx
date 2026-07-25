@@ -180,7 +180,7 @@ export default function GovtAssistant({ onApplyPreset }: GovtAssistantProps) {
               </p>
 
               {/* Requirement highlights */}
-              <div className="grid grid-cols-3 gap-2 bg-slate-50 dark:bg-slate-950/20 rounded-xl p-3 text-center border border-slate-100 dark:border-slate-850">
+              <div className="grid grid-cols-3 gap-2 bg-slate-50 dark:bg-slate-950/20 rounded-xl p-3 text-center border border-slate-100 dark:border-slate-800">
                 <div>
                   <div className="text-[9px] uppercase font-bold text-slate-400">Dimensions</div>
                   <div className="text-xs font-bold text-slate-700 dark:text-slate-300 mt-0.5">

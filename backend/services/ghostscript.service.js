@@ -56,7 +56,90 @@ function processGhostscript(inputPath, outputPath, profile = 'balanced', categor
   }
 }
 
+/**
+ * Encrypts a PDF file using Ghostscript.
+ */
+function lockPdfWithGs(inputPath, outputPath, userPassword, ownerPassword) {
+  const binaries = detectBinaries();
+  if (!binaries.hasGhostscript) return false;
+
+  const args = [
+    '-q',
+    '-dBATCH',
+    '-dNOPAUSE',
+    '-sDEVICE=pdfwrite',
+    '-dCompatibilityLevel=1.4',
+    `-sUserPassword=${userPassword}`,
+    `-sOwnerPassword=${ownerPassword || userPassword}`,
+    `-sOutputFile=${outputPath}`,
+    inputPath
+  ];
+
+  try {
+    execFileSync(binaries.gs, args, { stdio: 'ignore', timeout: 45000 });
+    return fs.existsSync(outputPath) && fs.statSync(outputPath).size > 0;
+  } catch (err) {
+    console.warn('[Ghostscript Service] Lock PDF failed:', err.message);
+    return false;
+  }
+}
+
+/**
+ * Decrypts a password protected PDF using Ghostscript.
+ */
+function unlockPdfWithGs(inputPath, outputPath, password = '') {
+  const binaries = detectBinaries();
+  if (!binaries.hasGhostscript) return false;
+
+  const args = [
+    '-q',
+    '-dBATCH',
+    '-dNOPAUSE',
+    '-sDEVICE=pdfwrite',
+    password ? `-sPDFPassword=${password}` : '',
+    `-sOutputFile=${outputPath}`,
+    inputPath
+  ].filter(Boolean);
+
+  try {
+    execFileSync(binaries.gs, args, { stdio: 'ignore', timeout: 45000 });
+    return fs.existsSync(outputPath) && fs.statSync(outputPath).size > 0;
+  } catch (err) {
+    console.warn('[Ghostscript Service] Unlock PDF failed:', err.message);
+    return false;
+  }
+}
+
+/**
+ * Strips annotations and flattens PDF elements using Ghostscript.
+ */
+function cleanPdfWithGs(inputPath, outputPath) {
+  const binaries = detectBinaries();
+  if (!binaries.hasGhostscript) return false;
+
+  const args = [
+    '-q',
+    '-dBATCH',
+    '-dNOPAUSE',
+    '-sDEVICE=pdfwrite',
+    '-dPreserveAnnots=false',
+    `-sOutputFile=${outputPath}`,
+    inputPath
+  ];
+
+  try {
+    execFileSync(binaries.gs, args, { stdio: 'ignore', timeout: 45000 });
+    return fs.existsSync(outputPath) && fs.statSync(outputPath).size > 0;
+  } catch (err) {
+    console.warn('[Ghostscript Service] Clean PDF failed:', err.message);
+    return false;
+  }
+}
+
 module.exports = {
   isGhostscriptAvailable,
-  processGhostscript
+  processGhostscript,
+  lockPdfWithGs,
+  unlockPdfWithGs,
+  cleanPdfWithGs
 };
