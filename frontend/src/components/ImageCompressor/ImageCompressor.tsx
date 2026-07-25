@@ -151,7 +151,10 @@ export default function ImageCompressor({ initialFile, clearInitialFile, presetC
   // Original file object URL for comparison slider
   const [originalUrls, setOriginalUrls] = useState<Record<string, string>>({});
   useEffect(() => {
-    if (files.length === 0) return;
+    if (files.length === 0) {
+      setOriginalUrls({});
+      return;
+    }
     const urls: Record<string, string> = {};
     files.forEach(f => { urls[f.name] = URL.createObjectURL(f); });
     setOriginalUrls(urls);
@@ -189,6 +192,7 @@ export default function ImageCompressor({ initialFile, clearInitialFile, presetC
               label={files.length > 0 ? `${files.length} file(s) selected` : 'Select Image(s)'}
               sublabel="JPG, PNG, WebP, AVIF, HEIC"
               accept="image/*,.heic"
+              previewUrl={files.length > 0 ? originalUrls[files[0].name] : undefined}
             />
 
             {/* File list */}
