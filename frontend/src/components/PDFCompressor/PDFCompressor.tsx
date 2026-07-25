@@ -224,95 +224,95 @@ export default function PDFCompressor() {
             or click to browse your files. Supports files up to 20 MB.
           </p>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Settings and Reports (Left Column) */}
-          <div className="lg:col-span-5 space-y-6">
-            {/* Drop Zone Preview */}
-            <DropZone
-              options={{
-                multiple: false,
-                onFiles: (files) => {
-                  if (files.length > 0) processUploadedFile(files[0]);
-                },
-                onError: (msg) => showError(msg),
-              }}
-              label="1 PDF file selected"
-              sublabel={`${file.name} • ${getFriendlySize(file.size)}`}
-              accept="application/pdf"
-              previewUrl={pdfPreviewUrl || undefined}
-            />
-            {/* Analyzer */}
-            {isAnalyzing ? (
-              <div className="p-8 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 rounded-2xl flex flex-col items-center justify-center gap-3">
-                <Loader2 className="w-6 h-6 text-violet-650 animate-spin" />
-                <span className="text-xs text-slate-500">Parsing PDF layers...</span>
-              </div>
-            ) : (
-              <PDFAnalyzer analysis={analysis} />
-            )}
+      ) : !result ? (
+        /* Single-column settings view before compression */
+        <div className="max-w-2xl mx-auto space-y-6">
+          {/* Drop Zone Preview */}
+          <DropZone
+            options={{
+              multiple: false,
+              onFiles: (files) => {
+                if (files.length > 0) processUploadedFile(files[0]);
+              },
+              onError: (msg) => showError(msg),
+            }}
+            label="1 PDF file selected"
+            sublabel={`${file.name} • ${getFriendlySize(file.size)}`}
+            accept="application/pdf"
+            previewUrl={pdfPreviewUrl || undefined}
+          />
+          
+          {/* Analyzer */}
+          {isAnalyzing ? (
+            <div className="p-8 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 rounded-2xl flex flex-col items-center justify-center gap-3">
+              <Loader2 className="w-6 h-6 text-violet-650 animate-spin" />
+              <span className="text-xs text-slate-500">Parsing PDF layers...</span>
+            </div>
+          ) : (
+            <PDFAnalyzer analysis={analysis} />
+          )}
 
-            {/* Controls Settings */}
-            {!result && !isProcessing && (
-              <>
-                <CompressionControls
-                  level={level}
-                  onLevelChange={setLevel}
-                  targetSizeKB={targetSizeKB}
-                  onTargetSizeChange={setTargetSizeKB}
+          {/* Controls Settings */}
+          {!isProcessing && (
+            <>
+              <CompressionControls
+                level={level}
+                onLevelChange={setLevel}
+                targetSizeKB={targetSizeKB}
+                onTargetSizeChange={setTargetSizeKB}
+              />
+              
+              <button
+                type="button"
+                onClick={handleCompress}
+                disabled={isAnalyzing}
+                className="w-full py-3.5 rounded-2xl bg-violet-600 hover:bg-violet-700 disabled:bg-slate-200 dark:disabled:bg-slate-800 active:scale-[0.99] text-white text-xs font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4 text-violet-200" />
+                <span>Compress PDF</span>
+              </button>
+            </>
+          )}
+
+          {/* Processing Overlay */}
+          {isProcessing && (
+            <div className="p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 rounded-2xl space-y-4">
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <Loader2 className="w-3.5 h-3.5 text-violet-500 animate-spin" />
+                  <span>Compressing PDF...</span>
+                </span>
+                <span className="text-violet-650 dark:text-violet-400 font-bold">{progress}%</span>
+              </div>
+              <div className="w-full bg-slate-100 dark:bg-slate-950 h-2 rounded-full overflow-hidden">
+                <div
+                  className="bg-violet-600 h-full rounded-full transition-all duration-300"
+                  style={{ width: `${progress}%` }}
                 />
-                
-                <button
-                  type="button"
-                  onClick={handleCompress}
-                  disabled={isAnalyzing}
-                  className="w-full py-3 rounded-2xl bg-violet-600 hover:bg-violet-700 disabled:bg-slate-200 dark:disabled:bg-slate-800 active:scale-[0.99] text-white text-xs font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Sparkles className="w-4 h-4 text-violet-200" />
-                  <span>Compress PDF</span>
-                </button>
-              </>
-            )}
-
-            {/* Processing Overlay */}
-            {isProcessing && (
-              <div className="p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 rounded-2xl space-y-4">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                    <Loader2 className="w-3.5 h-3.5 text-violet-500 animate-spin" />
-                    <span>Compressing PDF...</span>
-                  </span>
-                  <span className="text-violet-650 dark:text-violet-400 font-bold">{progress}%</span>
-                </div>
-                <div className="w-full bg-slate-100 dark:bg-slate-950 h-2 rounded-full overflow-hidden">
-                  <div
-                    className="bg-violet-600 h-full rounded-full transition-all duration-300"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={handleCancel}
-                  className="w-full py-2.5 rounded-xl border border-rose-200 hover:bg-rose-50/40 text-rose-600 text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <X className="w-3.5 h-3.5" />
-                  <span>Cancel Compression</span>
-                </button>
               </div>
-            )}
-
-            {/* Results Report */}
-            {result && (
-              <>
-                <CompressionReport result={result} />
-                <DownloadCard result={result} onDownload={handleDownload} onReset={resetAll} />
-              </>
-            )}
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="w-full py-2.5 rounded-xl border border-rose-200 hover:bg-rose-50/40 text-rose-600 text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>Cancel Compression</span>
+              </button>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Split layout display after compression */
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start animate-fade-in">
+          {/* Reports and download actions (Left Column) */}
+          <div className="lg:col-span-5 space-y-6">
+            <CompressionReport result={result} />
+            <DownloadCard result={result} onDownload={handleDownload} onReset={resetAll} />
           </div>
 
-          {/* Real-time Document Viewer (Right Column) */}
+          {/* Big scrollable page-by-page document preview (Right Column) */}
           <div className="lg:col-span-7">
-            <PDFPreview file={result ? result.compressedBlob : file} />
+            <PDFPreview file={result.compressedBlob} />
           </div>
         </div>
       )}
