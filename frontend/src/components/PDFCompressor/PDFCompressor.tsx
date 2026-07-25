@@ -13,6 +13,8 @@ import { compressPdf, cancelCompression } from '../../services/pdf.service';
 import type { PDFAnalysis, PDFCompressedResult, PDFCompressionLevel } from '../../types';
 import { StorageService } from '../../services/storage.service';
 import { HistoryService } from '../../services/history.service';
+import { loadPdfJs } from '../../utils/pdfLoader';
+import { getFriendlySize } from '../../utils/format';
 
 import PDFPreview from './PDFPreview';
 import PDFAnalyzer from './PDFAnalyzer';
@@ -20,6 +22,7 @@ import CompressionControls from './CompressionControls';
 import CompressionReport from './CompressionReport';
 import DownloadCard from './DownloadCard';
 import { downloadBlob } from '../../utils/download';
+import DropZone from '../ui/DropZone';
 
 export default function PDFCompressor() {
   const { showSuccess, showError, showInfo } = useToast();
@@ -30,6 +33,7 @@ export default function PDFCompressor() {
   const [file, setFile] = useState<File | null>(null);
   const [analysis, setAnalysis] = useState<PDFAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string>('');
 
   // Compression Parameters
   const [level, setLevel] = useState<PDFCompressionLevel>('balanced');
@@ -52,6 +56,7 @@ export default function PDFCompressor() {
     setIsAnalyzing(false);
     setTargetSizeKB('');
     setLevel('balanced');
+    setPdfPreviewUrl('');
     revokeAll();
   };
 
@@ -70,6 +75,29 @@ export default function PDFCompressor() {
       const info = await analyzePdf(uploadedFile);
       setAnalysis(info);
       showSuccess(`PDF uploaded and analyzed: ${info.pageCount} page(s)`);
+
+      // Generate first page thumbnail preview
+      try {
+        const pdfjsLib = await loadPdfJs();
+        const fileUrl = URL.createObjectURL(uploadedFile);
+        const doc = await pdfjsLib.getDocument(fileUrl).promise;
+        const page = await doc.getPage(1);
+        
+        const canvas = document.createElement('canvas');
+        const viewport = page.getViewport({ scale: 0.35 });
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          await page.render({ canvasContext: ctx, viewport }).promise;
+          const dataUrl = canvas.toDataURL('image/png');
+          setPdfPreviewUrl(dataUrl);
+        }
+        await doc.destroy();
+        URL.revokeObjectURL(fileUrl);
+      } catch (previewErr) {
+        console.warn('Failed to generate PDF thumbnail preview:', previewErr);
+      }
     } catch {
       showError('Failed to analyze PDF file structure locally.');
       setFile(null);
@@ -200,6 +228,20 @@ export default function PDFCompressor() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Settings and Reports (Left Column) */}
           <div className="lg:col-span-5 space-y-6">
+            {/* Drop Zone Preview */}
+            <DropZone
+              options={{
+                multiple: false,
+                onFiles: (files) => {
+                  if (files.length > 0) processUploadedFile(files[0]);
+                },
+                onError: (msg) => showError(msg),
+              }}
+              label="1 PDF file selected"
+              sublabel={`${file.name} • ${getFriendlySize(file.size)}`}
+              accept="application/pdf"
+              previewUrl={pdfPreviewUrl || undefined}
+            />
             {/* Analyzer */}
             {isAnalyzing ? (
               <div className="p-8 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 rounded-2xl flex flex-col items-center justify-center gap-3">
