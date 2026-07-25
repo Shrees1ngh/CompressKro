@@ -31,7 +31,7 @@ export function CompiledOutputView({
   const [outputTotalPages, setOutputTotalPages] = useState<number>(0);
 
   // Source PDF preview state (for non-PDF outputs)
-  const [sourcePreviewUrl, setSourcePreviewUrl] = useState<string>('');
+
   const [sourceTotalPages, setSourceTotalPages] = useState<number>(0);
   const sourceCanvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -79,7 +79,7 @@ export function CompiledOutputView({
         try {
           const pdfjsLib = await loadPdfJs();
           objectUrl = URL.createObjectURL(sourcePdfBlob);
-          setSourcePreviewUrl(objectUrl);
+
           const doc = await pdfjsLib.getDocument(objectUrl).promise;
           if (!active) { await doc.destroy(); return; }
           
@@ -107,7 +107,7 @@ export function CompiledOutputView({
         if (objectUrl) URL.revokeObjectURL(objectUrl);
       };
     } else {
-      setSourcePreviewUrl('');
+
       setSourceTotalPages(0);
     }
   }, [sourcePdfBlob, isPdfOutput]);
