@@ -9,7 +9,7 @@ import {
   FileText
 } from 'lucide-react';
 import { PDFDocument } from 'pdf-lib';
-import heic2any from 'heic2any';
+
 import confetti from 'canvas-confetti';
 import { useToast } from '../hooks/useToast';
 import { StorageService } from '../services/storage.service';
@@ -112,6 +112,7 @@ export default function ImageConverter({ initialFile, clearInitialFile }: ImageC
     if (ext === 'heic' || file.type === 'image/heic') {
       setConversionProgress(`Converting HEIC image "${file.name}" to JPG first...`);
       try {
+        const { default: heic2any } = await import('heic2any');
         const heicResult = await heic2any({
           blob: file,
           toType: 'image/jpeg',

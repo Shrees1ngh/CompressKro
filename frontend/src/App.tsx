@@ -2,7 +2,7 @@
 // CompressKro — App Routing & Core Layout (React Router 6)
 // ============================================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { 
   Image as ImageIcon,
@@ -36,31 +36,40 @@ import { StorageService } from './services/storage.service';
 import { ToastContainer } from './components/ui/Toast';
 import { useToast } from './hooks/useToast';
 
-// Page Component Imports
-import { Home } from './pages/Home';
-import { NotFound } from './pages/NotFound';
-import { MergePdf } from './pages/pdf/MergePdf';
-import { SplitPdf } from './pages/pdf/SplitPdf';
-import { RotatePdf } from './pages/pdf/RotatePdf';
-import { ImagesToPdf } from './pages/pdf/ImagesToPdf';
-import { LockPdf } from './pages/pdf/LockPdf';
-import { UnlockPdf } from './pages/pdf/UnlockPdf';
-import { AddWatermark } from './pages/pdf/AddWatermark';
-import { RemoveWatermark } from './pages/pdf/RemoveWatermark';
-import { PageNumbers } from './pages/pdf/PageNumbers';
-import { PdfToJpg } from './pages/pdf/PdfToJpg';
-import { PdfToWord } from './pages/pdf/PdfToWord';
-import { PdfToExcel } from './pages/pdf/PdfToExcel';
-import { OcrPdf } from './pages/pdf/OcrPdf';
-import { RepairPdf } from './pages/pdf/RepairPdf';
-import { CompressPdf } from './pages/pdf/CompressPdf';
-import { AddSignature } from './pages/pdf/AddSignature';
+// Page Component Imports — lazy loaded for code-splitting
+const Home = React.lazy(() => import('./pages/Home').then(m => ({ default: m.Home })));
+const NotFound = React.lazy(() => import('./pages/NotFound').then(m => ({ default: m.NotFound })));
+const MergePdf = React.lazy(() => import('./pages/pdf/MergePdf').then(m => ({ default: m.MergePdf })));
+const SplitPdf = React.lazy(() => import('./pages/pdf/SplitPdf').then(m => ({ default: m.SplitPdf })));
+const RotatePdf = React.lazy(() => import('./pages/pdf/RotatePdf').then(m => ({ default: m.RotatePdf })));
+const ImagesToPdf = React.lazy(() => import('./pages/pdf/ImagesToPdf').then(m => ({ default: m.ImagesToPdf })));
+const LockPdf = React.lazy(() => import('./pages/pdf/LockPdf').then(m => ({ default: m.LockPdf })));
+const UnlockPdf = React.lazy(() => import('./pages/pdf/UnlockPdf').then(m => ({ default: m.UnlockPdf })));
+const AddWatermark = React.lazy(() => import('./pages/pdf/AddWatermark').then(m => ({ default: m.AddWatermark })));
+const RemoveWatermark = React.lazy(() => import('./pages/pdf/RemoveWatermark').then(m => ({ default: m.RemoveWatermark })));
+const PageNumbers = React.lazy(() => import('./pages/pdf/PageNumbers').then(m => ({ default: m.PageNumbers })));
+const PdfToJpg = React.lazy(() => import('./pages/pdf/PdfToJpg').then(m => ({ default: m.PdfToJpg })));
+const PdfToWord = React.lazy(() => import('./pages/pdf/PdfToWord').then(m => ({ default: m.PdfToWord })));
+const PdfToExcel = React.lazy(() => import('./pages/pdf/PdfToExcel').then(m => ({ default: m.PdfToExcel })));
+const OcrPdf = React.lazy(() => import('./pages/pdf/OcrPdf').then(m => ({ default: m.OcrPdf })));
+const RepairPdf = React.lazy(() => import('./pages/pdf/RepairPdf').then(m => ({ default: m.RepairPdf })));
+const CompressPdf = React.lazy(() => import('./pages/pdf/CompressPdf').then(m => ({ default: m.CompressPdf })));
+const AddSignature = React.lazy(() => import('./pages/pdf/AddSignature').then(m => ({ default: m.AddSignature })));
 
-import { CompressImage } from './pages/image/CompressImage';
-import { ResizeImage } from './pages/image/ResizeImage';
-import { ConvertImage } from './pages/image/ConvertImage';
-import { PassportMakerPage } from './pages/image/PassportMaker';
-import { GovtAssistantPage } from './pages/image/GovtAssistant';
+const CompressImage = React.lazy(() => import('./pages/image/CompressImage').then(m => ({ default: m.CompressImage })));
+const ResizeImage = React.lazy(() => import('./pages/image/ResizeImage').then(m => ({ default: m.ResizeImage })));
+const ConvertImage = React.lazy(() => import('./pages/image/ConvertImage').then(m => ({ default: m.ConvertImage })));
+const PassportMakerPage = React.lazy(() => import('./pages/image/PassportMaker').then(m => ({ default: m.PassportMakerPage })));
+const GovtAssistantPage = React.lazy(() => import('./pages/image/GovtAssistant').then(m => ({ default: m.GovtAssistantPage })));
+
+// Minimal page-transition fallback shown while a lazy chunk loads
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center h-64 w-full">
+      <div className="w-8 h-8 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" />
+    </div>
+  );
+}
 
 interface NavItem {
   path: string;
@@ -278,38 +287,40 @@ function App() {
   return (
     <BrowserRouter>
       <MainLayout>
-        <Routes>
-          {/* Main Dashboard Grid */}
-          <Route path="/" element={<Home />} />
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            {/* Main Dashboard Grid */}
+            <Route path="/" element={<Home />} />
 
-          {/* PDF Pages */}
-          <Route path="/merge-pdf" element={<MergePdf />} />
-          <Route path="/split-pdf" element={<SplitPdf />} />
-          <Route path="/rotate-pdf" element={<RotatePdf />} />
-          <Route path="/images-to-pdf" element={<ImagesToPdf />} />
-          <Route path="/lock-pdf" element={<LockPdf />} />
-          <Route path="/unlock-pdf" element={<UnlockPdf />} />
-          <Route path="/add-watermark" element={<AddWatermark />} />
-          <Route path="/remove-watermark" element={<RemoveWatermark />} />
-          <Route path="/page-numbers" element={<PageNumbers />} />
-          <Route path="/pdf-to-jpg" element={<PdfToJpg />} />
-          <Route path="/pdf-to-word" element={<PdfToWord />} />
-          <Route path="/pdf-to-excel" element={<PdfToExcel />} />
-          <Route path="/ocr-pdf" element={<OcrPdf />} />
-          <Route path="/repair-pdf" element={<RepairPdf />} />
-          <Route path="/compress-pdf" element={<CompressPdf />} />
-          <Route path="/sign-pdf" element={<AddSignature />} />
+            {/* PDF Pages */}
+            <Route path="/merge-pdf" element={<MergePdf />} />
+            <Route path="/split-pdf" element={<SplitPdf />} />
+            <Route path="/rotate-pdf" element={<RotatePdf />} />
+            <Route path="/images-to-pdf" element={<ImagesToPdf />} />
+            <Route path="/lock-pdf" element={<LockPdf />} />
+            <Route path="/unlock-pdf" element={<UnlockPdf />} />
+            <Route path="/add-watermark" element={<AddWatermark />} />
+            <Route path="/remove-watermark" element={<RemoveWatermark />} />
+            <Route path="/page-numbers" element={<PageNumbers />} />
+            <Route path="/pdf-to-jpg" element={<PdfToJpg />} />
+            <Route path="/pdf-to-word" element={<PdfToWord />} />
+            <Route path="/pdf-to-excel" element={<PdfToExcel />} />
+            <Route path="/ocr-pdf" element={<OcrPdf />} />
+            <Route path="/repair-pdf" element={<RepairPdf />} />
+            <Route path="/compress-pdf" element={<CompressPdf />} />
+            <Route path="/sign-pdf" element={<AddSignature />} />
 
-          {/* Image Pages */}
-          <Route path="/compress-image" element={<CompressImage />} />
-          <Route path="/resize-image" element={<ResizeImage />} />
-          <Route path="/convert-image" element={<ConvertImage />} />
-          <Route path="/passport-maker" element={<PassportMakerPage />} />
-          <Route path="/govt-assistant" element={<GovtAssistantPage />} />
+            {/* Image Pages */}
+            <Route path="/compress-image" element={<CompressImage />} />
+            <Route path="/resize-image" element={<ResizeImage />} />
+            <Route path="/convert-image" element={<ConvertImage />} />
+            <Route path="/passport-maker" element={<PassportMakerPage />} />
+            <Route path="/govt-assistant" element={<GovtAssistantPage />} />
 
-          {/* 404 Route */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+            {/* 404 Route */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
         <ToastContainer toasts={toasts} onDismiss={dismiss} />
       </MainLayout>
     </BrowserRouter>
