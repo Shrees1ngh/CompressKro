@@ -149,10 +149,10 @@ export function Home() {
         <title>CompressKro — Free Online PDF & Image Optimization Tools</title>
         <meta name="description" content="Merge, split, compress, lock, unlock, and OCR PDFs, or compress, resize, and convert images online for free. No signup, privacy-first." />
         <meta name="robots" content="index, follow" />
-        <link rel="canonical" href="https://compresskro.com/" />
+        <link rel="canonical" href="https://compresskro.vercel.app/" />
         <meta property="og:title" content="CompressKro — Free Online PDF & Image Optimization Tools" />
         <meta property="og:description" content="Merge, split, compress, lock, unlock, and OCR PDFs, or compress, resize, and convert images online for free. No signup, privacy-first." />
-        <meta property="og:url" content="https://compresskro.com/" />
+        <meta property="og:url" content="https://compresskro.vercel.app/" />
         <meta property="og:type" content="website" />
       </Helmet>
 

@@ -59,7 +59,7 @@ export function ToolPageLayout({
   children,
   maxWidthClass,
 }: ToolPageLayoutProps) {
-  const fullUrl = `https://compresskro.com${canonicalPath}`;
+  const fullUrl = `https://compresskro.vercel.app${canonicalPath}`;
 
   // Structured Data (JSON-LD)
   // 1. SoftwareApplication Schema
@@ -100,7 +100,7 @@ export function ToolPageLayout({
         '@type': 'ListItem',
         'position': 1,
         'name': 'Home',
-        'item': 'https://compresskro.com/'
+        'item': 'https://compresskro.vercel.app/'
       },
       {
         '@type': 'ListItem',
@@ -125,13 +125,13 @@ export function ToolPageLayout({
         <meta property="og:description" content={seoDescription} />
         <meta property="og:url" content={fullUrl} />
         <meta property="og:type" content="website" />
-        <meta property="og:image" content="https://compresskro.com/assets/og-image.png" />
+        <meta property="og:image" content="https://compresskro.vercel.app/assets/og-image.png" />
 
         {/* Twitter Card Tags */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={seoTitle} />
         <meta name="twitter:description" content={seoDescription} />
-        <meta name="twitter:image" content="https://compresskro.com/assets/og-image.png" />
+        <meta name="twitter:image" content="https://compresskro.vercel.app/assets/og-image.png" />
       </Helmet>
 
       {/* JSON-LD Schemas */}

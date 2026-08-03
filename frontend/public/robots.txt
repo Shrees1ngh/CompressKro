@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://compresskro.com/sitemap.xml
+Sitemap: https://compresskro.vercel.app/sitemap.xml

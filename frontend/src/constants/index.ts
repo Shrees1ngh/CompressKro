@@ -71,7 +71,7 @@ export const QUALITY_SCORE_CONFIG = {
 } as const;
 
 /** Backend API Base URL configuration */
-export const BACKEND_API_URL = `${import.meta.env.VITE_API_URL ?? 'http://localhost:3001'}/api`;
+export const BACKEND_API_URL = `${import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? 'http://localhost:3001' : 'https://compresskro-backend.onrender.com')}/api`;
 
 /** PDF compression level configurations */
 export const PDF_COMPRESSION_CONFIGS = {

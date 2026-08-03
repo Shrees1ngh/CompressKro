@@ -333,8 +333,7 @@ routes.forEach((route) => {
       `<meta name="description" content="${route.desc}" />`
     )
     .replace(
-      '<head>',
-      `<head>\n    <link rel="canonical" href="https://compresskro.com/${route.path}" />\n    <script type="application/ld+json">\n      ${JSON.stringify(faqSchema, null, 2)}\n    </script>`
+      `<head>\n    <link rel="canonical" href="https://compresskro.vercel.app/${route.path}" />\n    <script type="application/ld+json">\n      ${JSON.stringify(faqSchema, null, 2)}\n    </script>`
     )
     .replace(
       '<div id="root"></div>',
