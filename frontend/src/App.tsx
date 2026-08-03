@@ -29,7 +29,8 @@ import {
   Hash,
   FileType,
   ScanText,
-  Wrench
+  Wrench,
+  Edit3
 } from 'lucide-react';
 
 import { StorageService } from './services/storage.service';
@@ -55,6 +56,7 @@ const OcrPdf = React.lazy(() => import('./pages/pdf/OcrPdf').then(m => ({ defaul
 const RepairPdf = React.lazy(() => import('./pages/pdf/RepairPdf').then(m => ({ default: m.RepairPdf })));
 const CompressPdf = React.lazy(() => import('./pages/pdf/CompressPdf').then(m => ({ default: m.CompressPdf })));
 const AddSignature = React.lazy(() => import('./pages/pdf/AddSignature').then(m => ({ default: m.AddSignature })));
+const PdfEditor = React.lazy(() => import('./pages/pdf/PdfEditor').then(m => ({ default: m.PdfEditor })));
 
 const CompressImage = React.lazy(() => import('./pages/image/CompressImage').then(m => ({ default: m.CompressImage })));
 const ResizeImage = React.lazy(() => import('./pages/image/ResizeImage').then(m => ({ default: m.ResizeImage })));
@@ -92,6 +94,7 @@ const pdfShortcuts = [
   { path: '/merge-pdf', label: 'Merge PDF', icon: ListOrdered },
   { path: '/split-pdf', label: 'Split PDF', icon: FileText },
   { path: '/sign-pdf', label: 'Sign PDF', icon: PenTool },
+  { path: '/edit-pdf', label: 'Edit PDF', icon: Edit3 },
   { path: '/rotate-pdf', label: 'Rotate & Order', icon: RotateCw },
   { path: '/pdf-to-word', label: 'PDF to Word', icon: FileType },
   { path: '/pdf-to-excel', label: 'PDF to Excel', icon: FileSpreadsheet },
@@ -159,7 +162,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
                   <Zap className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-lg font-extrabold text-slate-900 dark:text-slate-100 leading-none">CompressKro</h1>
+                  <div className="text-lg font-extrabold text-slate-900 dark:text-slate-100 leading-none">CompressKro</div>
                   <span className="text-[10px] text-slate-400 font-medium">All-in-One Optimizer</span>
                 </div>
               </Link>
@@ -309,6 +312,7 @@ function App() {
             <Route path="/repair-pdf" element={<RepairPdf />} />
             <Route path="/compress-pdf" element={<CompressPdf />} />
             <Route path="/sign-pdf" element={<AddSignature />} />
+            <Route path="/edit-pdf" element={<PdfEditor />} />
 
             {/* Image Pages */}
             <Route path="/compress-image" element={<CompressImage />} />

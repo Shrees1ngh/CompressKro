@@ -36,7 +36,8 @@ import {
   Search,
   X,
   RotateCcw,
-  Clock
+  Clock,
+  Edit3
 } from 'lucide-react';
 
 import { StorageService } from '../services/storage.service';
@@ -99,6 +100,7 @@ export function Home() {
       title: 'Edit PDF',
       desc: 'Annotate, customize, seal, or stamp your PDF documents.',
       tools: [
+        { name: 'Edit PDF', desc: 'Modify text, add shapes, images, or whiteout regions.', path: '/edit-pdf', icon: Edit3, color: 'text-pink-500' },
         { name: 'Add Signature', desc: 'Sign PDFs, draw names, or upload stamp seals.', path: '/sign-pdf', icon: PenTool, color: 'text-fuchsia-500' },
         { name: 'Add Watermark', desc: 'Add text or logo watermarks behind pages.', path: '/add-watermark', icon: Droplets, color: 'text-sky-500' },
         { name: 'Remove Watermark', desc: 'Clean annotations and watermark layers.', path: '/remove-watermark', icon: Eraser, color: 'text-red-500' },
@@ -146,6 +148,7 @@ export function Home() {
       <Helmet>
         <title>CompressKro — Free Online PDF & Image Optimization Tools</title>
         <meta name="description" content="Merge, split, compress, lock, unlock, and OCR PDFs, or compress, resize, and convert images online for free. No signup, privacy-first." />
+        <meta name="robots" content="index, follow" />
         <link rel="canonical" href="https://compresskro.com/" />
         <meta property="og:title" content="CompressKro — Free Online PDF & Image Optimization Tools" />
         <meta property="og:description" content="Merge, split, compress, lock, unlock, and OCR PDFs, or compress, resize, and convert images online for free. No signup, privacy-first." />
@@ -159,9 +162,9 @@ export function Home() {
           <Zap className="w-3.5 h-3.5" />
           <span className="text-[10px] font-bold uppercase tracking-wider">Fast, Online, Offline-Ready Tools</span>
         </div>
-        <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100 leading-tight">
+        <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100 leading-tight">
           Simplify Your PDF & Image Workflows
-        </h2>
+        </h1>
         <p className="text-sm md:text-base text-slate-500 dark:text-slate-400 font-medium max-w-2xl mx-auto">
           Every tool you need to compress, convert, edit, and secure your files online. 100% free, runs in-browser for complete client privacy.
         </p>
@@ -172,7 +175,7 @@ export function Home() {
         {categories.map((cat, idx) => (
           <div key={idx} className="space-y-4">
             <div className="border-b border-slate-200/60 dark:border-slate-800/60 pb-2">
-              <h3 className="text-md font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">{cat.title}</h3>
+              <h2 className="text-md font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">{cat.title}</h2>
               <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium mt-0.5">{cat.desc}</p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
@@ -188,7 +191,7 @@ export function Home() {
                       <Icon className={`w-4 h-4 ${tool.color} group-hover:scale-110 transition-transform`} />
                     </div>
                     <div className="space-y-1">
-                      <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-violet-600 transition-colors">{tool.name}</h4>
+                      <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-violet-600 transition-colors">{tool.name}</h3>
                       <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed font-medium line-clamp-2">{tool.desc}</p>
                     </div>
                   </Link>

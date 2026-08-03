@@ -42,6 +42,7 @@ interface ToolPageLayoutProps {
   faqs: FAQItem[];
   relatedTools: RelatedToolItem[];
   children: React.ReactNode;
+  maxWidthClass?: string;
 }
 
 export function ToolPageLayout({
@@ -56,6 +57,7 @@ export function ToolPageLayout({
   faqs,
   relatedTools,
   children,
+  maxWidthClass,
 }: ToolPageLayoutProps) {
   const fullUrl = `https://compresskro.com${canonicalPath}`;
 
@@ -115,6 +117,7 @@ export function ToolPageLayout({
       <Helmet>
         <title>{seoTitle}</title>
         <meta name="description" content={seoDescription} />
+        <meta name="robots" content="index, follow" />
         <link rel="canonical" href={fullUrl} />
         
         {/* Open Graph Tags */}
@@ -154,7 +157,7 @@ export function ToolPageLayout({
       </div>
 
       {/* Main Tool Workspace UI Box */}
-      <div className="max-w-4xl mx-auto">
+      <div className={`${maxWidthClass || 'max-w-4xl'} mx-auto`}>
         {children}
       </div>
 

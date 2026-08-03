@@ -6,6 +6,8 @@
 // ============================================================
 
 const sharp = require('sharp');
+const { PDFDocument } = require('pdf-lib');
+
 
 /**
  * Maps a file format extension or mimetype to a standard sharp format string.
@@ -20,6 +22,7 @@ function normalizeFormat(format) {
   if (f === 'heic' || f === 'heif' || f === 'image/heic' || f === 'image/heif') return 'heif';
   if (f === 'tiff' || f === 'tif' || f === 'image/tiff') return 'tiff';
   if (f === 'gif' || f === 'image/gif') return 'gif';
+  if (f === 'pdf' || f === 'application/pdf') return 'pdf';
   return 'jpeg'; // Default fallback
 }
 
@@ -610,11 +613,53 @@ async function compressImage(inputBuffer, targetSizeKB, quality = 82, format = n
  * Handles format conversion from any format to any target format.
  */
 async function convertFormat(inputBuffer, targetFormat, quality = 90) {
+  const norm = normalizeFormat(targetFormat);
+  if (norm === 'pdf') {
+    const meta = await sharp(inputBuffer).rotate().metadata();
+    const hasAlpha = meta.hasAlpha;
+    const formatToUse = hasAlpha ? 'png' : 'jpeg';
+
+    const s = sharp(inputBuffer).rotate();
+    let imgBuffer;
+    if (formatToUse === 'png') {
+      imgBuffer = await s.png({ quality }).toBuffer();
+    } else {
+      imgBuffer = await s.jpeg({ quality, mozjpeg: true }).toBuffer();
+    }
+
+    const rotatedMeta = await sharp(imgBuffer).metadata();
+    const width = rotatedMeta.width || meta.width;
+    const height = rotatedMeta.height || meta.height;
+
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage([width, height]);
+    
+    let embeddedImg;
+    if (formatToUse === 'png') {
+      embeddedImg = await pdfDoc.embedPng(imgBuffer);
+    } else {
+      embeddedImg = await pdfDoc.embedJpg(imgBuffer);
+    }
+
+    page.drawImage(embeddedImg, {
+      x: 0,
+      y: 0,
+      width,
+      height
+    });
+
+    const pdfBytes = await pdfDoc.save();
+    return {
+      buffer: Buffer.from(pdfBytes),
+      format: 'pdf'
+    };
+  }
+
   const s = sharp(inputBuffer).rotate();
   const outputBuffer = await applyFormatSettings(s, targetFormat, quality).toBuffer();
   return {
     buffer: outputBuffer,
-    format: normalizeFormat(targetFormat)
+    format: norm
   };
 }
 

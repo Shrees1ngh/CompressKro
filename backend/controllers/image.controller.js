@@ -15,7 +15,8 @@ const MIME_TYPES = {
   heic: 'image/heic',
   tiff: 'image/tiff',
   tif: 'image/tiff',
-  gif: 'image/gif'
+  gif: 'image/gif',
+  pdf: 'application/pdf'
 };
 
 function getMimeType(format) {

@@ -14,11 +14,13 @@
     "heic2any": "^0.0.4",
     "lucide-react": "^1.25.0",
     "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^3.11.174",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-helmet-async": "^3.0.0",
     "react-router-dom": "^7.18.1",
-    "tailwindcss": "^4.3.3"
+    "tailwindcss": "^4.3.3",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "@types/canvas-confetti": "^1.9.0",

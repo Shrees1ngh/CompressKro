@@ -43,6 +43,10 @@ function processGhostscript(inputPath, outputPath, profile = 'balanced', categor
     '-dSubsetFonts=true',
     '-dEmbedAllFonts=true',
     '-dAutoRotatePages=/None',
+    '-dAutoFilterGrayImages=false',
+    '-dGrayImageFilter=/FlateEncode',
+    '-dAutoFilterMonoImages=false',
+    '-dMonoImageFilter=/CCITTFaxEncode',
     `-sOutputFile=${outputPath}`,
     inputPath
   ];

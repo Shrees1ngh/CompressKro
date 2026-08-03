@@ -195,6 +195,17 @@ const routes = [
     ]
   },
   {
+    path: 'edit-pdf',
+    title: 'Edit PDF Online Free - Edit Text & Replace Images | CompressKro',
+    desc: 'Edit PDF text and images online for free. Modify existing text runs, erase details, insert shapes, replace images, and sign client-side. 100% private.',
+    heading: 'Edit PDF Online',
+    sub: 'Modify text, replace images, whiteout details, and customize your PDF pages online.',
+    faqs: [
+      { q: 'Can I edit the text of any PDF?', a: "You can edit text layers on native or OCR'd PDFs. PDFs made from scanned images do not have a text layer." },
+      { q: 'How do I erase or redact details?', a: 'Select the Whiteout tool and drag a rectangle over any area to overlay a white rectangle.' }
+    ]
+  },
+  {
     path: 'compress-image',
     title: 'Compress Image Online Free - Reduce Image Size | CompressKro',
     desc: 'Compress JPG, PNG, WebP, and HEIC images online for free. Target specific KB sizes (20KB, 50KB, 100KB) for portals. 100% private in-browser compression.',
