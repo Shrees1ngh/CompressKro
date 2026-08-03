@@ -322,13 +322,12 @@ export async function exportPdf(
       onProgress?.(`Running OCR on page ${pageIdx + 1} of ${totalPages}...`, 0.8 + (pageIdx / totalPages) * 0.08);
       try {
         const { data } = await Tesseract.recognize(dataUrl, 'eng');
-        const words = data.words || [];
+        const words = (data as any).words || [];
         
         for (const word of words) {
-          const { x0, y0, x1, y1 } = word.bbox;
+          const { x0, y0, y1 } = word.bbox;
           
           // Map canvas pixel coordinates to PDF point coordinates
-          const _wordWidth = (x1 - x0) / scale;
           const wordHeight = (y1 - y0) / scale;
           const wordX = x0 / scale;
           const wordY = originalHeight - (y1 / scale);
@@ -355,7 +354,7 @@ export async function exportPdf(
   let finalBytes = savedBytes;
   try {
     onProgress?.('Optimizing file size...', 0.9);
-    const tempFile = new File([savedBytes], document.file.name, { type: 'application/pdf' });
+    const tempFile = new File([savedBytes as any], document.file.name, { type: 'application/pdf' });
     // Use 'best' quality compression to avoid downsampling the 300 DPI pages or using heavy lossy compression
     const compressedResult = await compressPdf(tempFile, { level: 'best' }, (progress) => {
       onProgress?.('Optimizing file size...', 0.9 + (progress / 100) * 0.09);
