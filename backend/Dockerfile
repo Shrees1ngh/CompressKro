@@ -5,7 +5,7 @@
 
 FROM node:20-bookworm-slim
 
-# Install system dependencies (including python3-venv for virtual environment)
+# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ghostscript \
     qpdf \
@@ -13,7 +13,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr-eng \
     python3 \
     python3-pip \
-    python3-venv \
     ocrmypdf \
     poppler-utils \
     unpaper \
@@ -24,28 +23,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Set working directory inside container
 WORKDIR /app
 
-# ── rembg setup via isolated virtual environment ──────────────
-# Using a venv guarantees the node user can always find and run
-# rembg regardless of Debian's system-python path quirks.
+# Install rembg globally as root
+RUN pip3 install --no-cache-dir --break-system-packages "rembg[cpu]" onnxruntime
 
-# Create virtual environment at a fixed, known path
-RUN python3 -m venv /opt/rembg-env
+# Print where pip installed rembg (for debugging future builds)
+RUN python3 -c "import rembg; print('rembg OK:', rembg.__file__)" && \
+    python3 -c "import sys; print('sys.path:', sys.path)"
 
-# Install rembg and onnxruntime inside the venv
-RUN /opt/rembg-env/bin/pip install --no-cache-dir "rembg[cpu]" onnxruntime
+# Set PYTHONPATH so that ALL users (including node) can import pip-installed packages.
+# This is the core fix: Debian Bookworm's python3 may exclude /usr/local/lib paths
+# from sys.path for non-root users. Setting PYTHONPATH overrides that behavior.
+ENV PYTHONPATH="/usr/local/lib/python3.11/dist-packages:/usr/lib/python3/dist-packages"
 
-# Verification — fail the Docker build immediately if rembg is missing
-RUN /opt/rembg-env/bin/python -c "import rembg; print('rembg OK:', rembg.__file__)"
+# Verify rembg is importable with PYTHONPATH set (simulates runtime conditions)
+RUN python3 -c "import rembg; print('rembg with PYTHONPATH OK:', rembg.__file__)"
 
-# Pre-download AI segmentation models at build time (avoids runtime download)
+# Pre-download the lightweight u2netp model at build time
 ENV U2NET_HOME=/app/.u2net
-RUN /opt/rembg-env/bin/python -c "from rembg import new_session; new_session('isnet-general-use'); new_session('u2netp')"
+RUN python3 -c "from rembg import new_session; new_session('u2netp'); print('u2netp model cached OK')"
 
-# Grant node user read/execute access to venv and model cache
-RUN chmod -R a+rX /opt/rembg-env && \
-    chown -R node:node /app/.u2net
-
-# ── Node.js application setup ────────────────────────────────
+# Grant node user access to the model cache
+RUN chown -R node:node /app/.u2net
 
 # Copy dependency manifests with node ownership for fast caching
 COPY --chown=node:node package.json package-lock.json* ./

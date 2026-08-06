@@ -43,7 +43,7 @@ router.post('/remove-bg', upload.single('file'), limitConcurrency, async (req, r
     fs.mkdirSync(outputDir, { recursive: true });
   }
 
-  const model = req.body.model || 'isnet-general-use';
+  const model = req.body.model || 'u2netp';
 
   try {
     // Process image background removal via rembg
