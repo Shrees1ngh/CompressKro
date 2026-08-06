@@ -10,7 +10,7 @@ import {
   RefreshCw,
   FileCheck,
   ShieldCheck,
-  FileType
+  ListOrdered
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import { StorageService } from '../../services/storage.service';
@@ -105,7 +105,7 @@ export function RepairPdf() {
   const relatedTools: RelatedToolItem[] = [
     { name: 'Unlock PDF', desc: 'Remove password restrictions.', path: '/unlock-pdf', icon: FileCheck },
     { name: 'Compress PDF', desc: 'Optimize PDF file size.', path: '/compress-pdf', icon: ShieldCheck },
-    { name: 'PDF to Word', desc: 'Convert text to Word format.', path: '/pdf-to-word', icon: FileType }
+    { name: 'Merge PDF', desc: 'Combine multiple PDF files.', path: '/merge-pdf', icon: ListOrdered }
   ];
 
   return (

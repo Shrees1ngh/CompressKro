@@ -9,8 +9,17 @@ const cors = require('cors');
 const { PORT, CORS_ORIGIN } = require('./config');
 const imageRoutes = require('./routes/image.routes');
 const pdfRoutes = require('./routes/pdf.routes');
+const bgremoveRoutes = require('./routes/bgremove.route');
 const errorHandler = require('./middlewares/errorHandler');
 const sharp = require('sharp');
+const fs = require('fs');
+const path = require('path');
+
+// Ensure tmp directories exist on boot
+const uploadDir = path.join(__dirname, 'tmp/uploads');
+const outputDir = path.join(__dirname, 'tmp/outputs');
+fs.mkdirSync(uploadDir, { recursive: true });
+fs.mkdirSync(outputDir, { recursive: true });
 
 // Tune sharp global cache & concurrency to leverage libvips native performance
 sharp.cache({ memory: 50, files: 20, items: 100 });
@@ -35,6 +44,7 @@ app.get('/api/health', (_req, res) => {
 // ── Routes ──────────────────────────────────────────────────
 app.use('/api', imageRoutes);
 app.use('/api', pdfRoutes);
+app.use('/api', bgremoveRoutes);
 
 // ── Error Handler (must be last) ────────────────────────────
 app.use(errorHandler);

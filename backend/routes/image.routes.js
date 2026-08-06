@@ -10,7 +10,8 @@ const {
   handleCompressImage, 
   handleConvertHeic, 
   handleConvertImage, 
-  handleAnalyzeImage 
+  handleAnalyzeImage,
+  handleHtmlToImage
 } = require('../controllers/image.controller');
 
 const router = express.Router();
@@ -20,5 +21,6 @@ router.post('/compress-image', upload.single('file'), limitConcurrency, handleCo
 router.post('/convert-heic', upload.single('file'), limitConcurrency, handleConvertHeic);
 router.post('/convert-image', upload.single('file'), limitConcurrency, handleConvertImage);
 router.post('/analyze-image', upload.single('file'), handleAnalyzeImage);
+router.post('/html-to-image', limitConcurrency, handleHtmlToImage);
 
 module.exports = router;

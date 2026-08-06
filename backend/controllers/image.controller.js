@@ -1,9 +1,5 @@
-// ============================================================
-// CompressKro Backend — Image Controller v3.0
-// Pure request/response handling. Business logic in image.service.
-// ============================================================
-
 const { compressImage, convertFormat, analyzeImageMetadata } = require('../services/image.service');
+const { convertHtmlToImage } = require('../services/html.service');
 
 const MIME_TYPES = {
   jpeg: 'image/jpeg',
@@ -113,9 +109,36 @@ async function handleAnalyzeImage(req, res, next) {
   }
 }
 
+async function handleHtmlToImage(req, res, next) {
+  try {
+    const htmlText = req.body.html || '';
+    const url = req.body.url || '';
+    const format = req.body.format || 'png';
+    const width = req.body.width ? parseInt(req.body.width) : 1200;
+    const height = req.body.height ? parseInt(req.body.height) : 800;
+    const fullPage = req.body.fullPage === 'true' || req.body.fullPage === true;
+
+    if (!htmlText.trim() && !url.trim()) {
+      return res.status(400).json({ error: 'Please provide either HTML content or a web URL' });
+    }
+
+    const imageBuffer = await convertHtmlToImage({ html: htmlText, url, format, width, height, fullPage });
+
+    res.set({
+      'Content-Type': format === 'png' ? 'image/png' : 'image/jpeg',
+      'Content-Disposition': `attachment; filename="web_capture.${format}"`,
+      'Content-Length': imageBuffer.length
+    });
+    res.send(imageBuffer);
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   handleCompressImage,
   handleConvertHeic,
   handleConvertImage,
-  handleAnalyzeImage
+  handleAnalyzeImage,
+  handleHtmlToImage
 };

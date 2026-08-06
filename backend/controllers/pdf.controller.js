@@ -4,9 +4,10 @@ const os = require('os');
 const crypto = require('crypto');
 const { compressPdf } = require('../services/pdf.service');
 const { lockPdfWithGs, unlockPdfWithGs, cleanPdfWithGs } = require('../services/ghostscript.service');
-const { convertPdfToWord, convertPdfToExcel } = require('../services/convert.service');
 const { isOcrAvailable, processOcr } = require('../services/ocr.service');
 const { repairPdf, repairPdfBuffer } = require('../services/repair.service');
+const { convertHtmlToPdf } = require('../services/html.service');
+const { extractImagesFromPdf } = require('../services/extract.service');
 
 async function handleCompressPdf(req, res, next) {
   try {
@@ -144,42 +145,6 @@ async function handleCleanPdf(req, res, next) {
   }
 }
 
-async function handlePdfToWord(req, res, next) {
-  try {
-    if (!req.file) return res.status(400).json({ error: 'No PDF file provided' });
-
-    const docxBuffer = await convertPdfToWord(req.file.buffer);
-    const outName = req.file.originalname.replace(/\.pdf$/i, '') + '.docx';
-
-    res.set({
-      'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'Content-Disposition': `attachment; filename="${outName}"`,
-      'Content-Length': docxBuffer.length
-    });
-    res.send(docxBuffer);
-  } catch (err) {
-    next(err);
-  }
-}
-
-async function handlePdfToExcel(req, res, next) {
-  try {
-    if (!req.file) return res.status(400).json({ error: 'No PDF file provided' });
-
-    const xlsxBuffer = await convertPdfToExcel(req.file.buffer);
-    const outName = req.file.originalname.replace(/\.pdf$/i, '') + '.xlsx';
-
-    res.set({
-      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': `attachment; filename="${outName}"`,
-      'Content-Length': xlsxBuffer.length
-    });
-    res.send(Buffer.from(xlsxBuffer));
-  } catch (err) {
-    next(err);
-  }
-}
-
 async function handleOcrPdf(req, res, next) {
   try {
     if (!req.file) return res.status(400).json({ error: 'No PDF file provided' });
@@ -260,13 +225,52 @@ async function handleRepairPdf(req, res, next) {
   }
 }
 
+async function handleHtmlToPdf(req, res, next) {
+  try {
+    const htmlText = req.body.html || '';
+    const url = req.body.url || '';
+    if (!htmlText.trim() && !url.trim()) {
+      return res.status(400).json({ error: 'Please provide either HTML content or a web URL' });
+    }
+
+    const pdfBuffer = await convertHtmlToPdf({ html: htmlText, url: url });
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="web_export.pdf"`,
+      'Content-Length': pdfBuffer.length
+    });
+    res.send(Buffer.from(pdfBuffer));
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function handleExtractImages(req, res, next) {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No PDF file provided' });
+
+    const zipBuffer = await extractImagesFromPdf(req.file.buffer);
+    const outName = req.file.originalname.replace(/\.pdf$/i, '') + '_images.zip';
+
+    res.set({
+      'Content-Type': 'application/zip',
+      'Content-Disposition': `attachment; filename="${outName}"`,
+      'Content-Length': zipBuffer.length
+    });
+    res.send(zipBuffer);
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   handleCompressPdf,
   handleLockPdf,
   handleUnlockPdf,
   handleCleanPdf,
-  handlePdfToWord,
-  handlePdfToExcel,
   handleOcrPdf,
-  handleRepairPdf
+  handleRepairPdf,
+  handleHtmlToPdf,
+  handleExtractImages
 };

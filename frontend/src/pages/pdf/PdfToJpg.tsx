@@ -10,7 +10,6 @@ import {
   RefreshCw,
   Download,
   CheckCircle2,
-  FileType,
   FileText
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
@@ -112,7 +111,7 @@ export function PdfToJpg() {
 
   const relatedTools: RelatedToolItem[] = [
     { name: 'Images to PDF', desc: 'Convert photos to PDF page.', path: '/images-to-pdf', icon: Upload },
-    { name: 'PDF to Word', desc: 'Convert PDF to Word document.', path: '/pdf-to-word', icon: FileType },
+    { name: 'Extract Images', desc: 'Extract inline photos from PDF.', path: '/extract-images', icon: FileImage },
     { name: 'Split PDF', desc: 'Extract pages or split ranges.', path: '/split-pdf', icon: FileText }
   ];
 

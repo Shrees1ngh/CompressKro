@@ -19,7 +19,6 @@ import {
   PenTool, 
   Hash, 
   FileImage, 
-  FileType, 
   FileSpreadsheet, 
   ScanText, 
   FileDown,
@@ -37,7 +36,10 @@ import {
   X,
   RotateCcw,
   Clock,
-  Edit3
+  Edit3,
+  Wrench,
+  Crop,
+  Globe
 } from 'lucide-react';
 
 import { StorageService } from '../services/storage.service';
@@ -83,17 +85,17 @@ export function Home() {
       tools: [
         { name: 'Merge PDF', desc: 'Combine multiple PDF files in any order.', path: '/merge-pdf', icon: ListOrdered, color: 'text-blue-500' },
         { name: 'Split PDF', desc: 'Extract pages or split document ranges.', path: '/split-pdf', icon: FileText, color: 'text-violet-500' },
-        { name: 'Rotate & Order', desc: 'Rearrange and rotate pages with drag-and-drop.', path: '/rotate-pdf', icon: RotateCw, color: 'text-indigo-500' }
+        { name: 'Rotate & Order', desc: 'Rearrange and rotate pages with drag-and-drop.', path: '/rotate-pdf', icon: RotateCw, color: 'text-indigo-500' },
+        { name: 'Crop PDF', desc: 'Crop page margins and define custom boundaries.', path: '/crop-pdf', icon: Crop, color: 'text-purple-500' }
       ]
     },
     {
       title: 'Convert PDF',
       desc: 'Convert PDF files to and from other common file formats.',
       tools: [
-        { name: 'PDF to Word', desc: 'Convert PDF pages into editable Word DOCX.', path: '/pdf-to-word', icon: FileType, color: 'text-blue-600' },
-        { name: 'PDF to Excel', desc: 'Extract tables into Excel XLSX sheets.', path: '/pdf-to-excel', icon: FileSpreadsheet, color: 'text-emerald-500' },
         { name: 'PDF to JPG', desc: 'Save PDF pages as JPEG images.', path: '/pdf-to-jpg', icon: FileImage, color: 'text-rose-500' },
-        { name: 'Images to PDF', desc: 'Convert PNG, JPG, and WebP into PDF pages.', path: '/images-to-pdf', icon: Upload, color: 'text-teal-500' }
+        { name: 'Images to PDF', desc: 'Convert PNG, JPG, and WebP into PDF pages.', path: '/images-to-pdf', icon: Upload, color: 'text-teal-500' },
+        { name: 'Extract Images', desc: 'Extract inline photos and assets from PDF.', path: '/extract-images', icon: ImageIcon, color: 'text-yellow-600' }
       ]
     },
     {
@@ -114,7 +116,9 @@ export function Home() {
         { name: 'Compress PDF', desc: 'Reduce PDF file size keeping high quality.', path: '/compress-pdf', icon: FileDown, color: 'text-purple-500' },
         { name: 'OCR PDF', desc: 'Overlay searchable text layer on scanned pages.', path: '/ocr-pdf', icon: ScanText, color: 'text-amber-500' },
         { name: 'Lock PDF', desc: 'Encrypt your document with passwords.', path: '/lock-pdf', icon: Lock, color: 'text-slate-600' },
-        { name: 'Unlock PDF', desc: 'Decrypt and remove owner passwords.', path: '/unlock-pdf', icon: Unlock, color: 'text-zinc-500' }
+        { name: 'Unlock PDF', desc: 'Decrypt and remove owner passwords.', path: '/unlock-pdf', icon: Unlock, color: 'text-zinc-500' },
+        { name: 'Repair PDF', desc: 'Fix corrupted, damaged, or unreadable PDF files.', path: '/repair-pdf', icon: Wrench, color: 'text-emerald-500' },
+        { name: 'HTML to PDF', desc: 'Convert HTML code or web links into printable PDF.', path: '/html-to-pdf', icon: Globe, color: 'text-cyan-500' }
       ]
     },
     {
@@ -125,7 +129,11 @@ export function Home() {
         { name: 'Image Resizer', desc: 'Resize pixels, crop bounds, and dimensions.', path: '/resize-image', icon: Maximize2, color: 'text-cyan-500' },
         { name: 'Format Converter', desc: 'Convert formats between PNG, JPG, WebP, HEIC.', path: '/convert-image', icon: FileSpreadsheet, color: 'text-teal-600' },
         { name: 'Passport Maker', desc: 'Print-ready passport photo layouts.', path: '/passport-maker', icon: UserCheck, color: 'text-lime-600' },
-        { name: 'Govt Assistant', desc: 'Portal presets (SSC, UPSC, etc.) templates.', path: '/govt-assistant', icon: Sparkles, color: 'text-yellow-500' }
+        { name: 'Govt Assistant', desc: 'Portal presets (SSC, UPSC, etc.) templates.', path: '/govt-assistant', icon: Sparkles, color: 'text-yellow-500' },
+        { name: 'HTML to Image', desc: 'Convert HTML code markup or web URLs to PNG/JPG.', path: '/html-to-image', icon: Globe, color: 'text-violet-500' },
+        { name: 'Image Editor', desc: 'Filters, cropping, drawing, adjustments.', path: '/edit-image', icon: Edit3, color: 'text-pink-500' },
+        { name: 'Remove Background', desc: 'Erase white, black, or custom picked backdrops.', path: '/remove-bg', icon: Eraser, color: 'text-rose-500' },
+        { name: 'AI Remove Background', desc: 'Erase backgrounds from portraits using AI models.', path: '/remove-background', icon: Sparkles, color: 'text-indigo-500' }
       ]
     }
   ];

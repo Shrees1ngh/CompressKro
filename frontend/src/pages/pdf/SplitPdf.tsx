@@ -10,7 +10,7 @@ import {
   FileText, 
   RefreshCw,
   ListOrdered,
-  FileType
+  Crop
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import { StorageService } from '../../services/storage.service';
@@ -134,7 +134,7 @@ export function SplitPdf() {
 
   const relatedTools: RelatedToolItem[] = [
     { name: 'Merge PDF', desc: 'Combine multiple PDF files.', path: '/merge-pdf', icon: ListOrdered },
-    { name: 'PDF to Word', desc: 'Convert PDF to Word document.', path: '/pdf-to-word', icon: FileType },
+    { name: 'Crop PDF', desc: 'Crop page margins visually.', path: '/crop-pdf', icon: Crop },
     { name: 'Rotate & Order', desc: 'Rearrange and rotate pages.', path: '/rotate-pdf', icon: RefreshCw }
   ];
 

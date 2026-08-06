@@ -29,7 +29,7 @@ export function CompressPdf() {
 
   const relatedTools: RelatedToolItem[] = [
     { name: 'Merge PDF', desc: 'Combine multiple PDF files.', path: '/merge-pdf', icon: ListOrdered },
-    { name: 'PDF to Word', desc: 'Convert PDF to Word document.', path: '/pdf-to-word', icon: FileText },
+    { name: 'Split PDF', desc: 'Extract pages or split ranges.', path: '/split-pdf', icon: FileText },
     { name: 'Unlock PDF', desc: 'Remove password restrictions.', path: '/unlock-pdf', icon: FileText }
   ];
 

@@ -128,28 +128,7 @@ const routes = [
       { q: 'Are pages watermarked during conversion?', a: 'No, exports are clean and contain only original page visual layouts.' }
     ]
   },
-  {
-    path: 'pdf-to-word',
-    title: 'Convert PDF to Word Online Free - PDF to DOCX | CompressKro',
-    desc: 'Convert PDF to editable Word document (.docx) online for free. Extracts text from PDF pages locally. Easy conversion, privacy-first.',
-    heading: 'Convert PDF to Word',
-    sub: 'Convert PDF files into standard Microsoft Word DOCX formats.',
-    faqs: [
-      { q: 'Does this preserve layout structures?', a: 'Yes, text lines, formatting, and tables are preserved where possible.' },
-      { q: 'Is OCR required for scanned PDFs?', a: 'Yes. If the PDF is scanned images, run our OCR tool first to extract text.' }
-    ]
-  },
-  {
-    path: 'pdf-to-excel',
-    title: 'Convert PDF to Excel Online Free - PDF to XLSX | CompressKro',
-    desc: 'Convert PDF to Excel spreadsheet (.xlsx) online for free. Extract tables and data columns into sheets. 100% private client-side converter.',
-    heading: 'Convert PDF to Excel',
-    sub: 'Extract tables and data columns into clean, editable Microsoft Excel XLSX sheets.',
-    faqs: [
-      { q: 'Can I convert multi-page tables?', a: 'Yes. Rows and tables from multiple pages are appended to corresponding sheet cells.' },
-      { q: 'Is spreadsheet compilation secure?', a: 'Yes, table parsing runs locally using Javascript client-side sheet engines.' }
-    ]
-  },
+
   {
     path: 'ocr-pdf',
     title: 'OCR PDF Online Free - Searchable PDF Creator | CompressKro',
@@ -257,7 +236,87 @@ const routes = [
     sub: 'Auto-configure image resizing for government job applications.',
     faqs: [
       { q: 'What exam portals are included?', a: 'Presets support SSC, UPSC, IBPS, SBI, JEE, NEET, and PAN/Aadhaar cards.' },
-      { q: 'Are instructions updated?', a: 'Yes, guidelines are synced with official exam notification catalogs.' }
+      { q: 'Are instructions updated?', a: 'Guidelines are synced with official exam notification catalogs.' }
+    ]
+  },
+
+  {
+    path: 'html-to-pdf',
+    title: 'Compile HTML to PDF Online Free - Webpage to PDF | CompressKro',
+    desc: 'Convert raw HTML code and web tags to PDF online for free. Clean layouts, printable margins, safe and private. 100% private.',
+    heading: 'Compile HTML to PDF',
+    sub: 'Compile raw HTML code or web page markup into standard printable PDF files.',
+    faqs: [
+      { q: 'What tags are supported?', a: 'We support headings, paragraphs, bullet points, line breaks, and standard text structures.' },
+      { q: 'Is CSS styling applied?', a: 'Yes, simple CSS layouts are translated into printable margins and page boundaries.' }
+    ]
+  },
+
+  {
+    path: 'extract-images',
+    title: 'Extract Images from PDF Online Free - Image Extractor | CompressKro',
+    desc: 'Extract embedded photos, screenshots, and graphic assets from PDF online for free into a ZIP file. 100% private.',
+    heading: 'Extract Images from PDF',
+    sub: 'Scan and extract embedded photos and graphics from a PDF document.',
+    faqs: [
+      { q: 'Does extraction reduce image quality?', a: 'No, image files are extracted as raw streams directly from the PDF without re-compression.' },
+      { q: 'Are vector graphic layers extracted?', a: 'No, only actual inline photo elements (JPEG/PNG) are extracted by the scanner.' }
+    ]
+  },
+
+  {
+    path: 'crop-pdf',
+    title: 'Crop PDF Online Free - Trim PDF Margins | CompressKro',
+    desc: 'Crop PDF pages online for free. Adjust margins visually with preview controls. 100% client-side in-browser canvas tool.',
+    heading: 'Crop PDF Pages',
+    sub: 'Trim page margins and define custom boundaries visually.',
+    faqs: [
+      { q: 'Does cropping reduce file bytes?', a: 'No, it defines new viewport dimensions. The elements still exist in raw structures but standard readers hide them.' },
+      { q: 'Is this process private?', a: 'Yes, editing coordinates runs entirely inside your client browser.' }
+    ]
+  },
+  {
+    path: 'html-to-image',
+    title: 'HTML or URL to Image Online Free - Screenshot Capture | CompressKro',
+    desc: 'Convert raw HTML code or complete web URLs into high-quality JPEG or PNG images online for free. Custom viewport sizes, full page capture. Secure.',
+    heading: 'HTML or URL to Image Converter',
+    sub: 'Convert HTML code markup or capture entire webpage links into clean, high-fidelity images.',
+    faqs: [
+      { q: 'What does Full Page capture do?', a: 'It captures the entire scrollable height of the webpage, outputting it as a single tall screenshot image.' },
+      { q: 'What format should I select?', a: 'Use PNG for text-heavy code captures to preserve sharp pixels, and JPEG for image-heavy screenshots to get smaller file sizes.' }
+    ]
+  },
+  {
+    path: 'edit-image',
+    title: 'Pro Image Editor Online Free - Edit Photo Canvas | CompressKro',
+    desc: 'Edit your photos online for free. Adjust brightness, contrast, saturations, apply preset style filters, rotate, flip, draw annotations, add text overlays, or crop bounds visually. 100% private in-browser canvas editor.',
+    heading: 'Pro Image Editor',
+    sub: 'Visual adjustment sliders, preset filters, drawings, text overlays, and crop bounding boxes.',
+    faqs: [
+      { q: 'What filters can I apply?', a: 'You can choose between Monochrome, Sepia, Invert, Vintage, Cool, Dramatic, and Polaroid presets.' },
+      { q: 'Is drawing editable?', a: 'You can draw custom lines and brush annotations, and use the Undo/Redo controls to step back/forward through individual drawing operations.' }
+    ]
+  },
+  {
+    path: 'remove-bg',
+    title: 'Remove Image Background Free Online - Transparency Keyer | CompressKro',
+    desc: 'Erase solid backgrounds from images online for free. Convert white, black, or custom backdrops to transparent pixels locally. Easy, fast, and secure.',
+    heading: 'Remove Solid Background',
+    sub: 'Erase solid color backdrops from signatures, logos, or portrait photos.',
+    faqs: [
+      { q: 'Can I pick any background color?', a: 'Yes. The tool auto-detects background colors, or you can click anywhere on the image to sample a custom shade.' },
+      { q: 'Does this upload images to a server?', a: 'No. Background color segmentation runs entirely in your browser client canvas memory.' }
+    ]
+  },
+  {
+    path: 'remove-background',
+    title: 'AI Background Remover Free Online - Transparent PNG Cutout | CompressKro',
+    desc: 'Erase backgrounds from images automatically online for free. AI-assisted portrait, animal, and product segmentation models. 100% secure.',
+    heading: 'AI Background Remover',
+    sub: 'Erase backgrounds from images automatically using neural network models.',
+    faqs: [
+      { q: 'What models are supported?', a: 'We support ISNet-general-use, U2Net standard portrait, and lightweight U2Netp models.' },
+      { q: 'Is my data secure?', a: 'Yes. Files process inside an isolated sandboxed backend and are automatically deleted immediately after download.' }
     ]
   }
 ];

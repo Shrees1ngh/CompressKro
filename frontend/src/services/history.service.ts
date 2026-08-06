@@ -53,6 +53,15 @@ class HistoryServiceClass {
       date: new Date().toLocaleDateString(),
     });
   }
+
+  addImageEntry(operation: string, fileName: string, sizeBytes: number): void {
+    StorageService.addHistoryEntry({
+      name: fileName,
+      tool: 'Format Convert',
+      details: `${operation} · ${getFriendlySize(sizeBytes)}`,
+      date: new Date().toLocaleDateString(),
+    });
+  }
 }
 
 export const HistoryService = new HistoryServiceClass();

@@ -27,10 +27,11 @@ import {
   Droplets,
   Eraser,
   Hash,
-  FileType,
   ScanText,
   Wrench,
-  Edit3
+  Edit3,
+  Crop,
+  Globe
 } from 'lucide-react';
 
 import { StorageService } from './services/storage.service';
@@ -50,19 +51,24 @@ const AddWatermark = React.lazy(() => import('./pages/pdf/AddWatermark').then(m 
 const RemoveWatermark = React.lazy(() => import('./pages/pdf/RemoveWatermark').then(m => ({ default: m.RemoveWatermark })));
 const PageNumbers = React.lazy(() => import('./pages/pdf/PageNumbers').then(m => ({ default: m.PageNumbers })));
 const PdfToJpg = React.lazy(() => import('./pages/pdf/PdfToJpg').then(m => ({ default: m.PdfToJpg })));
-const PdfToWord = React.lazy(() => import('./pages/pdf/PdfToWord').then(m => ({ default: m.PdfToWord })));
-const PdfToExcel = React.lazy(() => import('./pages/pdf/PdfToExcel').then(m => ({ default: m.PdfToExcel })));
 const OcrPdf = React.lazy(() => import('./pages/pdf/OcrPdf').then(m => ({ default: m.OcrPdf })));
 const RepairPdf = React.lazy(() => import('./pages/pdf/RepairPdf').then(m => ({ default: m.RepairPdf })));
 const CompressPdf = React.lazy(() => import('./pages/pdf/CompressPdf').then(m => ({ default: m.CompressPdf })));
 const AddSignature = React.lazy(() => import('./pages/pdf/AddSignature').then(m => ({ default: m.AddSignature })));
 const PdfEditor = React.lazy(() => import('./pages/pdf/PdfEditor').then(m => ({ default: m.PdfEditor })));
+const HtmlToPdf = React.lazy(() => import('./pages/pdf/HtmlToPdf').then(m => ({ default: m.HtmlToPdf })));
+const ExtractImages = React.lazy(() => import('./pages/pdf/ExtractImages').then(m => ({ default: m.ExtractImages })));
+const CropPdf = React.lazy(() => import('./pages/pdf/CropPdf').then(m => ({ default: m.CropPdf })));
 
 const CompressImage = React.lazy(() => import('./pages/image/CompressImage').then(m => ({ default: m.CompressImage })));
 const ResizeImage = React.lazy(() => import('./pages/image/ResizeImage').then(m => ({ default: m.ResizeImage })));
 const ConvertImage = React.lazy(() => import('./pages/image/ConvertImage').then(m => ({ default: m.ConvertImage })));
 const PassportMakerPage = React.lazy(() => import('./pages/image/PassportMaker').then(m => ({ default: m.PassportMakerPage })));
 const GovtAssistantPage = React.lazy(() => import('./pages/image/GovtAssistant').then(m => ({ default: m.GovtAssistantPage })));
+const HtmlToImage = React.lazy(() => import('./pages/image/HtmlToImage').then(m => ({ default: m.HtmlToImage })));
+const EditImage = React.lazy(() => import('./pages/image/EditImage').then(m => ({ default: m.EditImage })));
+const RemoveBg = React.lazy(() => import('./pages/image/RemoveBg').then(m => ({ default: m.RemoveBg })));
+const RemoveBackground = React.lazy(() => import('./pages/RemoveBackground').then(m => ({ default: m.RemoveBackground })));
 
 // Minimal page-transition fallback shown while a lazy chunk loads
 function PageLoader() {
@@ -82,12 +88,19 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard, description: 'All PDF & Image Tools' },
-  { path: '/compress-image', label: 'Image Compressor', icon: ImageIcon, description: 'Target KB compression' },
   { path: '/compress-pdf', label: 'PDF Compressor', icon: FileDown, description: 'Optimize PDF size' },
-  { path: '/resize-image', label: 'Image Resizer', icon: Maximize2, description: 'Crop & scaling size' },
-  { path: '/convert-image', label: 'Format Converter', icon: FileSpreadsheet, description: 'PNG, JPG, WebP, HEIC' },
-  { path: '/passport-maker', label: 'Passport Maker', icon: UserCheck, description: 'Govt-standard photos' },
-  { path: '/govt-assistant', label: 'Govt Assistant', icon: Sparkles, description: 'Portal guidelines presets' },
+  { path: '/compress-image', label: 'Image Compressor', icon: ImageIcon, description: 'Target KB compression' }
+];
+
+const imageShortcuts = [
+  { path: '/resize-image', label: 'Image Resizer', icon: Maximize2 },
+  { path: '/convert-image', label: 'Format Converter', icon: FileSpreadsheet },
+  { path: '/passport-maker', label: 'Passport Maker', icon: UserCheck },
+  { path: '/govt-assistant', label: 'Govt Assistant', icon: Sparkles },
+  { path: '/html-to-image', label: 'HTML to Image', icon: Globe },
+  { path: '/edit-image', label: 'Image Editor', icon: Edit3 },
+  { path: '/remove-bg', label: 'Remove Background', icon: Eraser },
+  { path: '/remove-background', label: 'AI Remove Background', icon: Sparkles }
 ];
 
 const pdfShortcuts = [
@@ -95,17 +108,18 @@ const pdfShortcuts = [
   { path: '/split-pdf', label: 'Split PDF', icon: FileText },
   { path: '/sign-pdf', label: 'Sign PDF', icon: PenTool },
   { path: '/edit-pdf', label: 'Edit PDF', icon: Edit3 },
+  { path: '/crop-pdf', label: 'Crop PDF', icon: Crop },
   { path: '/rotate-pdf', label: 'Rotate & Order', icon: RotateCw },
-  { path: '/pdf-to-word', label: 'PDF to Word', icon: FileType },
-  { path: '/pdf-to-excel', label: 'PDF to Excel', icon: FileSpreadsheet },
   { path: '/ocr-pdf', label: 'OCR PDF', icon: ScanText },
   { path: '/add-watermark', label: 'Add Watermark', icon: Droplets },
   { path: '/remove-watermark', label: 'Remove Watermark', icon: Eraser },
   { path: '/page-numbers', label: 'Page Numbers', icon: Hash },
   { path: '/pdf-to-jpg', label: 'PDF to JPG', icon: ImageIcon },
+  { path: '/extract-images', label: 'Extract Images', icon: ImageIcon },
   { path: '/lock-pdf', label: 'Lock PDF', icon: Lock },
   { path: '/unlock-pdf', label: 'Unlock PDF', icon: Unlock },
   { path: '/repair-pdf', label: 'Repair PDF', icon: Wrench },
+  { path: '/html-to-pdf', label: 'HTML to PDF', icon: Globe },
 ];
 
 function MainLayout({ children }: { children: React.ReactNode }) {
@@ -227,6 +241,31 @@ function MainLayout({ children }: { children: React.ReactNode }) {
                   })}
                 </nav>
               </div>
+
+              {/* Collapsible Image shortcuts directly in sidebar */}
+              <div className="space-y-2">
+                <div className="px-3 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Image Utilities</div>
+                <nav className="grid grid-cols-2 gap-1 px-1">
+                  {imageShortcuts.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = location.pathname === item.path;
+                    return (
+                      <Link
+                        key={item.path}
+                        to={item.path}
+                        className={`flex items-center gap-1.5 px-2 py-2 rounded-lg border text-[10px] font-bold transition-all truncate cursor-pointer ${
+                          isActive
+                            ? 'bg-violet-50 border-violet-200 text-violet-650 dark:bg-violet-950/20 dark:border-violet-900/50 dark:text-violet-400'
+                            : 'bg-white/40 dark:bg-slate-950/20 border-slate-200/50 dark:border-slate-850 text-slate-600 dark:text-slate-400 hover:border-violet-500'
+                        }`}
+                      >
+                        <Icon className="w-3.5 h-3.5 text-slate-450" />
+                        <span className="truncate">{item.label}</span>
+                      </Link>
+                    );
+                  })}
+                </nav>
+              </div>
             </div>
 
             {/* Footer */}
@@ -306,13 +345,14 @@ function App() {
             <Route path="/remove-watermark" element={<RemoveWatermark />} />
             <Route path="/page-numbers" element={<PageNumbers />} />
             <Route path="/pdf-to-jpg" element={<PdfToJpg />} />
-            <Route path="/pdf-to-word" element={<PdfToWord />} />
-            <Route path="/pdf-to-excel" element={<PdfToExcel />} />
-            <Route path="/ocr-pdf" element={<OcrPdf />} />
+             <Route path="/ocr-pdf" element={<OcrPdf />} />
             <Route path="/repair-pdf" element={<RepairPdf />} />
             <Route path="/compress-pdf" element={<CompressPdf />} />
             <Route path="/sign-pdf" element={<AddSignature />} />
             <Route path="/edit-pdf" element={<PdfEditor />} />
+            <Route path="/html-to-pdf" element={<HtmlToPdf />} />
+            <Route path="/extract-images" element={<ExtractImages />} />
+            <Route path="/crop-pdf" element={<CropPdf />} />
 
             {/* Image Pages */}
             <Route path="/compress-image" element={<CompressImage />} />
@@ -320,6 +360,10 @@ function App() {
             <Route path="/convert-image" element={<ConvertImage />} />
             <Route path="/passport-maker" element={<PassportMakerPage />} />
             <Route path="/govt-assistant" element={<GovtAssistantPage />} />
+            <Route path="/html-to-image" element={<HtmlToImage />} />
+            <Route path="/edit-image" element={<EditImage />} />
+            <Route path="/remove-bg" element={<RemoveBg />} />
+            <Route path="/remove-background" element={<RemoveBackground />} />
 
             {/* 404 Route */}
             <Route path="*" element={<NotFound />} />

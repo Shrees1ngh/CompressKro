@@ -13,7 +13,7 @@ import {
   Trash2, 
   ListOrdered, 
   RefreshCw,
-  FileType
+  Crop
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import { StorageService } from '../../services/storage.service';
@@ -128,7 +128,7 @@ export function MergePdf() {
 
   const relatedTools: RelatedToolItem[] = [
     { name: 'Split PDF', desc: 'Extract pages or split ranges.', path: '/split-pdf', icon: FileText },
-    { name: 'PDF to Word', desc: 'Convert PDF to Word document.', path: '/pdf-to-word', icon: FileType },
+    { name: 'Crop PDF', desc: 'Crop page margins visually.', path: '/crop-pdf', icon: Crop },
     { name: 'Compress PDF', desc: 'Reduce PDF file size.', path: '/compress-pdf', icon: FileText }
   ];
 

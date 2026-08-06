@@ -96,8 +96,8 @@ export function OcrPdf() {
   ];
 
   const relatedTools: RelatedToolItem[] = [
-    { name: 'PDF to Word', desc: 'Convert PDF to Word document.', path: '/pdf-to-word', icon: FileText },
-    { name: 'PDF to Excel', desc: 'Convert tables to sheets.', path: '/pdf-to-excel', icon: FileText },
+    { name: 'Compress PDF', desc: 'Optimize PDF file size.', path: '/compress-pdf', icon: FileText },
+    { name: 'Edit PDF', desc: 'Modify text or add annotations.', path: '/edit-pdf', icon: FileText },
     { name: 'Merge PDF', desc: 'Combine multiple PDF files.', path: '/merge-pdf', icon: ListOrdered }
   ];
 
