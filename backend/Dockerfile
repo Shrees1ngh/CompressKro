@@ -29,6 +29,9 @@ ENV U2NET_HOME=/app/.u2net
 # Install Python packages globally under root context
 RUN pip3 install --no-cache-dir --break-system-packages "rembg[cpu]" onnxruntime
 
+# Ensure Python directories and files are readable and executable by non-root users
+RUN chmod -R a+rX /usr/local/lib /usr/lib /usr/local/bin
+
 # Verification step (fails the build if rembg didn't install successfully)
 RUN python3 -c "import rembg; print('rembg OK:', rembg.__file__)"
 
