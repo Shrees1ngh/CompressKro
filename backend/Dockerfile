@@ -23,27 +23,35 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Set working directory inside container
 WORKDIR /app
 
+# Set Environment variables for rembg cache
+ENV U2NET_HOME=/app/.u2net
+
+# Install Python packages globally under root context
+RUN pip3 install --no-cache-dir --break-system-packages "rembg[cpu]" onnxruntime
+
+# Verification step (fails the build if rembg didn't install successfully)
+RUN python3 -c "import rembg; print('rembg OK:', rembg.__file__)"
+
+# Pre-download models globally under root context
+RUN python3 -c "from rembg import new_session; new_session('isnet-general-use'); new_session('u2netp')"
+
+# Explicitly chown cache folder to node user
+RUN chown -R node:node /app/.u2net
+
 # Copy dependency manifests with node ownership for fast caching
 COPY --chown=node:node package.json package-lock.json* ./
 
 # Install production dependencies
 RUN npm ci --omit=dev
 
-# Run as non-root user
-USER node
-
-# Add node user local scripts to PATH
-ENV PATH="/home/node/.local/bin:${PATH}"
-
-# Install Python packages locally under node user context and pre-cache models
-RUN pip3 install --user --no-cache-dir "rembg[cpu]" onnxruntime && \
-    python3 -c "from rembg import new_session; new_session('isnet-general-use'); new_session('u2netp')"
-
 # Copy application source code with node ownership
 COPY --chown=node:node . .
 
 # Set environment variables
 ENV NODE_ENV=production
+
+# Run as non-root user
+USER node
 
 # Expose default backend port
 EXPOSE 3001
