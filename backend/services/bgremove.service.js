@@ -8,9 +8,8 @@ const os = require('os');
 const isWindows = os.platform() === 'win32';
 
 /**
- * Invokes rembg to remove background from an image.
- * On Linux/Docker, uses /usr/local/bin/rembg-runner wrapper script that has
- * the correct PYTHONPATH baked in at Docker build time.
+ * Invokes python rembg to remove background from an image.
+ * Uses the lightweight u2netp model by default.
  * 
  * @param {string} inputPath Path to the input image file
  * @param {string} outputPath Path to write the output transparent PNG file
@@ -19,11 +18,23 @@ const isWindows = os.platform() === 'win32';
  */
 function removeBackground(inputPath, outputPath, model = 'u2netp') {
   return new Promise((resolve, reject) => {
-    // On Docker: use the wrapper script that sets PYTHONPATH correctly
-    // On Windows dev: use local python
-    const pythonBin = isWindows ? 'python' : '/usr/local/bin/rembg-runner';
+    const pythonBin = isWindows ? 'python' : 'python3';
     
-    execFile(pythonBin, ['-m', 'rembg', 'i', '-m', model, inputPath, outputPath], (error, stdout, stderr) => {
+    // Explicitly pass PYTHONPATH to the python3 child process to ensure
+    // packages installed globally under root context can be imported by node user
+    const env = {
+      ...process.env,
+      PYTHONPATH: [
+        '/usr/local/lib/python3.11/dist-packages',
+        '/usr/local/lib/python3.12/dist-packages',
+        '/usr/local/lib/python3.10/dist-packages',
+        '/usr/lib/python3/dist-packages',
+        process.env.PYTHONPATH
+      ].filter(Boolean).join(':')
+    };
+
+    // Spawns: python3 -m rembg i -m <model> <inputPath> <outputPath>
+    execFile(pythonBin, ['-m', 'rembg', 'i', '-m', model, inputPath, outputPath], { env }, (error, stdout, stderr) => {
       if (error) {
         console.error('[BgRemove Service] Command execution error:', stderr || error.message);
         return reject(new Error(stderr || error.message));

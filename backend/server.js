@@ -25,13 +25,22 @@ fs.mkdirSync(outputDir, { recursive: true });
 
 // Startup diagnostic: verify rembg is available (non-blocking)
 if (process.platform !== 'win32') {
-  const runner = '/usr/local/bin/rembg-runner';
-  execFile(runner, ['-c', 'import rembg; print("STARTUP OK: rembg", rembg.__version__, "at", rembg.__file__)'], (err, stdout, stderr) => {
+  const env = {
+    ...process.env,
+    PYTHONPATH: [
+      '/usr/local/lib/python3.11/dist-packages',
+      '/usr/local/lib/python3.12/dist-packages',
+      '/usr/local/lib/python3.10/dist-packages',
+      '/usr/lib/python3/dist-packages',
+      process.env.PYTHONPATH
+    ].filter(Boolean).join(':')
+  };
+  
+  execFile('python3', ['-c', 'import rembg; print("STARTUP OK: rembg", rembg.__version__, "at", rembg.__file__)'], { env }, (err, stdout, stderr) => {
     if (err) {
-      console.error('⚠️  STARTUP DIAGNOSTIC: rembg NOT available via rembg-runner');
+      console.error('⚠️  STARTUP DIAGNOSTIC: rembg NOT available via python3');
       console.error('   Error:', stderr || err.message);
-      // Also try raw python3 for comparison
-      execFile('/usr/bin/python3', ['-c', 'import sys; print("sys.path:", sys.path)'], (e2, out2) => {
+      execFile('python3', ['-c', 'import sys; print("sys.path:", sys.path)'], { env }, (e2, out2) => {
         if (out2) console.error('   python3 sys.path:', out2.trim());
       });
     } else {

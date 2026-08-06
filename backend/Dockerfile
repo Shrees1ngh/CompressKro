@@ -29,13 +29,7 @@ RUN pip3 install --no-cache-dir --break-system-packages "rembg[cpu]" onnxruntime
 # Verify rembg is importable as root and print its location
 RUN python3 -c "import rembg; print('BUILD VERIFY - rembg OK:', rembg.__file__)"
 
-# Create a wrapper script that bakes in the EXACT PYTHONPATH discovered at build time.
-# This is the nuclear fix: no matter what user runs this script, rembg WILL be found.
-RUN REMBG_SITE=$(python3 -c "import rembg, os; print(os.path.dirname(os.path.dirname(rembg.__file__)))") && \
-    printf '#!/bin/sh\nexport PYTHONPATH="%s:${PYTHONPATH}"\nexec /usr/bin/python3 "$@"\n' "$REMBG_SITE" > /usr/local/bin/rembg-runner && \
-    chmod a+rx /usr/local/bin/rembg-runner && \
-    echo "--- rembg-runner contents ---" && cat /usr/local/bin/rembg-runner && \
-    echo "--- verifying rembg-runner works ---" && /usr/local/bin/rembg-runner -c "import rembg; print('WRAPPER VERIFY - rembg OK:', rembg.__file__)"
+
 
 # Pre-download the lightweight u2netp model at build time
 ENV U2NET_HOME=/app/.u2net
