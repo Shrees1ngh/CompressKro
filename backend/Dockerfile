@@ -23,7 +23,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Set Environment variables for rembg cache and install packages
 ENV U2NET_HOME=/app/.u2net
 RUN pip3 install --no-cache-dir --break-system-packages "rembg[cpu]" onnxruntime && \
-    python3 -c "from rembg import new_session; new_session('isnet-general-use')" && \
+    python3 -c "from rembg import new_session; new_session('isnet-general-use'); new_session('u2netp')" && \
     mkdir -p /app && \
     chown -R 1000:1000 /app
 

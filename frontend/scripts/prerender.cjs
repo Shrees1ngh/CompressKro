@@ -298,17 +298,6 @@ const routes = [
     ]
   },
   {
-    path: 'remove-bg',
-    title: 'Remove Image Background Free Online - Transparency Keyer | CompressKro',
-    desc: 'Erase solid backgrounds from images online for free. Convert white, black, or custom backdrops to transparent pixels locally. Easy, fast, and secure.',
-    heading: 'Remove Solid Background',
-    sub: 'Erase solid color backdrops from signatures, logos, or portrait photos.',
-    faqs: [
-      { q: 'Can I pick any background color?', a: 'Yes. The tool auto-detects background colors, or you can click anywhere on the image to sample a custom shade.' },
-      { q: 'Does this upload images to a server?', a: 'No. Background color segmentation runs entirely in your browser client canvas memory.' }
-    ]
-  },
-  {
     path: 'remove-background',
     title: 'AI Background Remover Free Online - Transparent PNG Cutout | CompressKro',
     desc: 'Erase backgrounds from images automatically online for free. AI-assisted portrait, animal, and product segmentation models. 100% secure.',

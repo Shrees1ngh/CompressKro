@@ -67,7 +67,6 @@ const PassportMakerPage = React.lazy(() => import('./pages/image/PassportMaker')
 const GovtAssistantPage = React.lazy(() => import('./pages/image/GovtAssistant').then(m => ({ default: m.GovtAssistantPage })));
 const HtmlToImage = React.lazy(() => import('./pages/image/HtmlToImage').then(m => ({ default: m.HtmlToImage })));
 const EditImage = React.lazy(() => import('./pages/image/EditImage').then(m => ({ default: m.EditImage })));
-const RemoveBg = React.lazy(() => import('./pages/image/RemoveBg').then(m => ({ default: m.RemoveBg })));
 const RemoveBackground = React.lazy(() => import('./pages/RemoveBackground').then(m => ({ default: m.RemoveBackground })));
 
 // Minimal page-transition fallback shown while a lazy chunk loads
@@ -99,7 +98,6 @@ const imageShortcuts = [
   { path: '/govt-assistant', label: 'Govt Assistant', icon: Sparkles },
   { path: '/html-to-image', label: 'HTML to Image', icon: Globe },
   { path: '/edit-image', label: 'Image Editor', icon: Edit3 },
-  { path: '/remove-bg', label: 'Remove Background', icon: Eraser },
   { path: '/remove-background', label: 'AI Remove Background', icon: Sparkles }
 ];
 
@@ -362,7 +360,6 @@ function App() {
             <Route path="/govt-assistant" element={<GovtAssistantPage />} />
             <Route path="/html-to-image" element={<HtmlToImage />} />
             <Route path="/edit-image" element={<EditImage />} />
-            <Route path="/remove-bg" element={<RemoveBg />} />
             <Route path="/remove-background" element={<RemoveBackground />} />
 
             {/* 404 Route */}
