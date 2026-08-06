@@ -23,20 +23,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Set working directory inside container
 WORKDIR /app
 
-# Install rembg globally as root
+# Install rembg globally as root (--break-system-packages required for Debian Bookworm)
 RUN pip3 install --no-cache-dir --break-system-packages "rembg[cpu]" onnxruntime
 
-# Print where pip installed rembg (for debugging future builds)
-RUN python3 -c "import rembg; print('rembg OK:', rembg.__file__)" && \
-    python3 -c "import sys; print('sys.path:', sys.path)"
+# Verify rembg is importable as root and print its location
+RUN python3 -c "import rembg; print('BUILD VERIFY - rembg OK:', rembg.__file__)"
 
-# Set PYTHONPATH so that ALL users (including node) can import pip-installed packages.
-# This is the core fix: Debian Bookworm's python3 may exclude /usr/local/lib paths
-# from sys.path for non-root users. Setting PYTHONPATH overrides that behavior.
-ENV PYTHONPATH="/usr/local/lib/python3.11/dist-packages:/usr/lib/python3/dist-packages"
-
-# Verify rembg is importable with PYTHONPATH set (simulates runtime conditions)
-RUN python3 -c "import rembg; print('rembg with PYTHONPATH OK:', rembg.__file__)"
+# Create a wrapper script that bakes in the EXACT PYTHONPATH discovered at build time.
+# This is the nuclear fix: no matter what user runs this script, rembg WILL be found.
+RUN REMBG_SITE=$(python3 -c "import rembg, os; print(os.path.dirname(os.path.dirname(rembg.__file__)))") && \
+    printf '#!/bin/sh\nexport PYTHONPATH="%s:${PYTHONPATH}"\nexec /usr/bin/python3 "$@"\n' "$REMBG_SITE" > /usr/local/bin/rembg-runner && \
+    chmod a+rx /usr/local/bin/rembg-runner && \
+    echo "--- rembg-runner contents ---" && cat /usr/local/bin/rembg-runner && \
+    echo "--- verifying rembg-runner works ---" && /usr/local/bin/rembg-runner -c "import rembg; print('WRAPPER VERIFY - rembg OK:', rembg.__file__)"
 
 # Pre-download the lightweight u2netp model at build time
 ENV U2NET_HOME=/app/.u2net

@@ -8,8 +8,9 @@ const os = require('os');
 const isWindows = os.platform() === 'win32';
 
 /**
- * Invokes python rembg to remove background from an image.
- * Uses the lightweight u2netp model by default (works within free-tier RAM limits).
+ * Invokes rembg to remove background from an image.
+ * On Linux/Docker, uses /usr/local/bin/rembg-runner wrapper script that has
+ * the correct PYTHONPATH baked in at Docker build time.
  * 
  * @param {string} inputPath Path to the input image file
  * @param {string} outputPath Path to write the output transparent PNG file
@@ -18,10 +19,10 @@ const isWindows = os.platform() === 'win32';
  */
 function removeBackground(inputPath, outputPath, model = 'u2netp') {
   return new Promise((resolve, reject) => {
-    const pythonBin = isWindows ? 'python' : 'python3';
+    // On Docker: use the wrapper script that sets PYTHONPATH correctly
+    // On Windows dev: use local python
+    const pythonBin = isWindows ? 'python' : '/usr/local/bin/rembg-runner';
     
-    // Spawns: python3 -m rembg i -m <model> <inputPath> <outputPath>
-    // PYTHONPATH is set in the Dockerfile ENV so python3 always finds rembg
     execFile(pythonBin, ['-m', 'rembg', 'i', '-m', model, inputPath, outputPath], (error, stdout, stderr) => {
       if (error) {
         console.error('[BgRemove Service] Command execution error:', stderr || error.message);

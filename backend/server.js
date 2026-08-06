@@ -15,11 +15,30 @@ const sharp = require('sharp');
 const fs = require('fs');
 const path = require('path');
 
+const { execFile } = require('child_process');
+
 // Ensure tmp directories exist on boot
 const uploadDir = path.join(__dirname, 'tmp/uploads');
 const outputDir = path.join(__dirname, 'tmp/outputs');
 fs.mkdirSync(uploadDir, { recursive: true });
 fs.mkdirSync(outputDir, { recursive: true });
+
+// Startup diagnostic: verify rembg is available (non-blocking)
+if (process.platform !== 'win32') {
+  const runner = '/usr/local/bin/rembg-runner';
+  execFile(runner, ['-c', 'import rembg; print("STARTUP OK: rembg", rembg.__version__, "at", rembg.__file__)'], (err, stdout, stderr) => {
+    if (err) {
+      console.error('⚠️  STARTUP DIAGNOSTIC: rembg NOT available via rembg-runner');
+      console.error('   Error:', stderr || err.message);
+      // Also try raw python3 for comparison
+      execFile('/usr/bin/python3', ['-c', 'import sys; print("sys.path:", sys.path)'], (e2, out2) => {
+        if (out2) console.error('   python3 sys.path:', out2.trim());
+      });
+    } else {
+      console.log('✅', stdout.trim());
+    }
+  });
+}
 
 // Tune sharp global cache & concurrency to leverage libvips native performance
 sharp.cache({ memory: 50, files: 20, items: 100 });
