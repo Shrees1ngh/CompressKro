@@ -5,7 +5,7 @@
 
 FROM node:20-bookworm-slim
 
-# Install system dependencies
+# Install system dependencies (including python3-venv for virtual environment)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ghostscript \
     qpdf \
@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr-eng \
     python3 \
     python3-pip \
+    python3-venv \
     ocrmypdf \
     poppler-utils \
     unpaper \
@@ -23,23 +24,28 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Set working directory inside container
 WORKDIR /app
 
-# Set Environment variables for rembg cache
+# ── rembg setup via isolated virtual environment ──────────────
+# Using a venv guarantees the node user can always find and run
+# rembg regardless of Debian's system-python path quirks.
+
+# Create virtual environment at a fixed, known path
+RUN python3 -m venv /opt/rembg-env
+
+# Install rembg and onnxruntime inside the venv
+RUN /opt/rembg-env/bin/pip install --no-cache-dir "rembg[cpu]" onnxruntime
+
+# Verification — fail the Docker build immediately if rembg is missing
+RUN /opt/rembg-env/bin/python -c "import rembg; print('rembg OK:', rembg.__file__)"
+
+# Pre-download AI segmentation models at build time (avoids runtime download)
 ENV U2NET_HOME=/app/.u2net
+RUN /opt/rembg-env/bin/python -c "from rembg import new_session; new_session('isnet-general-use'); new_session('u2netp')"
 
-# Install Python packages globally under root context
-RUN pip3 install --no-cache-dir --break-system-packages "rembg[cpu]" onnxruntime
+# Grant node user read/execute access to venv and model cache
+RUN chmod -R a+rX /opt/rembg-env && \
+    chown -R node:node /app/.u2net
 
-# Ensure Python directories and files are readable and executable by non-root users
-RUN chmod -R a+rX /usr/local/lib /usr/lib /usr/local/bin
-
-# Verification step (fails the build if rembg didn't install successfully)
-RUN python3 -c "import rembg; print('rembg OK:', rembg.__file__)"
-
-# Pre-download models globally under root context
-RUN python3 -c "from rembg import new_session; new_session('isnet-general-use'); new_session('u2netp')"
-
-# Explicitly chown cache folder to node user
-RUN chown -R node:node /app/.u2net
+# ── Node.js application setup ────────────────────────────────
 
 # Copy dependency manifests with node ownership for fast caching
 COPY --chown=node:node package.json package-lock.json* ./

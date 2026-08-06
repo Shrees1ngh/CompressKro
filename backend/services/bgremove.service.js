@@ -18,9 +18,9 @@ const isWindows = os.platform() === 'win32';
  */
 function removeBackground(inputPath, outputPath, model = 'isnet-general-use') {
   return new Promise((resolve, reject) => {
-    const pythonBin = isWindows ? 'python' : 'python3';
+    const pythonBin = isWindows ? 'python' : '/opt/rembg-env/bin/python';
     
-    // Spawns shell utility to execute: python -m rembg i -m <model> <inputPath> <outputPath>
+    // Spawns: /opt/rembg-env/bin/python -m rembg i -m <model> <inputPath> <outputPath>
     execFile(pythonBin, ['-m', 'rembg', 'i', '-m', model, inputPath, outputPath], (error, stdout, stderr) => {
       if (error) {
         console.error('[BgRemove Service] Command execution error:', stderr || error.message);
