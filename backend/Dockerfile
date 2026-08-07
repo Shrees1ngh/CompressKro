@@ -42,7 +42,7 @@ RUN chown -R node:node /app/.u2net
 COPY --chown=node:node package.json package-lock.json* ./
 
 # Install production dependencies
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 # Copy application source code with node ownership
 COPY --chown=node:node . .
