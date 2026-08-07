@@ -45,7 +45,7 @@ COPY --chown=node:node package.json package-lock.json* ./
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
 # Install production dependencies
-RUN npm install --omit=dev
+RUN npm install --omit=dev || (cat /root/.npm/_logs/*-debug-0.log && exit 1)
 
 # Copy application source code with node ownership
 COPY --chown=node:node . .
