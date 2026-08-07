@@ -2,7 +2,7 @@
 // CompressKro — Client-Side AI Background Remover with Manual Editor
 // ============================================================
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import { 
   Upload, 
@@ -66,7 +66,7 @@ export function RemoveBg() {
   // Image instances stored in ref to prevent state-trigger loops
   const originalImgRef = useRef<HTMLImageElement | null>(null);
   const cutoutImgRef = useRef<HTMLImageElement | null>(null);
-  const tempCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const normalizedOriginalCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const lastPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   // Preset Colors
@@ -160,11 +160,18 @@ export function RemoveBg() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(img, 0, 0);
 
-    // Create temp canvas for clipping strokes (restore brush buffer)
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = canvas.width;
-    tempCanvas.height = canvas.height;
-    tempCanvasRef.current = tempCanvas;
+    // Create a normalized original image canvas matching the cutout size exactly.
+    // This is created once upon init, preventing heavy scaling operations inside mousemove events.
+    if (originalImgRef.current) {
+      const normCanvas = document.createElement('canvas');
+      normCanvas.width = canvas.width;
+      normCanvas.height = canvas.height;
+      const normCtx = normCanvas.getContext('2d');
+      if (normCtx) {
+        normCtx.drawImage(originalImgRef.current, 0, 0, canvas.width, canvas.height);
+        normalizedOriginalCanvasRef.current = normCanvas;
+      }
+    }
   };
 
   // Get canvas coordinate mapping from cursor events
@@ -189,48 +196,37 @@ export function RemoveBg() {
     
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
-    const tempCanvas = tempCanvasRef.current;
-    const tempCtx = tempCanvas?.getContext('2d');
-    const originalImg = originalImgRef.current;
+    const normCanvas = normalizedOriginalCanvasRef.current;
 
-    if (!canvas || !ctx || !tempCanvas || !tempCtx || !originalImg) return;
+    if (!canvas || !ctx || !normCanvas) return;
 
     const coords = getCanvasCoords(e);
     const prev = lastPosRef.current;
 
     ctx.save();
     
+    ctx.lineWidth = brushSize;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    ctx.beginPath();
+    ctx.moveTo(prev.x, prev.y);
+    ctx.lineTo(coords.x, coords.y);
+
     if (editorMode === 'erase') {
-      // Erase mode: destination-out clears pixels under stroke path
+      // Erase: clears pixels on path stroke
       ctx.globalCompositeOperation = 'destination-out';
       ctx.strokeStyle = 'rgba(0,0,0,1)';
-      ctx.lineWidth = brushSize;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.beginPath();
-      ctx.moveTo(prev.x, prev.y);
-      ctx.lineTo(coords.x, coords.y);
       ctx.stroke();
     } else if (editorMode === 'restore') {
-      // Restore mode: draw stroke path on temp canvas, fill with original image pixels, draw back
-      tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
-      
-      tempCtx.strokeStyle = 'rgba(0,0,0,1)';
-      tempCtx.lineWidth = brushSize;
-      tempCtx.lineCap = 'round';
-      tempCtx.lineJoin = 'round';
-      tempCtx.beginPath();
-      tempCtx.moveTo(prev.x, prev.y);
-      tempCtx.lineTo(coords.x, coords.y);
-      tempCtx.stroke();
-
-      // Mask original image to stroke bounds
-      tempCtx.globalCompositeOperation = 'source-in';
-      tempCtx.drawImage(originalImg, 0, 0);
-
-      // Copy masked restoration stroke to editor canvas
+      // Restore: draws the original image pixels back inside the path stroke.
+      // This is extremely efficient and leverages browser native GPU-accelerated pattern mapping.
       ctx.globalCompositeOperation = 'source-over';
-      ctx.drawImage(tempCanvas, 0, 0);
+      const pattern = ctx.createPattern(normCanvas, 'no-repeat');
+      if (pattern) {
+        ctx.strokeStyle = pattern;
+        ctx.stroke();
+      }
     }
 
     ctx.restore();
@@ -244,6 +240,13 @@ export function RemoveBg() {
       showSuccess('Manual edits cleared', 'Restored back to the original AI cutout.');
     }
   };
+
+  // Automatically initialize canvas once the canvas element mounts and processed image is ready
+  useEffect(() => {
+    if (hasResult && cutoutImgRef.current && canvasRef.current) {
+      initCanvas(cutoutImgRef.current);
+    }
+  }, [hasResult]);
 
 
 
