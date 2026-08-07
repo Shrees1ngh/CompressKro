@@ -1,5 +1,5 @@
 // ============================================================
-// CompressKro — AI Client-Side Remove Background Page
+// CompressKro — Client-Side AI Background Remover with Manual Editor
 // ============================================================
 
 import React, { useState, useRef } from 'react';
@@ -12,7 +12,9 @@ import {
   ImageIcon,
   Trash2,
   AlertTriangle,
-  Settings
+  Eraser,
+  Undo2,
+  Palette
 } from 'lucide-react';
 import { removeBackground } from '@imgly/background-removal';
 import { useToast } from '../../hooks/useToast';
@@ -22,18 +24,69 @@ import { getFriendlySize } from '../../utils/format';
 import { ToolPageLayout } from '../../components/ToolPageLayout';
 import type { StepItem, BenefitItem, FAQItem, RelatedToolItem } from '../../components/ToolPageLayout';
 
+type EditorMode = 'view' | 'erase' | 'restore';
+type BgType = 'transparent' | 'color' | 'gradient';
+
+interface ColorPreset {
+  name: string;
+  value: string;
+}
+
+interface GradientPreset {
+  name: string;
+  color1: string;
+  color2: string;
+  css: string;
+}
+
 export function RemoveBg() {
   const [file, setFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
-  const [resultUrl, setResultUrl] = useState<string>('');
-  const [resultSize, setResultSize] = useState<number>(0);
   
+  // Model Processing States
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [progressMsg, setProgressMsg] = useState<string>('');
   const [progressPercent, setProgressPercent] = useState<number>(0);
 
+  // Editor States
+  const [hasResult, setHasResult] = useState<boolean>(false);
+  const [editorMode, setEditorMode] = useState<EditorMode>('view');
+  const [brushSize, setBrushSize] = useState<number>(30);
+  const [isDrawing, setIsDrawing] = useState<boolean>(false);
+
+  // Background Customization States
+  const [bgType, setBgType] = useState<BgType>('transparent');
+  const [solidColor, setSolidColor] = useState<string>('#FFFFFF');
+  const [activeGradient, setActiveGradient] = useState<number>(0);
+
   const { showSuccess, showError } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  
+  // Image instances stored in ref to prevent state-trigger loops
+  const originalImgRef = useRef<HTMLImageElement | null>(null);
+  const cutoutImgRef = useRef<HTMLImageElement | null>(null);
+  const tempCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const lastPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  // Preset Colors
+  const colorPresets: ColorPreset[] = [
+    { name: 'White', value: '#FFFFFF' },
+    { name: 'Passport Blue', value: '#0A5CFF' },
+    { name: 'Soft Gray', value: '#F1F5F9' },
+    { name: 'Studio Orange', value: '#FF6B35' },
+    { name: 'Studio Black', value: '#1E293B' },
+    { name: 'Chroma Green', value: '#00FF00' }
+  ];
+
+  // Preset Gradients
+  const gradientPresets: GradientPreset[] = [
+    { name: 'Sunset', color1: '#FF512F', color2: '#DD2476', css: 'linear-gradient(to bottom, #FF512F, #DD2476)' },
+    { name: 'Ocean', color1: '#2193b0', color2: '#6dd5ed', css: 'linear-gradient(to bottom, #2193b0, #6dd5ed)' },
+    { name: 'Aurora', color1: '#83a4d4', color2: '#b6fbff', css: 'linear-gradient(to bottom, #83a4d4, #b6fbff)' },
+    { name: 'Neon Green', color1: '#11998e', color2: '#38ef7d', css: 'linear-gradient(to bottom, #11998e, #38ef7d)' },
+    { name: 'Dark Slate', color1: '#0f2027', color2: '#203a43', css: 'linear-gradient(to bottom, #0f2027, #203a43)' }
+  ];
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -44,9 +97,16 @@ export function RemoveBg() {
   const setupFile = (selectedFile: File) => {
     setFile(selectedFile);
     setImagePreview(URL.createObjectURL(selectedFile));
-    setResultUrl('');
-    setResultSize(0);
-    setProgressPercent(0);
+    setHasResult(false);
+    setEditorMode('view');
+    setBgType('transparent');
+
+    // Load original image in memory
+    const img = new Image();
+    img.onload = () => {
+      originalImgRef.current = img;
+    };
+    img.src = URL.createObjectURL(selectedFile);
   };
 
   const executeRemoveBg = async () => {
@@ -58,25 +118,25 @@ export function RemoveBg() {
     try {
       const config = {
         progress: (key: string, current: number, total: number) => {
-          const part = key.split('/').pop() || 'neural assets';
+          const part = key.split('/').pop() || 'weights';
           const percent = Math.round((current / total) * 100);
           setProgressPercent(percent);
           setProgressMsg(`Loading ${part}: ${percent}%`);
         }
       };
 
-      // Process image entirely client-side using @imgly/background-removal WASM
+      // Process image client-side via @imgly/background-removal
       const blob = await removeBackground(file, config);
-      const outName = `${file.name.replace(/\.[a-z0-9]+$/i, '')}_no_bg.png`;
-
-      setResultUrl(URL.createObjectURL(blob));
-      setResultSize(blob.size);
-
-      StorageService.updateStats(0, 1);
-      HistoryService.addImageEntry('Remove Background', outName, blob.size);
-
-      showSuccess('Background removed!', `Transparent PNG cutout generated successfully.`);
-      confetti({ particleCount: 65, spread: 50, origin: { y: 0.85 } });
+      
+      const img = new Image();
+      img.onload = () => {
+        cutoutImgRef.current = img;
+        initCanvas(img);
+        setHasResult(true);
+        showSuccess('AI Cutout complete!', 'Background removed. You can now touch up or change backgrounds.');
+        confetti({ particleCount: 50, spread: 60, origin: { y: 0.85 } });
+      };
+      img.src = URL.createObjectURL(blob);
     } catch (err: any) {
       console.error(err);
       showError('AI Processing failed', err.message || 'Could not complete backdrop removal.');
@@ -87,33 +147,163 @@ export function RemoveBg() {
     }
   };
 
+  // Initialize main editing canvas
+  const initCanvas = (img: HTMLImageElement) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.width = img.width;
+    canvas.height = img.height;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0);
+
+    // Create temp canvas for clipping strokes (restore brush buffer)
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = canvas.width;
+    tempCanvas.height = canvas.height;
+    tempCanvasRef.current = tempCanvas;
+  };
+
+  // Get canvas coordinate mapping from cursor events
+  const getCanvasCoords = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    
+    // Scale coords to match internal resolution
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY
+    };
+  };
+
+  // Handle Brush Dragging (Erase or Restore)
+  const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawing || editorMode === 'view') return;
+    
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    const tempCanvas = tempCanvasRef.current;
+    const tempCtx = tempCanvas?.getContext('2d');
+    const originalImg = originalImgRef.current;
+
+    if (!canvas || !ctx || !tempCanvas || !tempCtx || !originalImg) return;
+
+    const coords = getCanvasCoords(e);
+    const prev = lastPosRef.current;
+
+    ctx.save();
+    
+    if (editorMode === 'erase') {
+      // Erase mode: destination-out clears pixels under stroke path
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.strokeStyle = 'rgba(0,0,0,1)';
+      ctx.lineWidth = brushSize;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(prev.x, prev.y);
+      ctx.lineTo(coords.x, coords.y);
+      ctx.stroke();
+    } else if (editorMode === 'restore') {
+      // Restore mode: draw stroke path on temp canvas, fill with original image pixels, draw back
+      tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+      
+      tempCtx.strokeStyle = 'rgba(0,0,0,1)';
+      tempCtx.lineWidth = brushSize;
+      tempCtx.lineCap = 'round';
+      tempCtx.lineJoin = 'round';
+      tempCtx.beginPath();
+      tempCtx.moveTo(prev.x, prev.y);
+      tempCtx.lineTo(coords.x, coords.y);
+      tempCtx.stroke();
+
+      // Mask original image to stroke bounds
+      tempCtx.globalCompositeOperation = 'source-in';
+      tempCtx.drawImage(originalImg, 0, 0);
+
+      // Copy masked restoration stroke to editor canvas
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.drawImage(tempCanvas, 0, 0);
+    }
+
+    ctx.restore();
+    lastPosRef.current = coords;
+  };
+
+  // Revert manual edits back to pure AI cutout
+  const handleResetCutout = () => {
+    if (cutoutImgRef.current) {
+      initCanvas(cutoutImgRef.current);
+      showSuccess('Manual edits cleared', 'Restored back to the original AI cutout.');
+    }
+  };
+
+
+
+  // Download compiled PNG
   const handleDownload = () => {
-    if (!resultUrl || !file) return;
-    const outName = `${file.name.replace(/\.[a-z0-9]+$/i, '')}_no_bg.png`;
+    const canvas = canvasRef.current;
+    if (!canvas || !file) return;
+
+    // Create a temporary compiler canvas to blend background with cutout
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = canvas.width;
+    exportCanvas.height = canvas.height;
+    const exportCtx = exportCanvas.getContext('2d');
+    if (!exportCtx) return;
+
+    // Fill background layer
+    if (bgType === 'color') {
+      exportCtx.fillStyle = solidColor;
+      exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+    } else if (bgType === 'gradient') {
+      const gradPreset = gradientPresets[activeGradient];
+      const grad = exportCtx.createLinearGradient(0, 0, 0, exportCanvas.height);
+      grad.addColorStop(0, gradPreset.color1);
+      grad.addColorStop(1, gradPreset.color2);
+      exportCtx.fillStyle = grad;
+      exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+    }
+
+    // Draw active cutout layer
+    exportCtx.drawImage(canvas, 0, 0);
+
+    const outName = `${file.name.replace(/\.[a-z0-9]+$/i, '')}_edited.png`;
     const link = document.createElement('a');
-    link.href = resultUrl;
+    link.href = exportCanvas.toDataURL('image/png');
     link.download = outName;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+
+    // Save statistics entry
+    StorageService.updateStats(0, 1);
+    HistoryService.addImageEntry('Remove Background', outName, 0);
   };
 
   const steps: StepItem[] = [
     { step: 1, text: 'Drag & drop or upload your photo.' },
     { step: 2, text: 'Click "Erase Background" to run the local AI segmentation model.' },
-    { step: 3, text: 'Preview the transparent PNG cutout and download.' }
+    { step: 3, text: 'Calibrate boundaries manually with Erase/Restore brushes, pick gradient or solid backdrops, and download.' }
   ];
 
   const benefits: BenefitItem[] = [
-    { title: '100% Client-Side AI', desc: 'Runs entirely in your browser using WASM neural networks — your photos never touch a server.' },
-    { title: 'High-Quality Segmentation', desc: 'Uses advanced neural segmentation to cleanly extract portraits, animals, and products.' },
-    { title: 'Completely Private & Free', desc: 'Secure, offline execution provides maximum data protection with unlimited exports.' }
+    { title: 'Local AI Eraser', desc: 'WASM runs directly in your browser — photos are processed privately on your hardware.' },
+    { title: 'Precision Touch-Up Brushes', desc: 'Manually erase missed specs or paint back important details using custom brush sizes.' },
+    { title: 'Background Studio Presets', desc: 'Instantly add solid colors for passport presets or modern color gradients.' }
   ];
 
   const faqs: FAQItem[] = [
-    { question: 'Why does it take longer on the first run?', answer: 'The first execution downloads the AI model weights (approx. 7MB) to your browser cache. Subsequent removals run instantly.' },
-    { question: 'Does this tool work for complex backdrops?', answer: 'Yes! The AI segments subjects from any background structure, including complex studio presets, streets, or natural settings.' },
-    { question: 'Is my picture secure?', answer: 'Yes. Since background removal compiles 100% in-browser on client threads, no files are ever uploaded.' }
+    { question: 'How do Erase and Restore brushes work?', answer: 'Erase clears pixels locally. Restore paints back details from your original image. Perfect for manual adjustments.' },
+    { question: 'Why does it freeze during manual brushing on huge files?', answer: 'Since canvas pixel blending runs on the main browser thread, large images process millions of pixels which causes load spikes.' },
+    { question: 'Where are backgrounds compiled?', answer: 'The background selection is rendered behind the cutout. On export, we merge both layers into a single high-quality transparent PNG.' }
   ];
 
   const relatedTools: RelatedToolItem[] = [
@@ -129,10 +319,10 @@ export function RemoveBg() {
   return (
     <ToolPageLayout
       title="Remove Background"
-      subtitle="Erase backgrounds automatically from portraits, animals, and products locally in your browser using AI."
+      subtitle="Erase backgrounds automatically using AI, then touch up borders or add custom background colors locally."
       breadcrumbName="Remove Background"
       seoTitle="Remove Background Free Online - AI Transparency Generator | CompressKro"
-      seoDescription="Remove backgrounds from images online for free. AI-assisted portrait and product segmentation running entirely client-side. 100% private."
+      seoDescription="Remove backgrounds from images online for free. AI-assisted portrait and product segmentation with manual brush adjustments and background color change."
       canonicalPath="/remove-background"
       steps={steps}
       benefits={benefits}
@@ -167,31 +357,56 @@ export function RemoveBg() {
             <div className="lg:col-span-8 space-y-4">
               <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/40 dark:bg-slate-900/40 glass-panel shadow-xs flex flex-col items-center">
                 
-                <div className="w-full flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800/60 mb-4 text-xs font-semibold text-slate-600 dark:text-slate-400">
+                <div className="w-full flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800/60 mb-4 text-xs font-semibold text-slate-650 dark:text-slate-350">
                   <span>
-                    {resultUrl ? 'Result Preview (Transparent PNG)' : 'Original Image Preview'}
+                    {hasResult 
+                      ? `Editor Mode: ${editorMode === 'view' ? 'AI Output View' : editorMode === 'erase' ? 'Manual Eraser Brush' : 'Manual Restore Brush'}` 
+                      : 'Original Image Preview'}
                   </span>
 
                   <button
                     onClick={() => {
                       setFile(null);
                       setImagePreview('');
-                      setResultUrl('');
+                      setHasResult(false);
+                      setEditorMode('view');
+                      originalImgRef.current = null;
+                      cutoutImgRef.current = null;
                     }}
                     className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-850 hover:bg-slate-50 dark:hover:bg-slate-900/40 cursor-pointer font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1.5"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
-                    <span>Reset</span>
+                    <span>Reset Editor</span>
                   </button>
                 </div>
 
-                {/* Transparency checkered viewport */}
-                <div className={`w-full max-h-[500px] overflow-auto flex items-center justify-center rounded-xl p-4 border border-slate-200/30 dark:border-slate-850 ${resultUrl ? 'checkered-bg' : 'bg-slate-50 dark:bg-slate-955/25'}`}>
-                  <img
-                    src={resultUrl || imagePreview}
-                    alt="Background removal preview"
-                    className="max-h-[420px] rounded-lg shadow-sm object-contain"
-                  />
+                {/* Transparency checkered viewport or custom background fill */}
+                <div 
+                  className={`w-full max-h-[500px] overflow-auto flex items-center justify-center rounded-xl p-4 border border-slate-200/30 dark:border-slate-850 ${bgType === 'transparent' ? 'checkered-bg' : ''}`}
+                  style={{ 
+                    backgroundColor: bgType === 'color' ? solidColor : undefined,
+                    backgroundImage: bgType === 'gradient' ? gradientPresets[activeGradient].css : undefined
+                  }}
+                >
+                  {hasResult ? (
+                    <canvas
+                      ref={canvasRef}
+                      onMouseDown={(e) => {
+                        setIsDrawing(true);
+                        lastPosRef.current = getCanvasCoords(e);
+                      }}
+                      onMouseMove={draw}
+                      onMouseUp={() => setIsDrawing(false)}
+                      onMouseLeave={() => setIsDrawing(false)}
+                      className={`max-w-full shadow-md rounded-xs border border-dashed border-slate-300 dark:border-slate-800 ${editorMode !== 'view' ? 'cursor-crosshair' : 'cursor-default'}`}
+                    />
+                  ) : (
+                    <img
+                      src={imagePreview}
+                      alt="Background removal preview"
+                      className="max-h-[420px] rounded-lg shadow-sm object-contain"
+                    />
+                  )}
                 </div>
               </div>
             </div>
@@ -200,26 +415,17 @@ export function RemoveBg() {
             <div className="lg:col-span-4 space-y-4">
               <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/40 dark:bg-slate-900/40 glass-panel shadow-sm space-y-6">
                 
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300 pb-2 border-b border-slate-100 dark:border-slate-800/80">
-                  <Settings className="w-4 h-4 text-violet-500" />
-                  <span>AI Model Settings</span>
-                </div>
-
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                  Our client-side AI processes your image locally using ONNX WebAssembly. Your photos never leave your device.
-                </p>
-
                 {/* Large Image Warning Alert */}
                 {file && file.size > 1.5 * 1024 * 1024 && (
-                  <div className="p-3.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 rounded-xl flex items-start gap-2 text-amber-800 dark:text-amber-300">
+                  <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 rounded-xl flex items-start gap-2 text-amber-800 dark:text-amber-300">
                     <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
                     <p className="text-[10px] leading-snug">
-                      <strong>Large Image Warning:</strong> Running AI segmentation locally on a large image ({getFriendlySize(file.size)}) may cause your browser to temporarily freeze.
+                      <strong>Large Image Warning:</strong> Running AI segmentation or manual brush touch-ups locally on a large image ({getFriendlySize(file.size)}) may cause your browser to temporarily freeze.
                     </p>
                   </div>
                 )}
 
-                {/* Loading / Progress State */}
+                {/* Model Processing State */}
                 {isProcessing && (
                   <div className="space-y-2">
                     <div className="flex justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400">
@@ -235,8 +441,7 @@ export function RemoveBg() {
                   </div>
                 )}
 
-                {/* Actions */}
-                {!resultUrl ? (
+                {!hasResult ? (
                   <button
                     onClick={executeRemoveBg}
                     disabled={isProcessing}
@@ -246,25 +451,141 @@ export function RemoveBg() {
                     <span>{isProcessing ? 'Processing AI...' : 'Erase Background'}</span>
                   </button>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-5">
+                    
+                    {/* Panel 1: Manual Touch-up Brushes */}
+                    <div className="space-y-3.5">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-350 border-b border-slate-100 dark:border-slate-800/80 pb-2">
+                        <Eraser className="w-4 h-4 text-violet-500" />
+                        <span>Manual Touch-Up (Erase / Restore)</span>
+                      </div>
+                      
+                      <div className="grid grid-cols-3 gap-2">
+                        <button
+                          onClick={() => setEditorMode('view')}
+                          className={`py-2 rounded-xl text-[10px] font-bold border transition-all cursor-pointer ${editorMode === 'view' ? 'bg-violet-600 border-violet-600 text-white' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/40 text-slate-700 dark:text-slate-300'}`}
+                        >
+                          View Mode
+                        </button>
+                        <button
+                          onClick={() => setEditorMode('erase')}
+                          className={`py-2 rounded-xl text-[10px] font-bold border transition-all cursor-pointer ${editorMode === 'erase' ? 'bg-rose-600 border-rose-600 text-white' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/40 text-slate-700 dark:text-slate-300'}`}
+                        >
+                          Erase Brush
+                        </button>
+                        <button
+                          onClick={() => setEditorMode('restore')}
+                          className={`py-2 rounded-xl text-[10px] font-bold border transition-all cursor-pointer ${editorMode === 'restore' ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/40 text-slate-700 dark:text-slate-300'}`}
+                        >
+                          Restore Brush
+                        </button>
+                      </div>
+
+                      {editorMode !== 'view' && (
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between text-[10px] font-bold text-slate-500">
+                            <span>Brush Size</span>
+                            <span>{brushSize} px</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="5"
+                            max="120"
+                            value={brushSize}
+                            onChange={(e) => setBrushSize(parseInt(e.target.value))}
+                            className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-violet-600"
+                          />
+                        </div>
+                      )}
+
+                      <button
+                        onClick={handleResetCutout}
+                        className="w-full py-2 border border-dashed border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/40 text-slate-700 dark:text-slate-300 rounded-xl text-[10px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                      >
+                        <Undo2 className="w-3.5 h-3.5" />
+                        <span>Revert to Pure AI Cutout</span>
+                      </button>
+                    </div>
+
+                    {/* Panel 2: Change Background Suggestions */}
+                    <div className="space-y-3.5">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-350 border-b border-slate-100 dark:border-slate-800/80 pb-2">
+                        <Palette className="w-4 h-4 text-violet-500" />
+                        <span>Change Background</span>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2">
+                        <button
+                          onClick={() => setBgType('transparent')}
+                          className={`py-2 rounded-xl text-[10px] font-bold border transition-all cursor-pointer ${bgType === 'transparent' ? 'bg-violet-600 border-violet-600 text-white' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/40 text-slate-700 dark:text-slate-300'}`}
+                        >
+                          Transparent
+                        </button>
+                        <button
+                          onClick={() => setBgType('color')}
+                          className={`py-2 rounded-xl text-[10px] font-bold border transition-all cursor-pointer ${bgType === 'color' ? 'bg-violet-600 border-violet-600 text-white' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/40 text-slate-700 dark:text-slate-300'}`}
+                        >
+                          Solid Color
+                        </button>
+                        <button
+                          onClick={() => setBgType('gradient')}
+                          className={`py-2 rounded-xl text-[10px] font-bold border transition-all cursor-pointer ${bgType === 'gradient' ? 'bg-violet-600 border-violet-600 text-white' : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/40 text-slate-700 dark:text-slate-300'}`}
+                        >
+                          Gradients
+                        </button>
+                      </div>
+
+                      {/* Solid Color Options */}
+                      {bgType === 'color' && (
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap gap-2.5">
+                            {colorPresets.map((c) => (
+                              <button
+                                key={c.value}
+                                onClick={() => setSolidColor(c.value)}
+                                className={`w-7 h-7 rounded-lg border shadow-xs cursor-pointer hover:scale-105 transition-all ${solidColor === c.value ? 'border-violet-650 ring-2 ring-violet-500/20' : 'border-slate-200 dark:border-slate-800'}`}
+                                style={{ backgroundColor: c.value }}
+                                title={c.name}
+                              />
+                            ))}
+                            <div className="relative w-7 h-7 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-800 hover:scale-105 transition-all shadow-xs flex items-center justify-center bg-white">
+                              <input
+                                type="color"
+                                value={solidColor}
+                                onChange={(e) => setSolidColor(e.target.value)}
+                                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                              />
+                              <span className="text-[10px] text-slate-400 font-bold">Hex</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Gradient Options */}
+                      {bgType === 'gradient' && (
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap gap-2.5">
+                            {gradientPresets.map((g, index) => (
+                              <button
+                                key={g.name}
+                                onClick={() => setActiveGradient(index)}
+                                className={`w-7 h-7 rounded-lg border shadow-xs cursor-pointer hover:scale-105 transition-all ${activeGradient === index ? 'border-violet-650 ring-2 ring-violet-500/20' : 'border-slate-200 dark:border-slate-850'}`}
+                                style={{ background: g.css }}
+                                title={g.name}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Export / Download */}
                     <button
                       onClick={handleDownload}
-                      className="w-full py-3.5 rounded-xl font-bold text-xs text-white bg-emerald-600 hover:bg-emerald-700 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
+                      className="w-full py-3.5 rounded-xl font-bold text-xs text-white bg-emerald-600 hover:bg-emerald-700 transition-all flex items-center justify-center gap-2 shadow-md cursor-pointer"
                     >
                       <Download className="w-4 h-4" />
-                      <span>Download Cutout ({getFriendlySize(resultSize)})</span>
-                    </button>
-                    
-                    <button
-                      onClick={() => {
-                        setFile(null);
-                        setImagePreview('');
-                        setResultUrl('');
-                        setResultSize(0);
-                      }}
-                      className="w-full py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-all cursor-pointer"
-                    >
-                      Try Another Image
+                      <span>Download Cutout</span>
                     </button>
                   </div>
                 )}
