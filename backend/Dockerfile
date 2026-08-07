@@ -41,6 +41,9 @@ RUN chown -R node:node /app/.u2net
 # Copy dependency manifests with node ownership for fast caching
 COPY --chown=node:node package.json package-lock.json* ./
 
+# Set Puppeteer env to skip chromium download during npm install
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+
 # Install production dependencies
 RUN npm install --omit=dev
 
