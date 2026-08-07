@@ -132,7 +132,7 @@ export function Home() {
         { name: 'Govt Assistant', desc: 'Portal presets (SSC, UPSC, etc.) templates.', path: '/govt-assistant', icon: Sparkles, color: 'text-yellow-500' },
         { name: 'HTML to Image', desc: 'Convert HTML code markup or web URLs to PNG/JPG.', path: '/html-to-image', icon: Globe, color: 'text-violet-500' },
         { name: 'Image Editor', desc: 'Filters, cropping, drawing, adjustments.', path: '/edit-image', icon: Edit3, color: 'text-pink-500' },
-        { name: 'AI Remove Background', desc: 'Erase backgrounds from portraits using AI models.', path: '/remove-background', icon: Sparkles, color: 'text-indigo-500' }
+        { name: 'Remove Background', desc: 'Erase backgrounds from signatures, logos, or green screens locally.', path: '/remove-background', icon: Eraser, color: 'text-rose-500' }
       ]
     }
   ];

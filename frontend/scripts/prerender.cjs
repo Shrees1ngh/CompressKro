@@ -299,13 +299,13 @@ const routes = [
   },
   {
     path: 'remove-background',
-    title: 'AI Background Remover Free Online - Transparent PNG Cutout | CompressKro',
-    desc: 'Erase backgrounds from images automatically online for free. AI-assisted portrait, animal, and product segmentation models. 100% secure.',
-    heading: 'AI Background Remover',
-    sub: 'Erase backgrounds from images automatically using neural network models.',
+    title: 'Remove Image Background Free Online - Transparency Generator | CompressKro',
+    desc: 'Remove solid backgrounds from images online for free. Clean signatures, transparent logos, green screen keying. 100% private client-side canvas tool.',
+    heading: 'Remove Background',
+    sub: 'Erase white, black, green screen, or custom picked backdrops from logos, signatures, and photos locally.',
     faqs: [
-      { q: 'What models are supported?', a: 'We support ISNet-general-use, U2Net standard portrait, and lightweight U2Netp models.' },
-      { q: 'Is my data secure?', a: 'Yes. Files process inside an isolated sandboxed backend and are automatically deleted immediately after download.' }
+      { q: 'Does this tool work for complex multi-colored backgrounds?', a: 'This tool is optimized for single or solid-tone backgrounds (such as studio drops, green screens, white product backings, signatures, or logos). For complex patterns, color picker threshold adjustments are required.' },
+      { q: 'Is my picture secure?', a: 'Yes. Color segmentation compiles purely in-browser on client canvases. No files are uploaded to any server.' }
     ]
   }
 ];

@@ -67,7 +67,7 @@ const PassportMakerPage = React.lazy(() => import('./pages/image/PassportMaker')
 const GovtAssistantPage = React.lazy(() => import('./pages/image/GovtAssistant').then(m => ({ default: m.GovtAssistantPage })));
 const HtmlToImage = React.lazy(() => import('./pages/image/HtmlToImage').then(m => ({ default: m.HtmlToImage })));
 const EditImage = React.lazy(() => import('./pages/image/EditImage').then(m => ({ default: m.EditImage })));
-const RemoveBackground = React.lazy(() => import('./pages/RemoveBackground').then(m => ({ default: m.RemoveBackground })));
+const RemoveBackground = React.lazy(() => import('./pages/image/RemoveBg').then(m => ({ default: m.RemoveBg })));
 
 // Minimal page-transition fallback shown while a lazy chunk loads
 function PageLoader() {
@@ -98,7 +98,7 @@ const imageShortcuts = [
   { path: '/govt-assistant', label: 'Govt Assistant', icon: Sparkles },
   { path: '/html-to-image', label: 'HTML to Image', icon: Globe },
   { path: '/edit-image', label: 'Image Editor', icon: Edit3 },
-  { path: '/remove-background', label: 'AI Remove Background', icon: Sparkles }
+  { path: '/remove-background', label: 'Remove Background', icon: Eraser }
 ];
 
 const pdfShortcuts = [

@@ -24,18 +24,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Set working directory inside container
 WORKDIR /app
 
-# Install rembg globally as root (--break-system-packages required for Debian Bookworm)
-RUN pip3 install --no-cache-dir --break-system-packages "rembg[cli,cpu]" onnxruntime
-
-# Verify rembg is importable as root and print its location
-RUN python3 -c "import rembg.cli; print('BUILD VERIFY - rembg CLI OK')"
-
-# Pre-download the lightweight u2netp model at build time
-ENV U2NET_HOME=/app/.u2net
-RUN python3 -c "from rembg import new_session; new_session('u2netp'); print('u2netp model cached OK')"
-
-# Grant node user access to the model cache
-RUN chown -R node:node /app/.u2net
 
 # Copy dependency manifests with node ownership for fast caching
 COPY --chown=node:node package.json package-lock.json* ./
