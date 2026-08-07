@@ -5,7 +5,7 @@
 
 FROM node:20-bookworm-slim
 
-# Install system dependencies
+# Install system dependencies (including chromium for Puppeteer)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ghostscript \
     qpdf \
@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unpaper \
     pngquant \
     curl \
+    chromium \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory inside container
@@ -29,8 +30,6 @@ RUN pip3 install --no-cache-dir --break-system-packages "rembg[cli,cpu]" onnxrun
 # Verify rembg is importable as root and print its location
 RUN python3 -c "import rembg.cli; print('BUILD VERIFY - rembg CLI OK')"
 
-
-
 # Pre-download the lightweight u2netp model at build time
 ENV U2NET_HOME=/app/.u2net
 RUN python3 -c "from rembg import new_session; new_session('u2netp'); print('u2netp model cached OK')"
@@ -41,11 +40,12 @@ RUN chown -R node:node /app/.u2net
 # Copy dependency manifests with node ownership for fast caching
 COPY --chown=node:node package.json package-lock.json* ./
 
-# Set Puppeteer env to skip chromium download during npm install
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+# Tell Puppeteer to skip downloading bundled Chromium (we use system chromium)
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 # Install production dependencies
-RUN npm install --omit=dev || (cat /root/.npm/_logs/*-debug-0.log && exit 1)
+RUN npm install --omit=dev
 
 # Copy application source code with node ownership
 COPY --chown=node:node . .
