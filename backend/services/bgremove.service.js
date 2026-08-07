@@ -22,19 +22,19 @@ function removeBackground(inputPath, outputPath, model = 'u2netp') {
     
     // Explicitly pass PYTHONPATH to the python3 child process to ensure
     // packages installed globally under root context can be imported by node user
-    const env = {
-      ...process.env,
-      PYTHONPATH: [
+    const env = { ...process.env };
+    if (!isWindows) {
+      env.PYTHONPATH = [
         '/usr/local/lib/python3.11/dist-packages',
         '/usr/local/lib/python3.12/dist-packages',
         '/usr/local/lib/python3.10/dist-packages',
         '/usr/lib/python3/dist-packages',
         process.env.PYTHONPATH
-      ].filter(Boolean).join(':')
-    };
+      ].filter(Boolean).join(':');
+    }
 
-    // Spawns: python3 -m rembg i -m <model> <inputPath> <outputPath>
-    execFile(pythonBin, ['-m', 'rembg', 'i', '-m', model, inputPath, outputPath], { env }, (error, stdout, stderr) => {
+    // Spawns: python -c "import rembg.cli; rembg.cli.main()" i -m <model> <inputPath> <outputPath>
+    execFile(pythonBin, ['-c', 'import rembg.cli; rembg.cli.main()', 'i', '-m', model, inputPath, outputPath], { env }, (error, stdout, stderr) => {
       if (error) {
         console.error('[BgRemove Service] Command execution error:', stderr || error.message);
         return reject(new Error(stderr || error.message));

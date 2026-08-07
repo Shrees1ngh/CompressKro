@@ -24,10 +24,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # Install rembg globally as root (--break-system-packages required for Debian Bookworm)
-RUN pip3 install --no-cache-dir --break-system-packages "rembg[cpu]" onnxruntime
+RUN pip3 install --no-cache-dir --break-system-packages "rembg[cli,cpu]" onnxruntime
 
 # Verify rembg is importable as root and print its location
-RUN python3 -c "import rembg; print('BUILD VERIFY - rembg OK:', rembg.__file__)"
+RUN python3 -c "import rembg.cli; print('BUILD VERIFY - rembg CLI OK')"
 
 
 
