@@ -50,6 +50,9 @@ RUN npm install --omit=dev
 # Copy application source code with node ownership
 COPY --chown=node:node . .
 
+# Create tmp directories for runtime file processing (before switching to node user)
+RUN mkdir -p /app/tmp/uploads /app/tmp/outputs && chown -R node:node /app/tmp
+
 # Set environment variables
 ENV NODE_ENV=production
 
