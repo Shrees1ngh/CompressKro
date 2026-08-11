@@ -41,7 +41,7 @@ export function CompressionReport({ result }: CompressionReportProps) {
         </div>
         <div className="p-3 rounded-xl bg-white dark:bg-slate-900/65 border border-slate-100 dark:border-slate-800/40">
           <span className="text-slate-400 dark:text-slate-500 block text-[10px] mb-0.5 font-medium">Bytes Saved</span>
-          <span className="font-bold text-violet-650 dark:text-violet-400 text-xs">
+          <span className="font-bold text-violet-600 dark:text-violet-400 text-xs">
             {savedPercent}% ({formatPdfSize(Math.max(0, savedSize))})
           </span>
         </div>

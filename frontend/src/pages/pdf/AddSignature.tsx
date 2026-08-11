@@ -825,7 +825,7 @@ export function AddSignature() {
                                 type="button"
                                 onClick={() => setSignFontStyle(fs.key)}
                                 className={`px-1 py-1.5 text-[10px] rounded border transition-all truncate cursor-pointer ${
-                                  signFontStyle === fs.key ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-850'
+                                  signFontStyle === fs.key ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800'
                                 }`}
                                 style={{ fontFamily: fs.sample, fontWeight: 700 }}
                               >
@@ -926,7 +926,7 @@ export function AddSignature() {
                           <select
                             value={signTargetPage}
                             onChange={(e) => setSignTargetPage(e.target.value as any)}
-                            className="w-full px-1.5 py-1 text-[11px] rounded border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-200"
+                            className="w-full px-1.5 py-1 text-[11px] rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-200"
                           >
                             <option value="current">Current Page ({signCurrentPageNum})</option>
                             <option value="all">All Pages</option>

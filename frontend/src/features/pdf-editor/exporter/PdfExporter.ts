@@ -290,10 +290,7 @@ export async function exportPdf(
     // Adaptive Color Detection (Phase 1)
     const isGrayscale = detectIfPageIsGrayscale(ctx, canvas.width, canvas.height);
     if (isGrayscale) {
-      console.log(`[PdfExporter] Page ${pageIdx + 1} classified as Grayscale/Mono`);
       convertCanvasToGrayscale(ctx, canvas.width, canvas.height);
-    } else {
-      console.log(`[PdfExporter] Page ${pageIdx + 1} classified as Color`);
     }
 
     // Convert offscreen canvas to a PNG data URL (Phase 2)

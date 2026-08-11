@@ -186,7 +186,7 @@ export default function PDFCompressor() {
       {/* Header */}
       <div className="border-b border-slate-200 dark:border-slate-800 pb-5">
         <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-          <FileText className="w-6 h-6 text-violet-650" />
+          <FileText className="w-6 h-6 text-violet-600" />
           <span>PDF Compressor</span>
         </h2>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
@@ -245,7 +245,7 @@ export default function PDFCompressor() {
           {/* Analyzer */}
           {isAnalyzing ? (
             <div className="p-8 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 rounded-2xl flex flex-col items-center justify-center gap-3">
-              <Loader2 className="w-6 h-6 text-violet-650 animate-spin" />
+              <Loader2 className="w-6 h-6 text-violet-600 animate-spin" />
               <span className="text-xs text-slate-500">Parsing PDF layers...</span>
             </div>
           ) : (
@@ -282,7 +282,7 @@ export default function PDFCompressor() {
                   <Loader2 className="w-3.5 h-3.5 text-violet-500 animate-spin" />
                   <span>Compressing PDF...</span>
                 </span>
-                <span className="text-violet-650 dark:text-violet-400 font-bold">{progress}%</span>
+                <span className="text-violet-600 dark:text-violet-400 font-bold">{progress}%</span>
               </div>
               <div className="w-full bg-slate-100 dark:bg-slate-950 h-2 rounded-full overflow-hidden">
                 <div

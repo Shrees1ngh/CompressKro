@@ -169,10 +169,10 @@ export function ToolPageLayout({
         <ol className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {steps.map((step) => (
             <li key={step.step} className="space-y-2 text-left">
-              <div className="w-7 h-7 rounded-full bg-violet-650 text-white font-bold text-xs flex items-center justify-center shadow-md shadow-violet-500/10">
+              <div className="w-7 h-7 rounded-full bg-violet-600 text-white font-bold text-xs flex items-center justify-center shadow-md shadow-violet-500/10">
                 {step.step}
               </div>
-              <p className="text-xs text-slate-600 dark:text-slate-405 leading-relaxed font-semibold">
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-semibold">
                 {step.text}
               </p>
             </li>
@@ -192,7 +192,7 @@ export function ToolPageLayout({
                 <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
                 <h3 className="text-xs font-black">{b.title}</h3>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-405 leading-relaxed font-semibold">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">
                 {b.desc}
               </p>
             </div>
@@ -211,7 +211,7 @@ export function ToolPageLayout({
               <h3 className="text-xs font-black text-slate-800 dark:text-slate-200">
                 {faq.question}
               </h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-405 leading-relaxed font-semibold">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">
                 {faq.answer}
               </p>
             </div>

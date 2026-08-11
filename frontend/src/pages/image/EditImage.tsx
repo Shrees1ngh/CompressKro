@@ -1317,7 +1317,7 @@ export function EditImage() {
               accept="image/*"
               className="hidden"
             />
-            <div className="w-12 h-12 rounded-xl bg-violet-50 dark:bg-violet-950/20 text-violet-650 dark:text-violet-400 flex items-center justify-center mx-auto shadow-xs">
+            <div className="w-12 h-12 rounded-xl bg-violet-50 dark:bg-violet-950/20 text-violet-600 dark:text-violet-400 flex items-center justify-center mx-auto shadow-xs">
               <Upload className="w-6 h-6" />
             </div>
             <div className="space-y-1">
@@ -1431,7 +1431,7 @@ export function EditImage() {
                         className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap cursor-pointer transition-all ${
                           activeSubTab === tab.id
                             ? 'bg-violet-600 text-white shadow-md'
-                            : 'text-slate-400 hover:bg-slate-850 hover:text-slate-200'
+                            : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
                         }`}
                       >
                         <Icon className="w-3.5 h-3.5" />
@@ -1627,7 +1627,7 @@ export function EditImage() {
                               (activeDuoTone.color1 === '#0d1b2a' && item.id === 'duotone_neon')
                             ))
                               ? 'bg-violet-600 border-violet-600 text-white shadow-md'
-                              : 'border-slate-800 bg-slate-950/40 text-slate-350 hover:border-violet-500 hover:bg-slate-850'
+                              : 'border-slate-800 bg-slate-950/40 text-slate-350 hover:border-violet-500 hover:bg-slate-800'
                           }`}
                         >
                           {item.name}
@@ -1652,14 +1652,14 @@ export function EditImage() {
                         <div className="flex gap-2">
                           <button
                             onClick={() => handleRotate(-90)}
-                            className="flex-1 py-2.5 px-3 text-xs font-semibold rounded-xl border border-slate-800 bg-slate-950/40 flex items-center justify-center gap-1.5 hover:bg-slate-850 cursor-pointer transition-all text-slate-300"
+                            className="flex-1 py-2.5 px-3 text-xs font-semibold rounded-xl border border-slate-800 bg-slate-950/40 flex items-center justify-center gap-1.5 hover:bg-slate-800 cursor-pointer transition-all text-slate-300"
                           >
                             <RotateCcw className="w-3.5 h-3.5" />
                             <span>90° Left</span>
                           </button>
                           <button
                             onClick={() => handleRotate(90)}
-                            className="flex-1 py-2.5 px-3 text-xs font-semibold rounded-xl border border-slate-800 bg-slate-950/40 flex items-center justify-center gap-1.5 hover:bg-slate-850 cursor-pointer transition-all text-slate-300"
+                            className="flex-1 py-2.5 px-3 text-xs font-semibold rounded-xl border border-slate-800 bg-slate-950/40 flex items-center justify-center gap-1.5 hover:bg-slate-800 cursor-pointer transition-all text-slate-300"
                           >
                             <RotateCw className="w-3.5 h-3.5" />
                             <span>90° Right</span>
@@ -1672,13 +1672,13 @@ export function EditImage() {
                         <div className="flex gap-2">
                           <button
                             onClick={() => handleFlip(true)}
-                            className="flex-1 py-2.5 px-3 text-xs font-semibold rounded-xl border border-slate-800 bg-slate-950/40 hover:bg-slate-850 text-slate-300 cursor-pointer transition-all"
+                            className="flex-1 py-2.5 px-3 text-xs font-semibold rounded-xl border border-slate-800 bg-slate-950/40 hover:bg-slate-800 text-slate-300 cursor-pointer transition-all"
                           >
                             Flip Horizontal
                           </button>
                           <button
                             onClick={() => handleFlip(false)}
-                            className="flex-1 py-2.5 px-3 text-xs font-semibold rounded-xl border border-slate-800 bg-slate-950/40 hover:bg-slate-850 text-slate-300 cursor-pointer transition-all"
+                            className="flex-1 py-2.5 px-3 text-xs font-semibold rounded-xl border border-slate-800 bg-slate-950/40 hover:bg-slate-800 text-slate-300 cursor-pointer transition-all"
                           >
                             Flip Vertical
                           </button>
@@ -1697,7 +1697,7 @@ export function EditImage() {
                         <div className="grid grid-cols-2 gap-2">
                           <button
                             onClick={handleAddText}
-                            className="py-2 rounded-xl border border-dashed border-slate-700 bg-slate-950/20 hover:bg-slate-850 text-slate-300 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                            className="py-2 rounded-xl border border-dashed border-slate-700 bg-slate-950/20 hover:bg-slate-800 text-slate-300 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-all"
                           >
                             <Type className="w-4 h-4 text-violet-400" />
                             <span>+ Add Text</span>
@@ -1708,7 +1708,7 @@ export function EditImage() {
                             className={`py-2 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-all ${
                               drawMode 
                                 ? 'bg-violet-600 border-violet-600 text-white shadow-md' 
-                                : 'border-slate-800 bg-slate-950/40 text-slate-350 hover:bg-slate-850'
+                                : 'border-slate-800 bg-slate-950/40 text-slate-350 hover:bg-slate-800'
                             }`}
                           >
                             <Paintbrush className="w-4 h-4 text-violet-400" />
@@ -1730,7 +1730,7 @@ export function EditImage() {
                             <button
                               key={t.id}
                               onClick={() => handleAddShape(t.id as any)}
-                              className="py-2 rounded-xl border border-slate-800 bg-slate-950/40 text-slate-350 hover:bg-slate-850 hover:text-violet-400 flex flex-col items-center justify-center gap-1 cursor-pointer transition-all text-[10px] font-bold"
+                              className="py-2 rounded-xl border border-slate-800 bg-slate-950/40 text-slate-350 hover:bg-slate-800 hover:text-violet-400 flex flex-col items-center justify-center gap-1 cursor-pointer transition-all text-[10px] font-bold"
                             >
                               <t.icon className="w-4.5 h-4.5" />
                               <span>{t.label}</span>
@@ -1861,8 +1861,8 @@ export function EditImage() {
                                 onClick={() => setSelectedId(obj.id)}
                                 className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs cursor-pointer border transition-all ${
                                   selectedId === obj.id
-                                    ? 'bg-violet-650/20 border-violet-500 text-violet-300 font-bold'
-                                    : 'bg-slate-950/40 border-slate-800/80 text-slate-400 hover:bg-slate-850'
+                                    ? 'bg-violet-600/20 border-violet-500 text-violet-300 font-bold'
+                                    : 'bg-slate-950/40 border-slate-800/80 text-slate-400 hover:bg-slate-800'
                                 }`}
                               >
                                 <span className="capitalize">
@@ -1899,7 +1899,7 @@ export function EditImage() {
                                 }
                               }}
                               className={`w-7 h-7 rounded-lg border hover:scale-110 transition-transform cursor-pointer ${
-                                brushColor === color ? 'border-violet-650 ring-2 ring-violet-500/25' : 'border-slate-800'
+                                brushColor === color ? 'border-violet-600 ring-2 ring-violet-500/25' : 'border-slate-800'
                               }`}
                               style={{ backgroundColor: color }}
                               title={color}
@@ -1932,7 +1932,7 @@ export function EditImage() {
                               className={`px-3 py-1.5 text-[10px] font-bold rounded-lg border cursor-pointer transition-all ${
                                 cropAspectRatio === preset.id
                                   ? 'bg-violet-600 border-violet-600 text-white shadow-md'
-                                  : 'border-slate-850 bg-slate-950/40 text-slate-400 hover:bg-slate-850 hover:text-slate-200'
+                                  : 'border-slate-800 bg-slate-950/40 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
                               }`}
                             >
                               {preset.label}
@@ -2020,7 +2020,7 @@ export function EditImage() {
 
                         <button
                           onClick={applyCrop}
-                          className="w-full py-2.5 rounded-xl text-xs font-bold text-white bg-violet-650 hover:bg-violet-700 flex items-center justify-center gap-1.5 cursor-pointer shadow-md transition-all"
+                          className="w-full py-2.5 rounded-xl text-xs font-bold text-white bg-violet-600 hover:bg-violet-700 flex items-center justify-center gap-1.5 cursor-pointer shadow-md transition-all"
                         >
                           <CropIcon className="w-4 h-4" />
                           <span>Apply Crop Selection</span>
@@ -2044,7 +2044,7 @@ export function EditImage() {
                         />
                         <button
                           onClick={() => watermarkInputRef.current?.click()}
-                          className="w-full py-2.5 border border-dashed border-slate-700 hover:bg-slate-850 text-slate-300 rounded-xl text-[10px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                          className="w-full py-2.5 border border-dashed border-slate-700 hover:bg-slate-800 text-slate-300 rounded-xl text-[10px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
                         >
                           <Upload className="w-3.5 h-3.5" />
                           <span>Select Watermark Logo File</span>

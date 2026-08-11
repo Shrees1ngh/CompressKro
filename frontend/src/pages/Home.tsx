@@ -44,7 +44,10 @@ import {
   MousePointer,
   CloudUpload,
   ChevronRight,
-  Folder
+  Folder,
+  HelpCircle,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 
 import { StorageService } from '../services/storage.service';
@@ -67,6 +70,33 @@ interface CategoryGroup {
 
 const TOOL_FILTER_OPTIONS = ['All', 'Compression', 'Resize', 'Format Convert', 'Passport Maker', 'PDF'] as const;
 
+const faqs = [
+  {
+    question: "Is CompressKro completely free to use?",
+    answer: "Yes, CompressKro is 100% free with no sign-ups, no limitations, no paywalls, and no watermarks. You can optimize, compress, and edit as many files as you need."
+  },
+  {
+    question: "How does CompressKro keep my files private?",
+    answer: "Your privacy is our core priority. Most operations (compressing, merging, splitting, converting, editing) run entirely inside your browser container using client-side technologies (like WebAssembly and Canvas). Your files never leave your device. For tools that require server-side computing (like PDF Repair or OCR), data routes are fully HTTPS encrypted, processed securely in transient memory, and immediately deleted afterwards. We never permanently store or see your data."
+  },
+  {
+    question: "What is the maximum file size limit?",
+    answer: "You can optimize and process files up to 100MB each. This limit applies to all free PDF and image processing tools."
+  },
+  {
+    question: "What are Govt Portal Presets?",
+    answer: "We offer pre-configured presets for popular government portals (like SSC, UPSC, bank exams, etc.). These presets automatically resize your passport photos and signatures to match the exact dimensions and file size bounds (e.g., under 50KB or 20KB) required by official portal guidelines."
+  },
+  {
+    question: "Does CompressKro store my data?",
+    answer: "No. Since processing happens client-side in your browser sandbox, we have zero knowledge of your files. When server-side computation is used, files are kept strictly in transient memory and deleted immediately after the task is finished."
+  },
+  {
+    question: "Can I use CompressKro on mobile devices?",
+    answer: "Yes! CompressKro is fully responsive and optimized for mobile browsers, tablets, and desktops alike. You can easily compress and edit files on the go."
+  }
+];
+
 export function Home() {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -78,6 +108,7 @@ export function Home() {
   const [dragActive, setDragActive] = useState(false);
   
   const [simProgress, setSimProgress] = useState(0);
+  const [activeFaq, setActiveFaq] = useState<number | null>(null);
 
   const { history, deleteEntry, clearHistory } = useHistory();
   const { showInfo } = useToast();
@@ -261,7 +292,7 @@ export function Home() {
   };
 
   return (
-    <div className="space-y-16 md:space-y-24 animate-fade-in pb-12 select-none">
+    <div className="space-y-16 md:space-y-24 animate-fade-in pb-12">
       
       <Helmet>
         <title>CompressKro — Free Online PDF & Image Optimization Tools</title>
@@ -277,10 +308,9 @@ export function Home() {
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center pt-2 md:pt-6">
         
         <div className="lg:col-span-7 space-y-6 text-left">
-          
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-violet-50 dark:bg-violet-950/20 border border-violet-100 dark:border-violet-900/30 text-violet-600 dark:text-violet-400">
+               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-violet-50 dark:bg-violet-950/20 border border-violet-100 dark:border-violet-900/30 text-violet-600 dark:text-violet-400">
             <ShieldCheck className="w-4 h-4 text-violet-500" />
-            <span className="text-[10px] font-black uppercase tracking-wider">100% Free · No Sign up · Your files stay private</span>
+            <span className="text-xs font-bold uppercase tracking-wider">100% Free · No Sign up · Your files stay private</span>
           </div>
 
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-slate-900 dark:text-slate-50 leading-tight">
@@ -298,8 +328,8 @@ export function Home() {
                 <Check className="w-3.5 h-3.5" />
               </div>
               <div>
-                <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">Local processing</h4>
-                <p className="text-[9.5px] text-slate-450 mt-0.5 leading-normal">Runs fully in-browser.</p>
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">Local processing</h4>
+                <p className="text-xs text-slate-550 dark:text-slate-400 mt-0.5 leading-normal">Runs fully in-browser.</p>
               </div>
             </div>
 
@@ -308,8 +338,8 @@ export function Home() {
                 <Check className="w-3.5 h-3.5" />
               </div>
               <div>
-                <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">No limitations</h4>
-                <p className="text-[9.5px] text-slate-450 mt-0.5 leading-normal">Unlimited uploads & page tasks.</p>
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">No limitations</h4>
+                <p className="text-xs text-slate-550 dark:text-slate-400 mt-0.5 leading-normal">Unlimited uploads & page tasks.</p>
               </div>
             </div>
 
@@ -318,8 +348,8 @@ export function Home() {
                 <Check className="w-3.5 h-3.5" />
               </div>
               <div>
-                <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">Govt Portal ready</h4>
-                <p className="text-[9.5px] text-slate-450 mt-0.5 leading-normal">Presets to fit exactly under KB bounds.</p>
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">Govt Portal ready</h4>
+                <p className="text-xs text-slate-550 dark:text-slate-400 mt-0.5 leading-normal">Presets to fit exactly under KB bounds.</p>
               </div>
             </div>
 
@@ -328,8 +358,8 @@ export function Home() {
                 <Check className="w-3.5 h-3.5" />
               </div>
               <div>
-                <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">Clean metadata</h4>
-                <p className="text-[9.5px] text-slate-450 mt-0.5 leading-normal">Removes tracking and author tags.</p>
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">Clean metadata</h4>
+                <p className="text-xs text-slate-550 dark:text-slate-400 mt-0.5 leading-normal">Removes tracking and author tags.</p>
               </div>
             </div>
 
@@ -338,14 +368,14 @@ export function Home() {
           <div className="flex flex-wrap items-center gap-3 pt-2">
             <button 
               onClick={scrollToAllTools}
-              className="px-6 py-3 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 shadow-md shadow-violet-500/20 active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
+              className="px-6 py-3 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-750 hover:to-fuchsia-750 shadow-md shadow-violet-500/20 active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
             >
               <Zap className="w-4 h-4" />
               Explore All Tools
             </button>
             <button 
               onClick={scrollToHowItWorks}
-              className="px-5 py-3 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-850 transition-all flex items-center gap-2 cursor-pointer"
+              className="px-5 py-3 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-350 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-2 cursor-pointer"
             >
               <Play className="w-3.5 h-3.5 fill-current" />
               How it works
@@ -420,7 +450,6 @@ export function Home() {
                 className="hidden"
                 accept=".pdf,.jpg,.jpeg,.png,.webp,.heic"
               />
-
               {!selectedFile ? (
                 <div 
                   onClick={() => fileInputRef.current?.click()}
@@ -429,19 +458,19 @@ export function Home() {
                   <div className="w-12 h-12 rounded-full bg-violet-50 dark:bg-violet-950/30 flex items-center justify-center text-violet-600 mb-4 animate-bounce">
                     <CloudUpload className="w-6 h-6" />
                   </div>
-                  <h3 className="text-xs font-black text-slate-800 dark:text-slate-200">Drop your files here</h3>
-                  <p className="text-[10px] text-slate-450 mt-1">or click to <span className="text-violet-600 font-bold">browse</span></p>
-                  <span className="text-[9px] text-slate-400 mt-4 leading-normal">PDF, JPG, PNG, WEBP and more<br />Up to 100MB per file</span>
+                  <h3 className="text-sm font-black text-slate-800 dark:text-slate-200">Drop your files here</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">or click to <span className="text-violet-600 font-bold">browse</span></p>
+                  <span className="text-[10.5px] text-slate-400 dark:text-slate-500 mt-4 leading-normal">PDF, JPG, PNG, WEBP and more<br />Up to 100MB per file</span>
                 </div>
               ) : (
                 <div className="space-y-4 text-left">
                   <div className="flex items-center gap-3 p-3 bg-violet-50/50 dark:bg-violet-950/20 rounded-2xl border border-violet-100/40 dark:border-violet-900/20">
-                    <div className="w-10 h-10 rounded-xl bg-violet-100 dark:bg-violet-900 flex items-center justify-center text-violet-650 flex-shrink-0">
+                     <div className="w-10 h-10 rounded-xl bg-violet-100 dark:bg-violet-900 flex items-center justify-center text-violet-600 flex-shrink-0">
                       <FileText className="w-5.5 h-5.5" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="text-[11px] font-black text-slate-800 dark:text-slate-200 truncate">{selectedFile.name}</div>
-                      <div className="text-[9px] font-bold text-slate-400 mt-0.5">{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</div>
+                      <div className="text-xs font-black text-slate-800 dark:text-slate-200 truncate">{selectedFile.name}</div>
+                      <div className="text-xs text-slate-450 dark:text-slate-500 mt-0.5">{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</div>
                     </div>
                     <button 
                       onClick={clearSelectedFile}
@@ -452,7 +481,7 @@ export function Home() {
                   </div>
 
                   <div className="space-y-1">
-                    <div className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest pl-1">Choose a utility:</div>
+                    <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest pl-1">Choose a utility:</div>
                     <div className="space-y-1 max-h-[180px] overflow-y-auto pr-1 scrollbar-thin">
                       {getToolOptionsForFile().map((opt) => {
                         const Icon = opt.icon;
@@ -465,8 +494,8 @@ export function Home() {
                             <div className="flex items-center gap-2.5 min-w-0">
                               <Icon className="w-4 h-4 text-violet-600 dark:text-violet-400 flex-shrink-0" />
                               <div className="min-w-0">
-                                <div className="text-[10px] font-black text-slate-850 dark:text-slate-100 group-hover:text-violet-600 transition-colors">{opt.name}</div>
-                                <div className="text-[8.5px] text-slate-400 mt-0.5 truncate">{opt.desc}</div>
+                                <div className="text-xs font-bold text-slate-800 dark:text-slate-100 group-hover:text-violet-600 transition-colors">{opt.name}</div>
+                                <div className="text-[10.5px] text-slate-550 mt-0.5 truncate">{opt.desc}</div>
                               </div>
                             </div>
                             <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
@@ -478,7 +507,7 @@ export function Home() {
                 </div>
               )}
 
-              <div className="mt-4 flex items-center justify-center gap-1.5 text-[9px] font-bold text-slate-400 select-none">
+              <div className="mt-4 flex items-center justify-center gap-1.5 text-xs font-medium text-slate-450 dark:text-slate-500 select-none">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
                 <span>Your files are safe with us</span>
               </div>
@@ -519,8 +548,8 @@ export function Home() {
                     <Icon className={`w-5 h-5 ${tool.color}`} />
                   </div>
                   <div className="min-w-0 text-left">
-                    <h3 className="text-xs font-black text-slate-800 dark:text-slate-200 group-hover:text-violet-600 transition-colors">{tool.name}</h3>
-                    <p className="text-[10px] text-slate-450 mt-0.5 leading-relaxed truncate max-w-[200px]">{tool.desc}</p>
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 group-hover:text-violet-600 transition-colors">{tool.name}</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed truncate max-w-[200px]">{tool.desc}</p>
                   </div>
                 </div>
                 <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-violet-600 group-hover:translate-x-1 transition-all" />
@@ -538,7 +567,7 @@ export function Home() {
               <MousePointer className="w-5 h-5 text-violet-500" />
               <span>How it works</span>
             </h2>
-            <p className="text-xs text-slate-400 font-semibold">Convert or compress documents in three simple steps.</p>
+            <p className="text-sm text-slate-550 dark:text-slate-400 font-semibold">Convert or compress documents in three simple steps.</p>
           </div>
 
           <div className="space-y-6">
@@ -548,18 +577,18 @@ export function Home() {
                 1
               </div>
               <div className="space-y-0.5">
-                <h4 className="text-xs font-black text-slate-800 dark:text-slate-100">Choose a tool</h4>
-                <p className="text-[10px] text-slate-450 leading-relaxed font-semibold">Select the utility matching your current optimization task from our list.</p>
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">Choose a tool</h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">Select the utility matching your current optimization task from our list.</p>
               </div>
             </div>
 
             <div className="flex gap-4">
-              <div className="w-7 h-7 rounded-full bg-violet-650 text-white font-bold text-xs flex items-center justify-center flex-shrink-0 shadow-sm shadow-violet-500/10">
+              <div className="w-7 h-7 rounded-full bg-violet-600 text-white font-bold text-xs flex items-center justify-center flex-shrink-0 shadow-sm shadow-violet-500/10">
                 2
               </div>
               <div className="space-y-0.5">
-                <h4 className="text-xs font-black text-slate-800 dark:text-slate-100">Upload your file</h4>
-                <p className="text-[10px] text-slate-450 leading-relaxed font-semibold">Upload your file and our high-performance in-browser compilation takes care of the rest.</p>
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">Upload your file</h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">Upload your file and our high-performance in-browser compilation takes care of the rest.</p>
               </div>
             </div>
 
@@ -568,8 +597,8 @@ export function Home() {
                 3
               </div>
               <div className="space-y-0.5">
-                <h4 className="text-xs font-black text-slate-800 dark:text-slate-100">Get result instantly</h4>
-                <p className="text-[10px] text-slate-450 leading-relaxed font-semibold">Download your compiled output file instantly, without wait times or watermarks.</p>
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">Get result instantly</h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">Download your compiled output file instantly, without wait times or watermarks.</p>
               </div>
             </div>
 
@@ -585,23 +614,23 @@ export function Home() {
                   <FileText className="w-4 h-4" />
                 </div>
                 <div>
-                  <div className="text-[10.5px] font-black text-slate-800 dark:text-slate-200">Compressed.pdf</div>
-                  <div className="text-[8.5px] font-bold text-slate-400">2.7 MB</div>
+                  <div className="text-xs font-black text-slate-800 dark:text-slate-200">Compressed.pdf</div>
+                  <div className="text-[10.5px] font-bold text-slate-400">2.7 MB</div>
                 </div>
               </div>
-              <div className="text-[9.5px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 px-2 py-0.5 rounded-md flex items-center gap-0.5">
+              <div className="text-xs font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 px-2 py-0.5 rounded-md flex items-center gap-0.5">
                 <TrendingDown className="w-3 h-3" />
                 82% smaller
               </div>
             </div>
 
             <div className="my-5 space-y-2">
-              <div className="flex items-center justify-between text-[9px] font-bold text-slate-450">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-450">
                 <span>{getSimProgressText()}</span>
                 <span>{simProgress}%</span>
               </div>
               
-              <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-850 overflow-hidden relative border border-slate-200/10">
+              <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden relative border border-slate-200/10">
                 <div 
                   className="h-full bg-gradient-to-r from-violet-600 to-fuchsia-600 rounded-full transition-all duration-100"
                   style={{ width: `${simProgress}%` }}
@@ -612,7 +641,7 @@ export function Home() {
             <div className="space-y-2 pt-1">
               <button 
                 onClick={() => handleDummyClick('Download')}
-                className="w-full py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-violet-600 to-fuchsia-600 flex items-center justify-center gap-2 hover:opacity-95 transition-opacity cursor-pointer"
+                className="w-full py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-violet-600 to-fuchsia-600 flex items-center justify-center gap-2 hover:opacity-95 transition-opacity cursor-pointer"
               >
                 <FileDown className="w-4 h-4" />
                 Download File
@@ -620,7 +649,7 @@ export function Home() {
               
               <button 
                 onClick={() => setSimProgress(0)}
-                className="w-full text-center text-[10px] font-bold text-slate-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors"
+                className="w-full text-center text-xs font-bold text-slate-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors"
               >
                 Compress another
               </button>
@@ -634,15 +663,15 @@ export function Home() {
       <section id="all-tools-section" className="space-y-8 border-t border-slate-200/50 dark:border-slate-900/60 pt-16">
         <div className="text-center max-w-xl mx-auto space-y-2">
           <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-slate-50">All Tool Utilities</h2>
-          <p className="text-xs text-slate-450 font-semibold leading-relaxed">Select any utility cataloged below to start optimization instantly in your browser sandbox.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 font-semibold leading-relaxed">Select any utility cataloged below to start optimization instantly in your browser sandbox.</p>
         </div>
 
         <div className="space-y-12">
           {categories.map((cat, idx) => (
             <div key={idx} className="space-y-4">
               <div className="border-b border-slate-200/60 dark:border-slate-800/40 pb-2 text-left">
-                <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">{cat.title}</h3>
-                <p className="text-[10px] text-slate-400 dark:text-slate-505 font-semibold mt-0.5">{cat.desc}</p>
+                <h3 className="text-base font-extrabold text-slate-900 dark:text-slate-100 uppercase tracking-wider">{cat.title}</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{cat.desc}</p>
               </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
@@ -658,8 +687,8 @@ export function Home() {
                         <Icon className={`w-4 h-4 ${tool.color} group-hover:scale-110 transition-transform`} />
                       </div>
                       <div className="space-y-1">
-                        <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-violet-600 transition-colors truncate">{tool.name}</h4>
-                        <p className="text-[9.5px] text-slate-400 dark:text-slate-500 leading-normal font-semibold line-clamp-2">{tool.desc}</p>
+                        <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 group-hover:text-violet-600 transition-colors truncate">{tool.name}</h4>
+                        <p className="text-xs text-slate-555 dark:text-slate-400 mt-1 leading-normal line-clamp-2">{tool.desc}</p>
                       </div>
                     </Link>
                   );
@@ -701,9 +730,9 @@ export function Home() {
                 <Icon className="w-5.5 h-5.5" />
               </div>
               <div>
-                <div className="text-[10px] text-slate-400 uppercase tracking-wider font-extrabold">{stat.label}</div>
-                <div className="text-xl font-black text-slate-850 dark:text-slate-100 mt-0.5">{stat.value}</div>
-                <div className="text-[9px] text-slate-400 dark:text-slate-500 font-semibold leading-normal">{stat.sub}</div>
+                <div className="text-xs text-slate-450 dark:text-slate-400 uppercase tracking-wider font-extrabold">{stat.label}</div>
+                <div className="text-2xl font-black text-slate-800 dark:text-slate-100 mt-0.5">{stat.value}</div>
+                <div className="text-xs text-slate-400 dark:text-slate-500 font-semibold leading-normal">{stat.sub}</div>
               </div>
             </div>
           );
@@ -711,7 +740,7 @@ export function Home() {
       </section>
 
       {history.length > 0 && (
-        <section className="p-6 rounded-2xl border border-slate-200 dark:border-slate-850 bg-white/30 dark:bg-slate-900/30 glass-panel space-y-4 text-left shadow-xs">
+        <section className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/30 dark:bg-slate-900/30 glass-panel space-y-4 text-left shadow-xs">
           
           <div className="flex items-center justify-between flex-wrap gap-3">
             <h2 className="text-md font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
@@ -721,7 +750,7 @@ export function Home() {
             </h2>
             <button
               onClick={handleClearHistory}
-              className="text-xs font-bold text-red-500 hover:text-red-650 dark:text-red-400 flex items-center gap-1 transition-colors cursor-pointer"
+              className="text-sm font-bold text-red-500 hover:text-red-650 dark:text-red-400 flex items-center gap-1 transition-colors cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               Clear Logs
@@ -736,7 +765,7 @@ export function Home() {
                 value={historySearch}
                 onChange={e => setHistorySearch(e.target.value)}
                 placeholder="Search activity history..."
-                className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-violet-500/40"
+                className="w-full pl-8 pr-3 py-1.5 text-sm rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-violet-500/40"
               />
               {historySearch && (
                 <button
@@ -752,9 +781,9 @@ export function Home() {
                 <button
                   key={opt}
                   onClick={() => setHistoryFilter(opt)}
-                  className={`px-2.5 py-1.5 text-[10px] font-bold rounded-lg whitespace-nowrap transition-all cursor-pointer ${
+                  className={`px-2.5 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap transition-all cursor-pointer ${
                     historyFilter === opt
-                      ? 'bg-violet-650 text-white shadow-sm'
+                      ? 'bg-violet-600 text-white shadow-sm'
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-450 hover:bg-slate-200 dark:hover:bg-slate-700'
                   }`}
                 >
@@ -770,7 +799,7 @@ export function Home() {
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm text-slate-600 dark:text-slate-400">
                 <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-850 text-xs font-bold text-slate-450 uppercase">
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-sm font-semibold text-slate-450 uppercase">
                     <th className="py-2 pr-4">File Descriptor</th>
                     <th className="py-2 pr-4">Utility Type</th>
                     <th className="py-2 pr-4">Result Details</th>
@@ -785,14 +814,14 @@ export function Home() {
                         {item.name}
                       </td>
                       <td className="py-2.5 pr-4">
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-650 dark:text-slate-350 whitespace-nowrap">
+                        <span className="px-2 py-0.5 rounded text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-655 dark:text-slate-350 whitespace-nowrap">
                           {item.tool}
                         </span>
                       </td>
-                      <td className="py-2.5 pr-4 text-emerald-600 dark:text-emerald-400 font-bold text-xs font-mono">
+                      <td className="py-2.5 pr-4 text-emerald-600 dark:text-emerald-400 font-bold text-sm font-mono">
                         {item.details}
                       </td>
-                      <td className="py-2.5 pr-4 text-xs text-slate-400 whitespace-nowrap flex items-center gap-1 font-semibold">
+                      <td className="py-2.5 pr-4 text-sm text-slate-400 whitespace-nowrap flex items-center gap-1 font-semibold">
                         <Clock className="w-3 h-3 text-slate-400" />
                         {item.date}
                       </td>
@@ -813,7 +842,7 @@ export function Home() {
               {filteredHistory.length > 6 && (
                 <button
                   onClick={() => setShowAllHistory(!showAllHistory)}
-                  className="mt-3 w-full py-1.5 text-xs font-bold text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/20 rounded-lg transition-colors cursor-pointer"
+                  className="mt-3 w-full py-1.5 text-sm font-bold text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/20 rounded-lg transition-colors cursor-pointer"
                 >
                   {showAllHistory ? 'Show less' : `Show all ${filteredHistory.length} entries`}
                 </button>
@@ -823,14 +852,57 @@ export function Home() {
         </section>
       )}
 
+      {/* FAQs Accordion Section */}
+      <section className="space-y-8 border-t border-slate-200/50 dark:border-slate-900/60 pt-16 text-left">
+        <div className="text-center max-w-xl mx-auto space-y-2">
+          <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-slate-50 flex items-center justify-center gap-2">
+            <HelpCircle className="w-5.5 h-5.5 text-violet-500 animate-pulse" />
+            <span>Frequently Asked Questions</span>
+          </h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400 font-semibold leading-relaxed">
+            Everything you need to know about CompressKro's client-side privacy, tools, and constraints.
+          </p>
+        </div>
+
+        <div className="max-w-3xl mx-auto space-y-4 pt-4">
+          {faqs.map((faq, idx) => {
+            const isOpen = activeFaq === idx;
+            return (
+              <div 
+                key={idx}
+                className="rounded-2xl border border-slate-200/60 dark:border-slate-800/50 bg-white/40 dark:bg-slate-900/30 hover:bg-white dark:hover:bg-slate-900 transition-all duration-300 overflow-hidden shadow-xs"
+              >
+                <button
+                  onClick={() => setActiveFaq(isOpen ? null : idx)}
+                  className="w-full flex items-center justify-between p-5 text-left font-bold text-slate-850 dark:text-slate-100 hover:text-violet-600 dark:hover:text-violet-400 transition-colors cursor-pointer"
+                >
+                  <span className="text-sm md:text-base pr-4">{faq.question}</span>
+                  {isOpen ? (
+                    <ChevronUp className="w-5 h-5 text-violet-500 flex-shrink-0" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-slate-400 dark:text-slate-505 flex-shrink-0" />
+                  )}
+                </button>
+                
+                {isOpen && (
+                  <div className="px-5 pb-5 pt-1 text-xs md:text-sm text-slate-500 dark:text-slate-400 leading-relaxed border-t border-slate-150/50 dark:border-slate-800/30 animate-fade-in font-medium">
+                    {faq.answer}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
       <section className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-slate-200/50 dark:border-slate-900/60">
         <div className="flex items-start gap-3 text-left">
           <div className="p-2 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 rounded-xl text-emerald-650">
             <ShieldCheck className="w-5.5 h-5.5" />
           </div>
           <div className="space-y-1">
-            <h4 className="text-xs font-black text-slate-800 dark:text-slate-200">100% Client-Side Privacy</h4>
-            <p className="text-[10px] text-slate-450 leading-relaxed font-semibold">Most operations compile instantly in your browser sandbox. Your sensitive files never upload to our servers.</p>
+            <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">100% Client-Side Privacy</h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">Most operations compile instantly in your browser sandbox. Your sensitive files never upload to our servers.</p>
           </div>
         </div>
 
@@ -839,18 +911,18 @@ export function Home() {
             <Zap className="w-5.5 h-5.5" />
           </div>
           <div className="space-y-1">
-            <h4 className="text-xs font-black text-slate-800 dark:text-slate-200">No Registrations or Limits</h4>
-            <p className="text-[10px] text-slate-450 leading-relaxed font-semibold">Enjoy unlimited file tasks. No signups, no paywalls, and no watermarks on your compiled documents.</p>
+            <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">No Registrations or Limits</h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">Enjoy unlimited file tasks. No signups, no paywalls, and no watermarks on your compiled documents.</p>
           </div>
         </div>
 
         <div className="flex items-start gap-3 text-left">
-          <div className="p-2 bg-purple-50 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-900/30 rounded-xl text-violet-650">
+          <div className="p-2 bg-purple-50 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-900/30 rounded-xl text-violet-600">
             <LockKeyhole className="w-5.5 h-5.5" />
           </div>
           <div className="space-y-1">
-            <h4 className="text-xs font-black text-slate-800 dark:text-slate-200">Secure Transmission Lines</h4>
-            <p className="text-[10px] text-slate-450 leading-relaxed font-semibold">When backend processing is required (like OCR or PDF repair), data routes are fully HTTPS encrypted.</p>
+            <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">Secure Transmission Lines</h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">When backend processing is required (like OCR or PDF repair), data routes are fully HTTPS encrypted.</p>
           </div>
         </div>
       </section>

@@ -140,7 +140,7 @@ export default function GovtAssistant({ onApplyPreset }: GovtAssistantProps) {
             className={`px-4 py-1.5 text-xs font-semibold rounded-full border transition-all whitespace-nowrap ${
               (portal === 'all' && selectedPortal === 'all') || selectedPortal === portal
                 ? 'bg-violet-600 text-white border-violet-500 shadow-md shadow-violet-500/10'
-                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-850'
+                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-800'
             }`}
           >
             {portal === 'all' ? 'All Portals' : portal}

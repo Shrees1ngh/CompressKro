@@ -193,11 +193,11 @@ function MainLayout({ children }: { children: React.ReactNode }) {
         <header className="sticky top-0 z-50 w-full bg-white/70 dark:bg-slate-950/75 border-b border-slate-200/50 dark:border-slate-800/40 backdrop-blur-xl">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             
-            <Link to="/" className="flex items-center gap-2.5 select-none flex-shrink-0">
-              <LogoIcon className="w-8.5 h-8.5" />
-              <div className="hidden sm:block">
-                <div className="text-md font-black tracking-tight text-slate-900 dark:text-slate-50 leading-none">CompressKro</div>
-                <span className="text-[9.5px] text-slate-450 dark:text-slate-400 font-bold tracking-wide">File Compress Kro, Edit Kro, Set Kro, Bas CompressKro!</span>
+            <Link to="/" className="flex items-center gap-3 select-none flex-shrink-0">
+              <LogoIcon className="w-11 h-11" />
+              <div className="hidden sm:block text-left">
+                <div className="text-xl font-black tracking-tight text-slate-900 dark:text-slate-50 leading-none">CompressKro</div>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400 font-bold tracking-wide">File Compress Kro, Edit Kro, Set Kro, Bas CompressKro!</span>
               </div>
             </Link>
             {/* Desktop Navigation Links */}
@@ -206,9 +206,9 @@ function MainLayout({ children }: { children: React.ReactNode }) {
               {/* Dashboard */}
               <Link 
                 to="/" 
-                className={`px-3 py-2 rounded-lg text-xs font-bold transition-all ${
+                className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
                   location.pathname === '/' 
-                    ? 'text-violet-600 dark:text-violet-400 bg-violet-50/50 dark:bg-violet-950/20' 
+                    ? 'text-violet-600 dark:text-violet-450 bg-violet-50/50 dark:bg-violet-950/20' 
                     : 'text-slate-650 dark:text-slate-300 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-slate-50 dark:hover:bg-slate-900/50'
                 }`}
               >
@@ -222,7 +222,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
                 onMouseLeave={() => setActiveDropdown(null)}
               >
                 <button 
-                  className={`px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  className={`px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                     activeDropdown === 'pdf' || location.pathname.includes('pdf') || pdfGroups.some(g => g.items.some(i => i.path === location.pathname))
                       ? 'text-violet-600 dark:text-violet-400 bg-violet-50/50 dark:bg-violet-950/20' 
                       : 'text-slate-650 dark:text-slate-300 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-slate-50 dark:hover:bg-slate-900/50'
@@ -238,7 +238,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
                     <div className="nav-dropdown-panel rounded-2xl p-6 grid grid-cols-4 gap-6 animate-fade-in">
                       {pdfGroups.map((group) => (
                         <div key={group.title} className="space-y-3">
-                          <h4 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 pb-1.5">{group.title}</h4>
+                          <h4 className="text-xs font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 pb-1.5">{group.title}</h4>
                           <div className="space-y-1">
                             {group.items.map((item) => {
                               const Icon = item.icon;
@@ -255,8 +255,8 @@ function MainLayout({ children }: { children: React.ReactNode }) {
                                 >
                                   <Icon className={`w-4 h-4 mt-0.5 flex-shrink-0 ${isItemActive ? 'text-violet-600 dark:text-violet-400' : 'text-slate-400'}`} />
                                   <div>
-                                    <div className="text-xs font-bold">{item.label}</div>
-                                    <div className="text-[9px] text-slate-400 mt-0.5 leading-normal">{item.desc}</div>
+                                    <div className="text-sm font-semibold">{item.label}</div>
+                                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-normal">{item.desc}</div>
                                   </div>
                                 </Link>
                               );
@@ -276,7 +276,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
                 onMouseLeave={() => setActiveDropdown(null)}
               >
                 <button 
-                  className={`px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  className={`px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                     activeDropdown === 'image' || location.pathname.includes('image') || imageGroups.some(g => g.items.some(i => i.path === location.pathname))
                       ? 'text-violet-600 dark:text-violet-400 bg-violet-50/50 dark:bg-violet-950/20' 
                       : 'text-slate-650 dark:text-slate-300 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-slate-50 dark:hover:bg-slate-900/50'
@@ -292,7 +292,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
                     <div className="nav-dropdown-panel rounded-2xl p-6 grid grid-cols-3 gap-6 animate-fade-in">
                       {imageGroups.map((group) => (
                         <div key={group.title} className="space-y-3">
-                          <h4 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 pb-1.5">{group.title}</h4>
+                          <h4 className="text-xs font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 pb-1.5">{group.title}</h4>
                           <div className="space-y-1">
                             {group.items.map((item) => {
                               const Icon = item.icon;
@@ -309,8 +309,8 @@ function MainLayout({ children }: { children: React.ReactNode }) {
                                 >
                                   <Icon className={`w-4 h-4 mt-0.5 flex-shrink-0 ${isItemActive ? 'text-violet-600 dark:text-violet-400' : 'text-slate-400'}`} />
                                   <div>
-                                    <div className="text-xs font-bold">{item.label}</div>
-                                    <div className="text-[9px] text-slate-400 mt-0.5 leading-normal">{item.desc}</div>
+                                    <div className="text-sm font-semibold">{item.label}</div>
+                                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-normal">{item.desc}</div>
                                   </div>
                                 </Link>
                               );
@@ -330,7 +330,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
                 onMouseLeave={() => setActiveDropdown(null)}
               >
                 <button 
-                  className={`px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  className={`px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                     activeDropdown === 'converters'
                       ? 'text-violet-600 dark:text-violet-400 bg-violet-50/50 dark:bg-violet-950/20' 
                       : 'text-slate-650 dark:text-slate-300 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-slate-50 dark:hover:bg-slate-900/50'
@@ -343,19 +343,19 @@ function MainLayout({ children }: { children: React.ReactNode }) {
                 {activeDropdown === 'converters' && (
                   <div className="absolute left-0 top-[100%] pt-2 w-[220px] z-50">
                     <div className="nav-dropdown-panel rounded-xl p-2 flex flex-col gap-0.5 animate-fade-in">
-                      <Link to="/convert-image" className="flex items-center gap-2 p-2 text-xs font-bold rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-violet-600">
+                      <Link to="/convert-image" className="flex items-center gap-2 p-2 text-sm font-semibold rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-violet-600">
                         <FileSpreadsheet className="w-4 h-4 text-slate-400" />
                         Image Converter
                       </Link>
-                      <Link to="/pdf-to-jpg" className="flex items-center gap-2 p-2 text-xs font-bold rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-violet-600">
+                      <Link to="/pdf-to-jpg" className="flex items-center gap-2 p-2 text-sm font-semibold rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-violet-600">
                         <ImageIcon className="w-4 h-4 text-slate-400" />
                         PDF to JPG
                       </Link>
-                      <Link to="/images-to-pdf" className="flex items-center gap-2 p-2 text-xs font-bold rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-violet-600">
+                      <Link to="/images-to-pdf" className="flex items-center gap-2 p-2 text-sm font-semibold rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-violet-600">
                         <Upload className="w-4 h-4 text-slate-400" />
                         Images to PDF
                       </Link>
-                      <Link to="/html-to-pdf" className="flex items-center gap-2 p-2 text-xs font-bold rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-violet-600">
+                      <Link to="/html-to-pdf" className="flex items-center gap-2 p-2 text-sm font-semibold rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-violet-600">
                         <Globe className="w-4 h-4 text-slate-400" />
                         HTML to PDF
                       </Link>
@@ -371,7 +371,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
                 onMouseLeave={() => setActiveDropdown(null)}
               >
                 <button 
-                  className={`px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  className={`px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                     activeDropdown === 'utilities'
                       ? 'text-violet-600 dark:text-violet-400 bg-violet-50/50 dark:bg-violet-950/20' 
                       : 'text-slate-650 dark:text-slate-300 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-slate-50 dark:hover:bg-slate-900/50'
@@ -384,19 +384,19 @@ function MainLayout({ children }: { children: React.ReactNode }) {
                 {activeDropdown === 'utilities' && (
                   <div className="absolute left-0 top-[100%] pt-2 w-[220px] z-50">
                     <div className="nav-dropdown-panel rounded-xl p-2 flex flex-col gap-0.5 animate-fade-in">
-                      <Link to="/passport-maker" className="flex items-center gap-2 p-2 text-xs font-bold rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-violet-600">
+                      <Link to="/passport-maker" className="flex items-center gap-2 p-2 text-sm font-semibold rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-violet-600">
                         <UserCheck className="w-4 h-4 text-slate-400" />
                         Passport Photo Maker
                       </Link>
-                      <Link to="/govt-assistant" className="flex items-center gap-2 p-2 text-xs font-bold rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-violet-600">
+                      <Link to="/govt-assistant" className="flex items-center gap-2 p-2 text-sm font-semibold rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-violet-600">
                         <Sparkles className="w-4 h-4 text-slate-400" />
                         Govt Portal Presets
                       </Link>
-                      <Link to="/remove-background" className="flex items-center gap-2 p-2 text-xs font-bold rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-violet-600">
+                      <Link to="/remove-background" className="flex items-center gap-2 p-2 text-sm font-semibold rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-violet-600">
                         <Eraser className="w-4 h-4 text-slate-400" />
                         Remove BG (AI)
                       </Link>
-                      <Link to="/ocr-pdf" className="flex items-center gap-2 p-2 text-xs font-bold rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-violet-600">
+                      <Link to="/ocr-pdf" className="flex items-center gap-2 p-2 text-sm font-semibold rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-violet-600">
                         <ScanText className="w-4 h-4 text-slate-400" />
                         OCR PDF text
                       </Link>
@@ -404,21 +404,6 @@ function MainLayout({ children }: { children: React.ReactNode }) {
                   </div>
                 )}
               </div>
-
-              {/* Pricing & Blog */}
-              <button 
-                onClick={() => handleDummyClick('Pricing')}
-                className="px-3 py-2 rounded-lg text-xs font-bold text-slate-650 dark:text-slate-300 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-all cursor-pointer"
-              >
-                Pricing
-              </button>
-              
-              <button 
-                onClick={() => handleDummyClick('Blog')}
-                className="px-3 py-2 rounded-lg text-xs font-bold text-slate-650 dark:text-slate-300 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-all cursor-pointer"
-              >
-                Blog
-              </button>
             </nav>
 
             {/* Action buttons (Right) */}
@@ -431,22 +416,6 @@ function MainLayout({ children }: { children: React.ReactNode }) {
                 title="Toggle dark mode"
               >
                 {darkMode ? <Sun className="w-4.5 h-4.5" /> : <Moon className="w-4.5 h-4.5" />}
-              </button>
-
-              {/* Log in */}
-              <button
-                onClick={() => handleDummyClick('Log in')}
-                className="hidden md:block px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:text-violet-600 transition-colors cursor-pointer"
-              >
-                Log in
-              </button>
-
-              {/* Get Started */}
-              <button
-                onClick={() => handleDummyClick('Get Started')}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-750 hover:to-fuchsia-750 hover:shadow-md hover:shadow-violet-500/25 active:scale-95 transition-all cursor-pointer"
-              >
-                Get Started Free
               </button>
 
               {/* Mobile hamburger menu */}
@@ -476,9 +445,9 @@ function MainLayout({ children }: { children: React.ReactNode }) {
               
               {/* Header */}
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-900 pb-4">
-                <Link to="/" className="flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
-                  <LogoIcon className="w-8 h-8" />
-                  <span className="text-sm font-black text-slate-900 dark:text-slate-100">CompressKro</span>
+                <Link to="/" className="flex items-center gap-2.5" onClick={() => setMobileMenuOpen(false)}>
+                  <LogoIcon className="w-10 h-10" />
+                  <span className="text-base font-black text-slate-900 dark:text-slate-100">CompressKro</span>
                 </Link>
                 <button
                   onClick={() => setMobileMenuOpen(false)}
@@ -546,27 +515,6 @@ function MainLayout({ children }: { children: React.ReactNode }) {
                   </div>
                 </div>
 
-                {/* Mock Links */}
-                <div className="space-y-1 border-t border-slate-100 dark:border-slate-900 pt-4">
-                  <button 
-                    onClick={() => { setMobileMenuOpen(false); handleDummyClick('Pricing'); }}
-                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900 cursor-pointer"
-                  >
-                    Pricing
-                  </button>
-                  <button 
-                    onClick={() => { setMobileMenuOpen(false); handleDummyClick('Blog'); }}
-                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900 cursor-pointer"
-                  >
-                    Blog
-                  </button>
-                  <button 
-                    onClick={() => { setMobileMenuOpen(false); handleDummyClick('Log in'); }}
-                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900 cursor-pointer"
-                  >
-                    Log in
-                  </button>
-                </div>
 
               </div>
 

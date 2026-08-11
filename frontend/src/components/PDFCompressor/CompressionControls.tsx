@@ -43,7 +43,7 @@ export function CompressionControls({
                 onClick={() => onLevelChange(lvl)}
                 className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all duration-200 group cursor-pointer ${
                   active
-                    ? 'border-violet-500 bg-violet-500/10 dark:bg-violet-950/20 text-violet-650 dark:text-violet-300 shadow-sm font-bold scale-[1.02]'
+                    ? 'border-violet-500 bg-violet-500/10 dark:bg-violet-950/20 text-violet-600 dark:text-violet-300 shadow-sm font-bold scale-[1.02]'
                     : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-350 dark:hover:border-slate-700 text-slate-500 dark:text-slate-400'
                 }`}
               >

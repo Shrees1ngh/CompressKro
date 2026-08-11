@@ -823,7 +823,7 @@ export function PdfEditor() {
                   </div>
 
                   {/* Canvas Center */}
-                  <div className="lg:col-span-3 space-y-8 flex flex-col items-center overflow-x-auto max-h-[80vh] overflow-y-auto border border-slate-200/50 dark:border-slate-850/50 rounded-2xl bg-slate-950/5 p-4 shadow-inner">
+                  <div className="lg:col-span-3 space-y-8 flex flex-col items-center overflow-x-auto max-h-[80vh] overflow-y-auto border border-slate-200/50 dark:border-slate-800/50 rounded-2xl bg-slate-950/5 p-4 shadow-inner">
                     {document.pages.map((page, idx) => (
                       <PageCanvas
                         key={idx}

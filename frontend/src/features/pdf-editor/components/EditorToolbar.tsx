@@ -168,7 +168,7 @@ export function EditorToolbar({
             />
             <span>Add searchable text layer (OCR)</span>
           </label>
-          <span className="text-[9px] text-slate-405 pl-5">
+          <span className="text-[9px] text-slate-400 pl-5">
             Note: OCR is processed client-side. Accuracy is not perfect and may misread some characters/fonts.
           </span>
         </div>

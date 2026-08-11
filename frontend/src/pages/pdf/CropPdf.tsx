@@ -383,7 +383,7 @@ export function CropPdf() {
             </div>
 
             {previewUrl && !isProcessing && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-150 dark:border-slate-850">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-150 dark:border-slate-800">
                  <div className="flex flex-col justify-center items-center bg-slate-100 dark:bg-slate-950 p-4 rounded-xl relative min-h-[380px]">
                   <div className="relative inline-block">
                     <canvas 
@@ -413,7 +413,7 @@ export function CropPdf() {
                         max="40"
                         value={cropTop}
                         onChange={(e) => setCropTop(parseInt(e.target.value))}
-                        className="w-full h-1 bg-slate-200 dark:bg-slate-850 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                        className="w-full h-1 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-500"
                       />
                     </div>
 
@@ -428,7 +428,7 @@ export function CropPdf() {
                         max="40"
                         value={cropBottom}
                         onChange={(e) => setCropBottom(parseInt(e.target.value))}
-                        className="w-full h-1 bg-slate-200 dark:bg-slate-850 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                        className="w-full h-1 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-500"
                       />
                     </div>
 
@@ -443,7 +443,7 @@ export function CropPdf() {
                         max="40"
                         value={cropLeft}
                         onChange={(e) => setCropLeft(parseInt(e.target.value))}
-                        className="w-full h-1 bg-slate-200 dark:bg-slate-850 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                        className="w-full h-1 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-500"
                       />
                     </div>
 
@@ -458,7 +458,7 @@ export function CropPdf() {
                         max="40"
                         value={cropRight}
                         onChange={(e) => setCropRight(parseInt(e.target.value))}
-                        className="w-full h-1 bg-slate-200 dark:bg-slate-850 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                        className="w-full h-1 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-500"
                       />
                     </div>
                   </div>

@@ -392,7 +392,7 @@ export function RemoveBg() {
               accept="image/*"
               className="hidden"
             />
-            <div className="w-12 h-12 rounded-xl bg-violet-50 dark:bg-violet-950/20 text-violet-650 dark:text-violet-400 flex items-center justify-center mx-auto shadow-xs">
+            <div className="w-12 h-12 rounded-xl bg-violet-50 dark:bg-violet-950/20 text-violet-600 dark:text-violet-400 flex items-center justify-center mx-auto shadow-xs">
               <Upload className="w-6 h-6" />
             </div>
             <div className="space-y-1">
@@ -423,7 +423,7 @@ export function RemoveBg() {
                       originalImgRef.current = null;
                       cutoutImgRef.current = null;
                     }}
-                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-850 hover:bg-slate-50 dark:hover:bg-slate-900/40 cursor-pointer font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1.5"
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/40 cursor-pointer font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1.5"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     <span>Reset Editor</span>
@@ -432,7 +432,7 @@ export function RemoveBg() {
 
                 {/* Transparency checkered viewport or custom background fill */}
                 <div 
-                  className={`w-full max-h-[500px] overflow-auto flex items-center justify-center rounded-xl p-4 border border-slate-200/30 dark:border-slate-850 ${bgType === 'transparent' ? 'checkered-bg' : ''}`}
+                  className={`w-full max-h-[500px] overflow-auto flex items-center justify-center rounded-xl p-4 border border-slate-200/30 dark:border-slate-800 ${bgType === 'transparent' ? 'checkered-bg' : ''}`}
                   style={{ 
                     backgroundColor: bgType === 'color' ? solidColor : undefined,
                     backgroundImage: bgType === 'gradient' ? gradientPresets[activeGradient].css : undefined
@@ -615,7 +615,7 @@ export function RemoveBg() {
                               <button
                                 key={c.value}
                                 onClick={() => setSolidColor(c.value)}
-                                className={`w-7 h-7 rounded-lg border shadow-xs cursor-pointer hover:scale-105 transition-all ${solidColor === c.value ? 'border-violet-650 ring-2 ring-violet-500/20' : 'border-slate-200 dark:border-slate-800'}`}
+                                className={`w-7 h-7 rounded-lg border shadow-xs cursor-pointer hover:scale-105 transition-all ${solidColor === c.value ? 'border-violet-600 ring-2 ring-violet-500/20' : 'border-slate-200 dark:border-slate-800'}`}
                                 style={{ backgroundColor: c.value }}
                                 title={c.name}
                               />
@@ -641,7 +641,7 @@ export function RemoveBg() {
                               <button
                                 key={g.name}
                                 onClick={() => setActiveGradient(index)}
-                                className={`w-7 h-7 rounded-lg border shadow-xs cursor-pointer hover:scale-105 transition-all ${activeGradient === index ? 'border-violet-650 ring-2 ring-violet-500/20' : 'border-slate-200 dark:border-slate-850'}`}
+                                className={`w-7 h-7 rounded-lg border shadow-xs cursor-pointer hover:scale-105 transition-all ${activeGradient === index ? 'border-violet-600 ring-2 ring-violet-500/20' : 'border-slate-200 dark:border-slate-800'}`}
                                 style={{ background: g.css }}
                                 title={g.name}
                               />

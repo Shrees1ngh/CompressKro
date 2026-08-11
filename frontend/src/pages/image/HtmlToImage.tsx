@@ -256,7 +256,7 @@ export function HtmlToImage() {
                         type="checkbox"
                         checked={fullPage}
                         onChange={(e) => setFullPage(e.target.checked)}
-                        className="rounded-sm border-slate-300 dark:border-slate-700 text-violet-650 focus:ring-violet-500"
+                        className="rounded-sm border-slate-300 dark:border-slate-700 text-violet-600 focus:ring-violet-500"
                       />
                       <span>Full Page Capture</span>
                     </label>

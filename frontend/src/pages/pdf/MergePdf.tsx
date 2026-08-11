@@ -209,11 +209,21 @@ export function MergePdf() {
             <button
               onClick={executeMerge}
               disabled={mergeFiles.length < 2 || isProcessing}
-              className="w-full py-3 rounded-xl font-bold text-xs text-white bg-gradient-to-r from-violet-600 to-indigo-600 hover:opacity-90 disabled:opacity-40 transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+              className={`w-full py-3 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-sm ${
+                mergeFiles.length < 2 && !isProcessing
+                  ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:opacity-90 cursor-pointer'
+              }`}
             >
               {isProcessing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ListOrdered className="w-4 h-4" />}
               <span>{isProcessing ? progressMsg : 'Merge PDFs Now'}</span>
             </button>
+
+            {mergeFiles.length < 2 && !isProcessing && (
+              <p className="text-center text-[11px] text-slate-500 dark:text-slate-400 mt-2 font-medium">
+                Add at least 2 PDFs to merge.
+              </p>
+            )}
           </div>
         )}
       </div>

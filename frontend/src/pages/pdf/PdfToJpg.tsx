@@ -160,7 +160,7 @@ export function PdfToJpg() {
                   </div>
                   <button
                     onClick={() => downloadSingleJpg(item)}
-                    className="w-full py-1.5 rounded-lg text-xs font-semibold bg-violet-650 hover:bg-violet-700 text-white flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                    className="w-full py-1.5 rounded-lg text-xs font-semibold bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center gap-1 transition-colors cursor-pointer"
                   >
                     <Download className="w-3.5 h-3.5" />
                     <span>Download Page {item.pageNum}</span>
