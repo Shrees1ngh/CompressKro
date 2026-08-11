@@ -62,6 +62,7 @@ export function RemoveBg() {
   const { showSuccess, showError } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const cursorRef = useRef<HTMLDivElement>(null);
   
   // Image instances stored in ref to prevent state-trigger loops
   const originalImgRef = useRef<HTMLImageElement | null>(null);
@@ -241,6 +242,52 @@ export function RemoveBg() {
     }
   };
 
+  // Update cursor position and size directly in DOM for high performance
+  const updateCursorSizeAndPos = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (editorMode === 'view' || !canvasRef.current || !cursorRef.current) return;
+    const canvas = canvasRef.current;
+    const cursor = cursorRef.current;
+    
+    const scale = canvas.clientWidth / canvas.width;
+    const size = brushSize * scale;
+    
+    cursor.style.width = `${size}px`;
+    cursor.style.height = `${size}px`;
+    cursor.style.left = `${e.nativeEvent.offsetX}px`;
+    cursor.style.top = `${e.nativeEvent.offsetY}px`;
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    updateCursorSizeAndPos(e);
+    draw(e);
+  };
+
+  const handleMouseEnter = () => {
+    if (editorMode !== 'view' && cursorRef.current) {
+      cursorRef.current.style.display = 'block';
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (cursorRef.current) {
+      cursorRef.current.style.display = 'none';
+    }
+  };
+
+  // Synchronize cursor styling and size immediately when brush size or editor mode changes
+  useEffect(() => {
+    if (editorMode !== 'view' && cursorRef.current && canvasRef.current) {
+      const canvas = canvasRef.current;
+      const cursor = cursorRef.current;
+      const scale = canvas.clientWidth / canvas.width;
+      const size = brushSize * scale;
+      cursor.style.width = `${size}px`;
+      cursor.style.height = `${size}px`;
+      cursor.style.border = `2px solid ${editorMode === 'restore' ? '#10b981' : '#ef4444'}`;
+      cursor.style.backgroundColor = editorMode === 'restore' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)';
+    }
+  }, [brushSize, editorMode]);
+
   // Automatically initialize canvas once the canvas element mounts and processed image is ready
   useEffect(() => {
     if (hasResult && cutoutImgRef.current && canvasRef.current) {
@@ -392,17 +439,39 @@ export function RemoveBg() {
                   }}
                 >
                   {hasResult ? (
-                    <canvas
-                      ref={canvasRef}
-                      onMouseDown={(e) => {
-                        setIsDrawing(true);
-                        lastPosRef.current = getCanvasCoords(e);
-                      }}
-                      onMouseMove={draw}
-                      onMouseUp={() => setIsDrawing(false)}
-                      onMouseLeave={() => setIsDrawing(false)}
-                      className={`max-w-full shadow-md rounded-xs border border-dashed border-slate-300 dark:border-slate-800 ${editorMode !== 'view' ? 'cursor-crosshair' : 'cursor-default'}`}
-                    />
+                    <div className="relative overflow-hidden select-none">
+                      <canvas
+                        ref={canvasRef}
+                        onMouseDown={(e) => {
+                          setIsDrawing(true);
+                          lastPosRef.current = getCanvasCoords(e);
+                        }}
+                        onMouseMove={handleMouseMove}
+                        onMouseUp={() => setIsDrawing(false)}
+                        onMouseEnter={handleMouseEnter}
+                        onMouseLeave={() => {
+                          setIsDrawing(false);
+                          handleMouseLeave();
+                        }}
+                        className={`max-w-full shadow-md rounded-xs border border-dashed border-slate-300 dark:border-slate-800 ${editorMode !== 'view' ? 'cursor-none' : 'cursor-default'}`}
+                      />
+                      {editorMode !== 'view' && (
+                        <div
+                          ref={cursorRef}
+                          style={{
+                            position: 'absolute',
+                            pointerEvents: 'none',
+                            display: 'none',
+                            borderRadius: '50%',
+                            transform: 'translate(-50%, -50%)',
+                            border: `2px solid ${editorMode === 'restore' ? '#10b981' : '#ef4444'}`,
+                            backgroundColor: editorMode === 'restore' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                            boxShadow: '0 0 0 1px rgba(255, 255, 255, 0.8), inset 0 0 0 1px rgba(255, 255, 255, 0.8)',
+                            zIndex: 50,
+                          }}
+                        />
+                      )}
+                    </div>
                   ) : (
                     <img
                       src={imagePreview}

@@ -104,9 +104,9 @@ class StorageServiceClass {
 
   getTheme(): 'dark' | 'light' {
     try {
-      return (localStorage.getItem(STORAGE_KEYS.THEME) as 'dark' | 'light') ?? 'dark';
+      return (localStorage.getItem(STORAGE_KEYS.THEME) as 'dark' | 'light') ?? 'light';
     } catch {
-      return 'dark';
+      return 'light';
     }
   }
 

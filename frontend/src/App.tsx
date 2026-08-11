@@ -6,18 +6,16 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { 
   Image as ImageIcon,
-  FileText, 
-  FileDown, 
-  Maximize2, 
-  FileSpreadsheet, 
+  FileText,
+  Maximize2,
+  FileSpreadsheet,
   UserCheck, 
   Sparkles, 
   ShieldCheck, 
   Moon, 
   Sun, 
-  Menu, 
-  X, 
-  Zap, 
+  Menu,
+  X,
   LayoutDashboard,
   ListOrdered,
   RotateCw,
@@ -31,12 +29,14 @@ import {
   Wrench,
   Edit3,
   Crop,
-  Globe
+  Globe,
+  ChevronDown,
+  Upload
 } from 'lucide-react';
-
 import { StorageService } from './services/storage.service';
 import { ToastContainer } from './components/ui/Toast';
 import { useToast } from './hooks/useToast';
+import { LogoIcon } from './components/ui/LogoIcon';
 
 // Page Component Imports — lazy loaded for code-splitting
 const Home = React.lazy(() => import('./pages/Home').then(m => ({ default: m.Home })));
@@ -78,52 +78,14 @@ function PageLoader() {
   );
 }
 
-interface NavItem {
-  path: string;
-  label: string;
-  icon: React.ElementType;
-  description: string;
-}
 
-const navItems: NavItem[] = [
-  { path: '/', label: 'Dashboard', icon: LayoutDashboard, description: 'All PDF & Image Tools' },
-  { path: '/compress-pdf', label: 'PDF Compressor', icon: FileDown, description: 'Optimize PDF size' },
-  { path: '/compress-image', label: 'Image Compressor', icon: ImageIcon, description: 'Target KB compression' }
-];
-
-const imageShortcuts = [
-  { path: '/resize-image', label: 'Image Resizer', icon: Maximize2 },
-  { path: '/convert-image', label: 'Format Converter', icon: FileSpreadsheet },
-  { path: '/passport-maker', label: 'Passport Maker', icon: UserCheck },
-  { path: '/govt-assistant', label: 'Govt Assistant', icon: Sparkles },
-  { path: '/html-to-image', label: 'HTML to Image', icon: Globe },
-  { path: '/edit-image', label: 'Image Editor', icon: Edit3 },
-  { path: '/remove-background', label: 'Remove Background', icon: Eraser }
-];
-
-const pdfShortcuts = [
-  { path: '/merge-pdf', label: 'Merge PDF', icon: ListOrdered },
-  { path: '/split-pdf', label: 'Split PDF', icon: FileText },
-  { path: '/sign-pdf', label: 'Sign PDF', icon: PenTool },
-  { path: '/edit-pdf', label: 'Edit PDF', icon: Edit3 },
-  { path: '/crop-pdf', label: 'Crop PDF', icon: Crop },
-  { path: '/rotate-pdf', label: 'Rotate & Order', icon: RotateCw },
-  { path: '/ocr-pdf', label: 'OCR PDF', icon: ScanText },
-  { path: '/add-watermark', label: 'Add Watermark', icon: Droplets },
-  { path: '/remove-watermark', label: 'Remove Watermark', icon: Eraser },
-  { path: '/page-numbers', label: 'Page Numbers', icon: Hash },
-  { path: '/pdf-to-jpg', label: 'PDF to JPG', icon: ImageIcon },
-  { path: '/extract-images', label: 'Extract Images', icon: ImageIcon },
-  { path: '/lock-pdf', label: 'Lock PDF', icon: Lock },
-  { path: '/unlock-pdf', label: 'Unlock PDF', icon: Unlock },
-  { path: '/repair-pdf', label: 'Repair PDF', icon: Wrench },
-  { path: '/html-to-pdf', label: 'HTML to PDF', icon: Globe },
-];
 
 function MainLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const [darkMode, setDarkMode] = useState<boolean>(() => StorageService.getTheme() === 'dark');
-  const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+  const [activeDropdown, setActiveDropdown] = useState<'pdf' | 'image' | 'converters' | 'utilities' | null>(null);
+  const { showInfo } = useToast();
 
   useEffect(() => {
     const root = document.documentElement;
@@ -143,179 +105,508 @@ function MainLayout({ children }: { children: React.ReactNode }) {
   // Sync scroll to top on path change
   useEffect(() => {
     window.scrollTo(0, 0);
-    setSidebarOpen(false);
+    setMobileMenuOpen(false);
+    setActiveDropdown(null);
   }, [location.pathname]);
+
+  const pdfGroups = [
+    {
+      title: 'Organize PDF',
+      items: [
+        { path: '/merge-pdf', label: 'Merge PDF', icon: ListOrdered, desc: 'Combine multiple PDFs into one.' },
+        { path: '/split-pdf', label: 'Split PDF', icon: FileText, desc: 'Extract pages or split ranges.' },
+        { path: '/rotate-pdf', label: 'Rotate & Order', icon: RotateCw, desc: 'Rearrange and rotate pages.' },
+        { path: '/crop-pdf', label: 'Crop PDF', icon: Crop, desc: 'Crop page margins easily.' }
+      ]
+    },
+    {
+      title: 'Convert PDF',
+      items: [
+        { path: '/pdf-to-jpg', label: 'PDF to JPG', icon: ImageIcon, desc: 'Save PDF pages as JPEG.' },
+        { path: '/images-to-pdf', label: 'Images to PDF', icon: Upload, desc: 'Convert JPG/PNG to PDF.' },
+        { path: '/extract-images', label: 'Extract Images', icon: ImageIcon, desc: 'Extract inline photos.' }
+      ]
+    },
+    {
+      title: 'Edit PDF',
+      items: [
+        { path: '/edit-pdf', label: 'Edit PDF', icon: Edit3, desc: 'Modify text, shapes, whiteout.' },
+        { path: '/sign-pdf', label: 'Sign PDF', icon: PenTool, desc: 'Sign PDFs locally.' },
+        { path: '/add-watermark', label: 'Add Watermark', icon: Droplets, desc: 'Add watermark stamps.' },
+        { path: '/remove-watermark', label: 'Remove Watermark', icon: Eraser, desc: 'Clean up watermarks.' },
+        { path: '/page-numbers', label: 'Page Numbers', icon: Hash, desc: 'Insert page numbering.' }
+      ]
+    },
+    {
+      title: 'Security & Tools',
+      items: [
+        { path: '/ocr-pdf', label: 'OCR PDF', icon: ScanText, desc: 'Make scanned pages searchable.' },
+        { path: '/lock-pdf', label: 'Lock PDF', icon: Lock, desc: 'Encrypt with passwords.' },
+        { path: '/unlock-pdf', label: 'Unlock PDF', icon: Unlock, desc: 'Remove restrictions.' },
+        { path: '/repair-pdf', label: 'Repair PDF', icon: Wrench, desc: 'Fix damaged PDF structures.' },
+        { path: '/html-to-pdf', label: 'HTML to PDF', icon: Globe, desc: 'Convert link/markup to PDF.' }
+      ]
+    }
+  ];
+
+  const imageGroups = [
+    {
+      title: 'Compress & Resize',
+      items: [
+        { path: '/compress-image', label: 'Image Compressor', icon: ImageIcon, desc: 'Smart target-KB compression.' },
+        { path: '/resize-image', label: 'Image Resizer', icon: Maximize2, desc: 'Adjust layout and dimensions.' },
+        { path: '/remove-background', label: 'Remove Background', icon: Eraser, desc: 'Remove background instantly.' }
+      ]
+    },
+    {
+      title: 'Format & Edit',
+      items: [
+        { path: '/convert-image', label: 'Format Converter', icon: FileSpreadsheet, desc: 'JPG, PNG, WebP, HEIC conversion.' },
+        { path: '/edit-image', label: 'Image Editor', icon: Edit3, desc: 'Apply filters, crops, annotations.' }
+      ]
+    },
+    {
+      title: 'Government Portal Helper',
+      items: [
+        { path: '/passport-maker', label: 'Passport Maker', icon: UserCheck, desc: 'Passport size photo layouts.' },
+        { path: '/govt-assistant', label: 'Govt Assistant', icon: Sparkles, desc: 'Portal photo preset specs.' },
+        { path: '/html-to-image', label: 'HTML to Image', icon: Globe, desc: 'Convert HTML markup to PNG/JPG.' }
+      ]
+    }
+  ];
+
+  const handleDummyClick = (title: string) => {
+    showInfo(`${title}`, 'This capability is styled to showcase B2C SaaS experience and is currently under polish.');
+  };
 
   return (
     <div className={darkMode ? 'dark' : ''}>
-      <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-indigo-50 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950 text-slate-800 dark:text-slate-100 transition-colors duration-300">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 transition-colors duration-300 flex flex-col">
         
-        {/* Ambient Background Blobs */}
+        {/* Ambient background decoration */}
         <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-          <div className="absolute top-[-10%] left-[-5%] w-[50%] h-[50%] bg-violet-400/10 dark:bg-violet-700/10 rounded-full blur-3xl" />
-          <div className="absolute bottom-[-10%] right-[-5%] w-[45%] h-[45%] bg-fuchsia-400/10 dark:bg-fuchsia-700/10 rounded-full blur-3xl" />
+          <div className="absolute top-[-15%] left-[-10%] w-[60%] h-[60%] bg-violet-400/8 dark:bg-violet-700/6 rounded-full blur-[120px] animate-pulse-soft" />
+          <div className="absolute bottom-[-15%] right-[-10%] w-[50%] h-[50%] bg-fuchsia-400/8 dark:bg-fuchsia-700/6 rounded-full blur-[120px] animate-pulse-soft" style={{ animationDelay: '2s' }} />
         </div>
 
-        <div className="relative z-10 flex h-screen overflow-hidden">
-          {/* Mobile Overlay */}
-          {sidebarOpen && (
-            <div 
-              className="fixed inset-0 bg-black/50 z-20 lg:hidden"
-              onClick={() => setSidebarOpen(false)}
-            />
-          )}
-
-          {/* Sidebar */}
-          <aside className={`fixed top-0 left-0 h-full z-30 w-64 transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col border-r border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl`}>
-            {/* Brand Header */}
-            <div className="px-6 py-5 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between flex-shrink-0">
-              <Link to="/" className="flex items-center gap-3 cursor-pointer">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-600 flex items-center justify-center shadow-md shadow-violet-500/20">
-                  <Zap className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <div className="text-lg font-extrabold text-slate-900 dark:text-slate-100 leading-none">CompressKro</div>
-                  <span className="text-[10px] text-slate-400 font-medium">All-in-One Optimizer</span>
-                </div>
+        {/* Global sticky header */}
+        <header className="sticky top-0 z-50 w-full bg-white/70 dark:bg-slate-950/75 border-b border-slate-200/50 dark:border-slate-800/40 backdrop-blur-xl">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            
+            <Link to="/" className="flex items-center gap-2.5 select-none flex-shrink-0">
+              <LogoIcon className="w-8.5 h-8.5" />
+              <div className="hidden sm:block">
+                <div className="text-md font-black tracking-tight text-slate-900 dark:text-slate-50 leading-none">CompressKro</div>
+                <span className="text-[9.5px] text-slate-450 dark:text-slate-400 font-bold tracking-wide">File Compress Kro, Edit Kro, Set Kro, Bas CompressKro!</span>
+              </div>
+            </Link>
+            {/* Desktop Navigation Links */}
+            <nav className="hidden lg:flex items-center gap-1 xl:gap-2">
+              
+              {/* Dashboard */}
+              <Link 
+                to="/" 
+                className={`px-3 py-2 rounded-lg text-xs font-bold transition-all ${
+                  location.pathname === '/' 
+                    ? 'text-violet-600 dark:text-violet-400 bg-violet-50/50 dark:bg-violet-950/20' 
+                    : 'text-slate-650 dark:text-slate-300 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-slate-50 dark:hover:bg-slate-900/50'
+                }`}
+              >
+                Dashboard
               </Link>
-              <button className="lg:hidden p-1.5 text-slate-400 hover:text-slate-600 cursor-pointer" onClick={() => setSidebarOpen(false)}>
-                <X className="w-4 h-4" />
-              </button>
-            </div>
 
-            {/* Privacy Badge */}
-            <div className="mx-4 mt-4 px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 flex items-center gap-2 flex-shrink-0">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-              <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">Privacy-First Architecture</span>
-            </div>
-
-            {/* Navigation Drawer */}
-            <div className="flex-1 px-3 py-4 overflow-y-auto space-y-5">
-              <nav className="space-y-1">
-                {navItems.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = location.pathname === item.path;
-                  return (
-                    <Link
-                      key={item.path}
-                      to={item.path}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-left group cursor-pointer ${
-                        isActive
-                          ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-md shadow-violet-500/20'
-                          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-800 dark:hover:text-slate-200'
-                      }`}
-                    >
-                      <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-violet-500'}`} />
-                      <div className="min-w-0">
-                        <div className={`text-xs font-bold truncate ${isActive ? 'text-white' : ''}`}>{item.label}</div>
-                        <div className={`text-[10px] truncate ${isActive ? 'text-violet-100' : 'text-slate-400 dark:text-slate-500'}`}>{item.description}</div>
-                      </div>
-                    </Link>
-                  );
-                })}
-              </nav>
-
-              {/* Collapsible PDF shortcuts directly in sidebar */}
-              <div className="space-y-2">
-                <div className="px-3 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">PDF Utilities</div>
-                <nav className="grid grid-cols-2 gap-1 px-1">
-                  {pdfShortcuts.map((item) => {
-                    const Icon = item.icon;
-                    const isActive = location.pathname === item.path;
-                    return (
-                      <Link
-                        key={item.path}
-                        to={item.path}
-                        className={`flex items-center gap-1.5 px-2 py-2 rounded-lg border text-[10px] font-bold transition-all truncate cursor-pointer ${
-                          isActive
-                            ? 'bg-violet-50 border-violet-200 text-violet-650 dark:bg-violet-950/20 dark:border-violet-900/50 dark:text-violet-400'
-                            : 'bg-white/40 dark:bg-slate-950/20 border-slate-200/50 dark:border-slate-850 text-slate-600 dark:text-slate-400 hover:border-violet-500'
-                        }`}
-                      >
-                        <Icon className="w-3.5 h-3.5 text-slate-450" />
-                        <span className="truncate">{item.label}</span>
-                      </Link>
-                    );
-                  })}
-                </nav>
-              </div>
-
-              {/* Collapsible Image shortcuts directly in sidebar */}
-              <div className="space-y-2">
-                <div className="px-3 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Image Utilities</div>
-                <nav className="grid grid-cols-2 gap-1 px-1">
-                  {imageShortcuts.map((item) => {
-                    const Icon = item.icon;
-                    const isActive = location.pathname === item.path;
-                    return (
-                      <Link
-                        key={item.path}
-                        to={item.path}
-                        className={`flex items-center gap-1.5 px-2 py-2 rounded-lg border text-[10px] font-bold transition-all truncate cursor-pointer ${
-                          isActive
-                            ? 'bg-violet-50 border-violet-200 text-violet-650 dark:bg-violet-950/20 dark:border-violet-900/50 dark:text-violet-400'
-                            : 'bg-white/40 dark:bg-slate-950/20 border-slate-200/50 dark:border-slate-850 text-slate-600 dark:text-slate-400 hover:border-violet-500'
-                        }`}
-                      >
-                        <Icon className="w-3.5 h-3.5 text-slate-450" />
-                        <span className="truncate">{item.label}</span>
-                      </Link>
-                    );
-                  })}
-                </nav>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="px-4 py-4 border-t border-slate-200/60 dark:border-slate-800/60 space-y-2 flex-shrink-0">
-              <div className="text-[9px] text-slate-400 text-center">
-                v1.0 · Open-Source · Privacy-First
-              </div>
-            </div>
-          </aside>
-
-          {/* Main Content Area */}
-          <div className="flex-1 flex flex-col overflow-hidden">
-            {/* Top Header Bar */}
-            <header className="h-14 px-6 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/60 dark:bg-slate-950/60 backdrop-blur-xl flex items-center justify-between flex-shrink-0">
-              <div className="flex items-center gap-3">
+              {/* PDF Tools Dropdown Trigger */}
+              <div 
+                className="relative"
+                onMouseEnter={() => setActiveDropdown('pdf')}
+                onMouseLeave={() => setActiveDropdown(null)}
+              >
                 <button 
-                  className="lg:hidden p-2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
-                  onClick={() => setSidebarOpen(true)}
+                  className={`px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    activeDropdown === 'pdf' || location.pathname.includes('pdf') || pdfGroups.some(g => g.items.some(i => i.path === location.pathname))
+                      ? 'text-violet-600 dark:text-violet-400 bg-violet-50/50 dark:bg-violet-950/20' 
+                      : 'text-slate-650 dark:text-slate-300 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-slate-50 dark:hover:bg-slate-900/50'
+                  }`}
                 >
-                  <Menu className="w-5 h-5" />
+                  PDF Tools
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${activeDropdown === 'pdf' ? 'rotate-180' : ''}`} />
                 </button>
-                <div className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider font-sans">
-                  {location.pathname === '/' ? 'Dashboard' : location.pathname.substring(1).replace(/-/g, ' ')}
-                </div>
+
+                {/* PDF Dropdown Panel */}
+                {activeDropdown === 'pdf' && (
+                  <div className="absolute left-1/2 -translate-x-[25%] top-[100%] pt-2 w-[820px] z-50">
+                    <div className="nav-dropdown-panel rounded-2xl p-6 grid grid-cols-4 gap-6 animate-fade-in">
+                      {pdfGroups.map((group) => (
+                        <div key={group.title} className="space-y-3">
+                          <h4 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 pb-1.5">{group.title}</h4>
+                          <div className="space-y-1">
+                            {group.items.map((item) => {
+                              const Icon = item.icon;
+                              const isItemActive = location.pathname === item.path;
+                              return (
+                                <Link
+                                  key={item.path}
+                                  to={item.path}
+                                  className={`flex items-start gap-2.5 p-2 rounded-xl transition-all ${
+                                    isItemActive
+                                      ? 'bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-450'
+                                      : 'hover:bg-slate-50 dark:hover:bg-slate-900/50 text-slate-700 dark:text-slate-300 hover:text-violet-600 dark:hover:text-violet-400'
+                                  }`}
+                                >
+                                  <Icon className={`w-4 h-4 mt-0.5 flex-shrink-0 ${isItemActive ? 'text-violet-600 dark:text-violet-400' : 'text-slate-400'}`} />
+                                  <div>
+                                    <div className="text-xs font-bold">{item.label}</div>
+                                    <div className="text-[9px] text-slate-400 mt-0.5 leading-normal">{item.desc}</div>
+                                  </div>
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <div className="flex items-center gap-3">
-                {/* Privacy Indicator */}
-                <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">Private · No Permanent Storage</span>
-                </div>
-
-                {/* Dark Mode Toggle */}
-                <button
-                  onClick={toggleDarkMode}
-                  className="p-2 rounded-xl text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-850 transition-colors cursor-pointer"
-                  title="Toggle dark mode"
+              {/* Image Tools Dropdown Trigger */}
+              <div 
+                className="relative"
+                onMouseEnter={() => setActiveDropdown('image')}
+                onMouseLeave={() => setActiveDropdown(null)}
+              >
+                <button 
+                  className={`px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    activeDropdown === 'image' || location.pathname.includes('image') || imageGroups.some(g => g.items.some(i => i.path === location.pathname))
+                      ? 'text-violet-600 dark:text-violet-400 bg-violet-50/50 dark:bg-violet-950/20' 
+                      : 'text-slate-650 dark:text-slate-300 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-slate-50 dark:hover:bg-slate-900/50'
+                  }`}
                 >
-                  {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                  Image Tools
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${activeDropdown === 'image' ? 'rotate-180' : ''}`} />
                 </button>
-              </div>
-            </header>
 
-            {/* Scrollable Page Content */}
-            <main className="flex-1 overflow-y-auto p-6">
-              <div className="max-w-7xl mx-auto">
-                {children}
+                {/* Image Dropdown Panel */}
+                {activeDropdown === 'image' && (
+                  <div className="absolute left-1/2 -translate-x-[40%] top-[100%] pt-2 w-[650px] z-50">
+                    <div className="nav-dropdown-panel rounded-2xl p-6 grid grid-cols-3 gap-6 animate-fade-in">
+                      {imageGroups.map((group) => (
+                        <div key={group.title} className="space-y-3">
+                          <h4 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 pb-1.5">{group.title}</h4>
+                          <div className="space-y-1">
+                            {group.items.map((item) => {
+                              const Icon = item.icon;
+                              const isItemActive = location.pathname === item.path;
+                              return (
+                                <Link
+                                  key={item.path}
+                                  to={item.path}
+                                  className={`flex items-start gap-2.5 p-2 rounded-xl transition-all ${
+                                    isItemActive
+                                      ? 'bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-450'
+                                      : 'hover:bg-slate-50 dark:hover:bg-slate-900/50 text-slate-700 dark:text-slate-300 hover:text-violet-600 dark:hover:text-violet-400'
+                                  }`}
+                                >
+                                  <Icon className={`w-4 h-4 mt-0.5 flex-shrink-0 ${isItemActive ? 'text-violet-600 dark:text-violet-400' : 'text-slate-400'}`} />
+                                  <div>
+                                    <div className="text-xs font-bold">{item.label}</div>
+                                    <div className="text-[9px] text-slate-400 mt-0.5 leading-normal">{item.desc}</div>
+                                  </div>
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-            </main>
+
+              {/* Converters Dropdown (Quick Shortcuts) */}
+              <div 
+                className="relative"
+                onMouseEnter={() => setActiveDropdown('converters')}
+                onMouseLeave={() => setActiveDropdown(null)}
+              >
+                <button 
+                  className={`px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    activeDropdown === 'converters'
+                      ? 'text-violet-600 dark:text-violet-400 bg-violet-50/50 dark:bg-violet-950/20' 
+                      : 'text-slate-650 dark:text-slate-300 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-slate-50 dark:hover:bg-slate-900/50'
+                  }`}
+                >
+                  Converters
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </button>
+
+                {activeDropdown === 'converters' && (
+                  <div className="absolute left-0 top-[100%] pt-2 w-[220px] z-50">
+                    <div className="nav-dropdown-panel rounded-xl p-2 flex flex-col gap-0.5 animate-fade-in">
+                      <Link to="/convert-image" className="flex items-center gap-2 p-2 text-xs font-bold rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-violet-600">
+                        <FileSpreadsheet className="w-4 h-4 text-slate-400" />
+                        Image Converter
+                      </Link>
+                      <Link to="/pdf-to-jpg" className="flex items-center gap-2 p-2 text-xs font-bold rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-violet-600">
+                        <ImageIcon className="w-4 h-4 text-slate-400" />
+                        PDF to JPG
+                      </Link>
+                      <Link to="/images-to-pdf" className="flex items-center gap-2 p-2 text-xs font-bold rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-violet-600">
+                        <Upload className="w-4 h-4 text-slate-400" />
+                        Images to PDF
+                      </Link>
+                      <Link to="/html-to-pdf" className="flex items-center gap-2 p-2 text-xs font-bold rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-violet-600">
+                        <Globe className="w-4 h-4 text-slate-400" />
+                        HTML to PDF
+                      </Link>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Utilities Dropdown */}
+              <div 
+                className="relative"
+                onMouseEnter={() => setActiveDropdown('utilities')}
+                onMouseLeave={() => setActiveDropdown(null)}
+              >
+                <button 
+                  className={`px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    activeDropdown === 'utilities'
+                      ? 'text-violet-600 dark:text-violet-400 bg-violet-50/50 dark:bg-violet-950/20' 
+                      : 'text-slate-650 dark:text-slate-300 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-slate-50 dark:hover:bg-slate-900/50'
+                  }`}
+                >
+                  Utilities
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </button>
+
+                {activeDropdown === 'utilities' && (
+                  <div className="absolute left-0 top-[100%] pt-2 w-[220px] z-50">
+                    <div className="nav-dropdown-panel rounded-xl p-2 flex flex-col gap-0.5 animate-fade-in">
+                      <Link to="/passport-maker" className="flex items-center gap-2 p-2 text-xs font-bold rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-violet-600">
+                        <UserCheck className="w-4 h-4 text-slate-400" />
+                        Passport Photo Maker
+                      </Link>
+                      <Link to="/govt-assistant" className="flex items-center gap-2 p-2 text-xs font-bold rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-violet-600">
+                        <Sparkles className="w-4 h-4 text-slate-400" />
+                        Govt Portal Presets
+                      </Link>
+                      <Link to="/remove-background" className="flex items-center gap-2 p-2 text-xs font-bold rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-violet-600">
+                        <Eraser className="w-4 h-4 text-slate-400" />
+                        Remove BG (AI)
+                      </Link>
+                      <Link to="/ocr-pdf" className="flex items-center gap-2 p-2 text-xs font-bold rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-violet-600">
+                        <ScanText className="w-4 h-4 text-slate-400" />
+                        OCR PDF text
+                      </Link>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Pricing & Blog */}
+              <button 
+                onClick={() => handleDummyClick('Pricing')}
+                className="px-3 py-2 rounded-lg text-xs font-bold text-slate-650 dark:text-slate-300 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-all cursor-pointer"
+              >
+                Pricing
+              </button>
+              
+              <button 
+                onClick={() => handleDummyClick('Blog')}
+                className="px-3 py-2 rounded-lg text-xs font-bold text-slate-650 dark:text-slate-300 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-all cursor-pointer"
+              >
+                Blog
+              </button>
+            </nav>
+
+            {/* Action buttons (Right) */}
+            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+              
+              {/* Dark Mode toggle */}
+              <button
+                onClick={toggleDarkMode}
+                className="p-2 rounded-xl text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-900/50 transition-colors cursor-pointer"
+                title="Toggle dark mode"
+              >
+                {darkMode ? <Sun className="w-4.5 h-4.5" /> : <Moon className="w-4.5 h-4.5" />}
+              </button>
+
+              {/* Log in */}
+              <button
+                onClick={() => handleDummyClick('Log in')}
+                className="hidden md:block px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:text-violet-600 transition-colors cursor-pointer"
+              >
+                Log in
+              </button>
+
+              {/* Get Started */}
+              <button
+                onClick={() => handleDummyClick('Get Started')}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-750 hover:to-fuchsia-750 hover:shadow-md hover:shadow-violet-500/25 active:scale-95 transition-all cursor-pointer"
+              >
+                Get Started Free
+              </button>
+
+              {/* Mobile hamburger menu */}
+              <button
+                onClick={() => setMobileMenuOpen(true)}
+                className="lg:hidden p-2 rounded-xl text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-900/50 transition-colors cursor-pointer"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+
+            </div>
+
           </div>
-        </div>
+        </header>
+
+        {/* Mobile Menu Drawer Overlay */}
+        {mobileMenuOpen && (
+          <div className="fixed inset-0 z-50 flex lg:hidden">
+            {/* Backdrop */}
+            <div 
+              className="fixed inset-0 bg-slate-900/40 dark:bg-black/60 backdrop-blur-xs transition-opacity duration-300"
+              onClick={() => setMobileMenuOpen(false)}
+            />
+            
+            {/* Side sheet */}
+            <div className="relative ml-auto w-full max-w-xs h-full bg-white dark:bg-slate-950 p-6 flex flex-col shadow-2xl z-10 border-l border-slate-100 dark:border-slate-900/60 overflow-y-auto">
+              
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-900 pb-4">
+                <Link to="/" className="flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
+                  <LogoIcon className="w-8 h-8" />
+                  <span className="text-sm font-black text-slate-900 dark:text-slate-100">CompressKro</span>
+                </Link>
+                <button
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Nav links */}
+              <div className="mt-6 flex-1 space-y-6">
+                
+                {/* General */}
+                <div className="space-y-1">
+                  <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest px-2">Navigation</div>
+                  <Link 
+                    to="/" 
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <LayoutDashboard className="w-4 h-4 text-slate-400" />
+                    Dashboard
+                  </Link>
+                </div>
+
+                {/* PDF Tools */}
+                <div className="space-y-1">
+                  <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest px-2">PDF Utilities</div>
+                  <div className="grid grid-cols-1 gap-0.5 pl-2 max-h-48 overflow-y-auto scrollbar-thin">
+                    {pdfGroups.flatMap(g => g.items).map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <Link
+                          key={item.path}
+                          to={item.path}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-bold text-slate-650 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-900"
+                        >
+                          <Icon className="w-3.5 h-3.5 text-slate-450 flex-shrink-0" />
+                          <span className="truncate">{item.label}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Image Tools */}
+                <div className="space-y-1">
+                  <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest px-2">Image Utilities</div>
+                  <div className="grid grid-cols-1 gap-0.5 pl-2 max-h-48 overflow-y-auto scrollbar-thin">
+                    {imageGroups.flatMap(g => g.items).map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <Link
+                          key={item.path}
+                          to={item.path}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-bold text-slate-650 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-900"
+                        >
+                          <Icon className="w-3.5 h-3.5 text-slate-450 flex-shrink-0" />
+                          <span className="truncate">{item.label}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Mock Links */}
+                <div className="space-y-1 border-t border-slate-100 dark:border-slate-900 pt-4">
+                  <button 
+                    onClick={() => { setMobileMenuOpen(false); handleDummyClick('Pricing'); }}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900 cursor-pointer"
+                  >
+                    Pricing
+                  </button>
+                  <button 
+                    onClick={() => { setMobileMenuOpen(false); handleDummyClick('Blog'); }}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900 cursor-pointer"
+                  >
+                    Blog
+                  </button>
+                  <button 
+                    onClick={() => { setMobileMenuOpen(false); handleDummyClick('Log in'); }}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900 cursor-pointer"
+                  >
+                    Log in
+                  </button>
+                </div>
+
+              </div>
+
+              {/* Footer */}
+              <div className="mt-auto pt-6 border-t border-slate-100 dark:border-slate-900 flex flex-col items-center gap-2">
+                <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                  <ShieldCheck className="w-4 h-4" />
+                  <span className="text-[10px] font-bold">100% In-Browser Privacy</span>
+                </div>
+                <div className="text-[9px] text-slate-400">v1.0 · Open Source</div>
+              </div>
+
+            </div>
+          </div>
+        )}
+
+        {/* Scrollable Page Content */}
+        <main className="flex-1 w-full relative z-10 flex flex-col">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 w-full flex-1">
+            {children}
+          </div>
+        </main>
+
+        {/* Minimalized Modern Footer */}
+        <footer className="relative z-10 border-t border-slate-200/50 dark:border-slate-900/60 bg-white/40 dark:bg-slate-950/40 backdrop-blur-md py-6 select-none flex-shrink-0">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <LogoIcon className="w-5 h-5" />
+              <span className="text-xs font-black text-slate-800 dark:text-slate-200">CompressKro</span>
+              <span className="text-[10px] text-slate-450 dark:text-slate-400 font-bold">· File Compress Kro, Edit Kro, Set Kro, Bas CompressKro!</span>
+            </div>
+            <div className="flex items-center gap-4 text-[10px] text-slate-400 font-bold">
+              <button onClick={() => handleDummyClick('Terms')} className="hover:text-violet-500 transition-colors">Terms</button>
+              <button onClick={() => handleDummyClick('Privacy')} className="hover:text-violet-500 transition-colors">Privacy Policy</button>
+              <button onClick={() => handleDummyClick('Contact')} className="hover:text-violet-500 transition-colors">Contact</button>
+              <span className="text-[9px] font-normal font-sans">© 2026 CompressKro. All Rights Reserved.</span>
+            </div>
+          </div>
+        </footer>
+
       </div>
     </div>
   );
