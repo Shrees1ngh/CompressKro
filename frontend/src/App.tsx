@@ -1,5 +1,6 @@
 // ============================================================
 // CompressKro — App Routing & Core Layout (React Router 6)
+// 2026 Premium UI Shell with warm light design
 // ============================================================
 
 import React, { useState, useEffect, Suspense } from 'react';
@@ -14,7 +15,6 @@ import {
   ShieldCheck, 
   Moon, 
   Sun, 
-  Menu,
   X,
   LayoutDashboard,
   ListOrdered,
@@ -31,12 +31,17 @@ import {
   Crop,
   Globe,
   ChevronDown,
-  Upload
+  Upload,
+  Heart,
+  Zap,
+  Search
 } from 'lucide-react';
 import { StorageService } from './services/storage.service';
 import { ToastContainer } from './components/ui/Toast';
 import { useToast } from './hooks/useToast';
 import { LogoIcon } from './components/ui/LogoIcon';
+import { PdfWorkspaceShell } from './components/PdfWorkspaceShell/PdfWorkspaceShell';
+import { ALL_PDF_TOOL_PATHS } from './constants/pdfToolsMeta';
 
 // Page Component Imports — lazy loaded for code-splitting
 const Home = React.lazy(() => import('./pages/Home').then(m => ({ default: m.Home })));
@@ -73,7 +78,10 @@ const RemoveBackground = React.lazy(() => import('./pages/image/RemoveBg').then(
 function PageLoader() {
   return (
     <div className="flex items-center justify-center h-64 w-full">
-      <div className="w-8 h-8 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" />
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-9 h-9 rounded-full border-[2.5px] border-violet-500 border-t-transparent animate-spin" />
+        <span className="text-xs font-semibold text-[var(--ck-text-muted)]">Loading...</span>
+      </div>
     </div>
   );
 }
@@ -85,6 +93,8 @@ function MainLayout({ children }: { children: React.ReactNode }) {
   const [darkMode, setDarkMode] = useState<boolean>(() => StorageService.getTheme() === 'dark');
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [activeDropdown, setActiveDropdown] = useState<'pdf' | 'image' | 'converters' | 'utilities' | null>(null);
+  const [mobileSearchQuery, setMobileSearchQuery] = useState('');
+  const [mobileActiveTab, setMobileActiveTab] = useState<'pdf' | 'image'>('pdf');
   const { showInfo } = useToast();
 
   useEffect(() => {
@@ -107,6 +117,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
     window.scrollTo(0, 0);
     setMobileMenuOpen(false);
     setActiveDropdown(null);
+    setMobileSearchQuery('');
   }, [location.pathname]);
 
   const pdfGroups = [
@@ -181,379 +192,486 @@ function MainLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className={darkMode ? 'dark' : ''}>
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 transition-colors duration-300 flex flex-col">
-        
-        {/* Ambient background decoration */}
-        <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-          <div className="absolute top-[-15%] left-[-10%] w-[60%] h-[60%] bg-violet-400/8 dark:bg-violet-700/6 rounded-full blur-[120px] animate-pulse-soft" />
-          <div className="absolute bottom-[-15%] right-[-10%] w-[50%] h-[50%] bg-fuchsia-400/8 dark:bg-fuchsia-700/6 rounded-full blur-[120px] animate-pulse-soft" style={{ animationDelay: '2s' }} />
-        </div>
+      <div className="min-h-screen bg-[var(--ck-bg)] text-[var(--ck-text-primary)] transition-colors duration-300 flex flex-col">
 
-        {/* Global sticky header */}
-        <header className="sticky top-0 z-50 w-full bg-white/70 dark:bg-slate-950/75 border-b border-slate-200/50 dark:border-slate-800/40 backdrop-blur-xl">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            
-            <Link to="/" className="flex items-center gap-3 select-none flex-shrink-0">
-              <LogoIcon className="w-11 h-11" />
-              <div className="hidden sm:block text-left">
-                <div className="text-xl font-black tracking-tight text-slate-900 dark:text-slate-50 leading-none">CompressKro</div>
-                <span className="text-[11px] text-slate-500 dark:text-slate-400 font-bold tracking-wide">File Compress Kro, Edit Kro, Set Kro, Bas CompressKro!</span>
-              </div>
+        {/* =========== PREMIUM FLOATING NAVBAR (DESKTOP & MOBILE SPLIT) =========== */}
+        <header className="sticky top-0 z-50 w-full px-4 sm:px-6 lg:px-8 pt-4 pointer-events-none">
+          
+          {/* Desktop Floating Capsule */}
+          <div className="relative hidden lg:flex max-w-7xl mx-auto h-16 rounded-full bg-white/90 dark:bg-slate-900/80 border border-slate-950 dark:border-slate-750 backdrop-blur-xl shadow-md px-6 items-center justify-between pointer-events-auto transition-all duration-300">
+            {/* Logo */}
+            <Link to="/" className="flex items-center gap-2.5 select-none flex-shrink-0 group">
+              <LogoIcon className="w-8 h-8 flex-shrink-0 transition-transform duration-300 group-hover:scale-105" />
+              <span className="text-lg font-black tracking-tight text-[var(--ck-text-primary)]">CompressKro</span>
             </Link>
-            {/* Desktop Navigation Links */}
-            <nav className="hidden lg:flex items-center gap-1 xl:gap-2">
-              
-              {/* Dashboard */}
+
+            {/* Navigation (Only Dashboard, Image Tools, PDF Tools) */}
+            <nav className="flex items-center gap-1 xl:gap-2">
               <Link 
                 to="/" 
-                className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
+                className={`px-4 py-2 rounded-full text-xs font-bold tracking-wide uppercase transition-all duration-300 hover:scale-[1.04] active:scale-95 ${
                   location.pathname === '/' 
-                    ? 'text-violet-600 dark:text-violet-450 bg-violet-50/50 dark:bg-violet-950/20' 
-                    : 'text-slate-650 dark:text-slate-300 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-slate-50 dark:hover:bg-slate-900/50'
+                    ? 'text-white bg-violet-600 shadow-sm hover:bg-violet-700' 
+                    : 'text-[var(--ck-text-secondary)] hover:text-violet-600 dark:hover:text-violet-400 hover:bg-[var(--ck-bg-muted)]'
                 }`}
               >
                 Dashboard
               </Link>
 
-              {/* PDF Tools Dropdown Trigger */}
-              <div 
-                className="relative"
-                onMouseEnter={() => setActiveDropdown('pdf')}
-                onMouseLeave={() => setActiveDropdown(null)}
-              >
-                <button 
-                  className={`px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                    activeDropdown === 'pdf' || location.pathname.includes('pdf') || pdfGroups.some(g => g.items.some(i => i.path === location.pathname))
-                      ? 'text-violet-600 dark:text-violet-400 bg-violet-50/50 dark:bg-violet-950/20' 
-                      : 'text-slate-650 dark:text-slate-300 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-slate-50 dark:hover:bg-slate-900/50'
-                  }`}
-                >
-                  PDF Tools
-                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${activeDropdown === 'pdf' ? 'rotate-180' : ''}`} />
-                </button>
-
-                {/* PDF Dropdown Panel */}
-                {activeDropdown === 'pdf' && (
-                  <div className="absolute left-1/2 -translate-x-[25%] top-[100%] pt-2 w-[820px] z-50">
-                    <div className="nav-dropdown-panel rounded-2xl p-6 grid grid-cols-4 gap-6 animate-fade-in">
-                      {pdfGroups.map((group) => (
-                        <div key={group.title} className="space-y-3">
-                          <h4 className="text-xs font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 pb-1.5">{group.title}</h4>
-                          <div className="space-y-1">
-                            {group.items.map((item) => {
-                              const Icon = item.icon;
-                              const isItemActive = location.pathname === item.path;
-                              return (
-                                <Link
-                                  key={item.path}
-                                  to={item.path}
-                                  className={`flex items-start gap-2.5 p-2 rounded-xl transition-all ${
-                                    isItemActive
-                                      ? 'bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-450'
-                                      : 'hover:bg-slate-50 dark:hover:bg-slate-900/50 text-slate-700 dark:text-slate-300 hover:text-violet-600 dark:hover:text-violet-400'
-                                  }`}
-                                >
-                                  <Icon className={`w-4 h-4 mt-0.5 flex-shrink-0 ${isItemActive ? 'text-violet-600 dark:text-violet-400' : 'text-slate-400'}`} />
-                                  <div>
-                                    <div className="text-sm font-semibold">{item.label}</div>
-                                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-normal">{item.desc}</div>
-                                  </div>
-                                </Link>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Image Tools Dropdown Trigger */}
+              {/* Image Tools Dropdown */}
               <div 
                 className="relative"
                 onMouseEnter={() => setActiveDropdown('image')}
                 onMouseLeave={() => setActiveDropdown(null)}
               >
                 <button 
-                  className={`px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  className={`px-4 py-2 rounded-full text-xs font-bold tracking-wide uppercase flex items-center gap-1 transition-all duration-300 hover:scale-[1.04] active:scale-95 cursor-pointer ${
                     activeDropdown === 'image' || location.pathname.includes('image') || imageGroups.some(g => g.items.some(i => i.path === location.pathname))
-                      ? 'text-violet-600 dark:text-violet-400 bg-violet-50/50 dark:bg-violet-950/20' 
-                      : 'text-slate-650 dark:text-slate-300 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-slate-50 dark:hover:bg-slate-900/50'
+                      ? 'text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950/30' 
+                      : 'text-[var(--ck-text-secondary)] hover:text-violet-600 dark:hover:text-violet-400 hover:bg-[var(--ck-bg-muted)]'
                   }`}
                 >
                   Image Tools
-                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${activeDropdown === 'image' ? 'rotate-180' : ''}`} />
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-300 ${activeDropdown === 'image' ? 'rotate-180' : ''}`} />
                 </button>
-
-                {/* Image Dropdown Panel */}
-                {activeDropdown === 'image' && (
-                  <div className="absolute left-1/2 -translate-x-[40%] top-[100%] pt-2 w-[650px] z-50">
-                    <div className="nav-dropdown-panel rounded-2xl p-6 grid grid-cols-3 gap-6 animate-fade-in">
-                      {imageGroups.map((group) => (
-                        <div key={group.title} className="space-y-3">
-                          <h4 className="text-xs font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 pb-1.5">{group.title}</h4>
-                          <div className="space-y-1">
-                            {group.items.map((item) => {
-                              const Icon = item.icon;
-                              const isItemActive = location.pathname === item.path;
-                              return (
-                                <Link
-                                  key={item.path}
-                                  to={item.path}
-                                  className={`flex items-start gap-2.5 p-2 rounded-xl transition-all ${
-                                    isItemActive
-                                      ? 'bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-450'
-                                      : 'hover:bg-slate-50 dark:hover:bg-slate-900/50 text-slate-700 dark:text-slate-300 hover:text-violet-600 dark:hover:text-violet-400'
-                                  }`}
-                                >
-                                  <Icon className={`w-4 h-4 mt-0.5 flex-shrink-0 ${isItemActive ? 'text-violet-600 dark:text-violet-400' : 'text-slate-400'}`} />
-                                  <div>
-                                    <div className="text-sm font-semibold">{item.label}</div>
-                                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-normal">{item.desc}</div>
-                                  </div>
-                                </Link>
-                              );
-                            })}
-                          </div>
+                
+                {/* CSS Transition Dropdown Container - Perfectly centered under parent capsule with macOS animation */}
+                <div className={`absolute left-1/2 -translate-x-1/2 top-full pt-3 w-[650px] z-50 transition-all duration-300 origin-top ${
+                  activeDropdown === 'image' 
+                    ? 'opacity-100 scale-100 translate-y-0 blur-0 pointer-events-auto' 
+                    : 'opacity-0 scale-90 -translate-y-4 blur-sm pointer-events-none'
+                }`}>
+                  <div className="bg-white/95 dark:bg-slate-900/97 backdrop-blur-xl border border-slate-955 dark:border-slate-750 shadow-2xl rounded-2xl p-6 grid grid-cols-3 gap-6">
+                    {imageGroups.map((group) => (
+                      <div key={group.title} className="space-y-3">
+                        <h4 className="text-[10px] font-bold text-[var(--ck-text-muted)] uppercase tracking-[0.12em] pb-1.5" style={{ borderBottom: '1px solid var(--ck-border)' }}>{group.title}</h4>
+                        <div className="space-y-0.5">
+                          {group.items.map((item) => {
+                            const Icon = item.icon;
+                            const isItemActive = location.pathname === item.path;
+                            return (
+                              <Link
+                                key={item.path}
+                                to={item.path}
+                                className={`flex items-start gap-2.5 p-2.5 rounded-xl transition-all ${
+                                  isItemActive
+                                    ? 'bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400'
+                                    : 'hover:bg-[var(--ck-bg-muted)] text-[var(--ck-text-secondary)] hover:text-violet-600 dark:hover:text-violet-400'
+                                }`}
+                              >
+                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${isItemActive ? 'bg-violet-100 dark:bg-violet-900/40' : 'bg-[var(--ck-bg-muted)]'}`}>
+                                  <Icon className={`w-3.5 h-3.5 ${isItemActive ? 'text-violet-600 dark:text-violet-400' : 'text-[var(--ck-text-muted)]'}`} />
+                                </div>
+                                <div>
+                                  <div className="text-[13px] font-semibold">{item.label}</div>
+                                  <div className="text-[11px] text-[var(--ck-text-muted)] mt-0.5 leading-normal">{item.desc}</div>
+                                </div>
+                              </Link>
+                            );
+                          })}
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    ))}
                   </div>
-                )}
+                </div>
               </div>
 
-              {/* Converters Dropdown (Quick Shortcuts) */}
+              {/* PDF Tools Dropdown */}
               <div 
                 className="relative"
-                onMouseEnter={() => setActiveDropdown('converters')}
+                onMouseEnter={() => setActiveDropdown('pdf')}
                 onMouseLeave={() => setActiveDropdown(null)}
               >
                 <button 
-                  className={`px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                    activeDropdown === 'converters'
-                      ? 'text-violet-600 dark:text-violet-400 bg-violet-50/50 dark:bg-violet-950/20' 
-                      : 'text-slate-650 dark:text-slate-300 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-slate-50 dark:hover:bg-slate-900/50'
+                  className={`px-4 py-2 rounded-full text-xs font-bold tracking-wide uppercase flex items-center gap-1 transition-all duration-300 hover:scale-[1.04] active:scale-95 cursor-pointer ${
+                    activeDropdown === 'pdf' || location.pathname.includes('pdf') || pdfGroups.some(g => g.items.some(i => i.path === location.pathname))
+                      ? 'text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950/30' 
+                      : 'text-[var(--ck-text-secondary)] hover:text-violet-600 dark:hover:text-violet-400 hover:bg-[var(--ck-bg-muted)]'
                   }`}
                 >
-                  Converters
-                  <ChevronDown className="w-3.5 h-3.5" />
+                  PDF Tools
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-300 ${activeDropdown === 'pdf' ? 'rotate-180' : ''}`} />
                 </button>
-
-                {activeDropdown === 'converters' && (
-                  <div className="absolute left-0 top-[100%] pt-2 w-[220px] z-50">
-                    <div className="nav-dropdown-panel rounded-xl p-2 flex flex-col gap-0.5 animate-fade-in">
-                      <Link to="/convert-image" className="flex items-center gap-2 p-2 text-sm font-semibold rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-violet-600">
-                        <FileSpreadsheet className="w-4 h-4 text-slate-400" />
-                        Image Converter
-                      </Link>
-                      <Link to="/pdf-to-jpg" className="flex items-center gap-2 p-2 text-sm font-semibold rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-violet-600">
-                        <ImageIcon className="w-4 h-4 text-slate-400" />
-                        PDF to JPG
-                      </Link>
-                      <Link to="/images-to-pdf" className="flex items-center gap-2 p-2 text-sm font-semibold rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-violet-600">
-                        <Upload className="w-4 h-4 text-slate-400" />
-                        Images to PDF
-                      </Link>
-                      <Link to="/html-to-pdf" className="flex items-center gap-2 p-2 text-sm font-semibold rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-violet-600">
-                        <Globe className="w-4 h-4 text-slate-400" />
-                        HTML to PDF
-                      </Link>
-                    </div>
+                
+                {/* CSS Transition Dropdown Container - Perfectly centered under parent capsule with macOS animation */}
+                <div className={`absolute left-1/2 -translate-x-1/2 top-full pt-3 w-[800px] z-50 transition-all duration-300 origin-top ${
+                  activeDropdown === 'pdf' 
+                    ? 'opacity-100 scale-100 translate-y-0 blur-0 pointer-events-auto' 
+                    : 'opacity-0 scale-90 -translate-y-4 blur-sm pointer-events-none'
+                }`}>
+                  <div className="bg-white/95 dark:bg-slate-900/97 backdrop-blur-xl border border-slate-955 dark:border-slate-750 shadow-2xl rounded-2xl p-6 grid grid-cols-4 gap-6">
+                    {pdfGroups.map((group) => (
+                      <div key={group.title} className="space-y-3">
+                        <h4 className="text-[10px] font-bold text-[var(--ck-text-muted)] uppercase tracking-[0.12em] pb-1.5" style={{ borderBottom: '1px solid var(--ck-border)' }}>{group.title}</h4>
+                        <div className="space-y-0.5">
+                          {group.items.map((item) => {
+                            const Icon = item.icon;
+                            const isItemActive = location.pathname === item.path;
+                            return (
+                              <Link
+                                key={item.path}
+                                to={item.path}
+                                className={`flex items-start gap-2.5 p-2.5 rounded-xl transition-all ${
+                                  isItemActive
+                                    ? 'bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400'
+                                    : 'hover:bg-[var(--ck-bg-muted)] text-[var(--ck-text-secondary)] hover:text-violet-600 dark:hover:text-violet-400'
+                                }`}
+                              >
+                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${isItemActive ? 'bg-violet-100 dark:bg-violet-900/40' : 'bg-[var(--ck-bg-muted)]'}`}>
+                                  <Icon className={`w-3.5 h-3.5 ${isItemActive ? 'text-violet-600 dark:text-violet-400' : 'text-[var(--ck-text-muted)]'}`} />
+                                </div>
+                                <div>
+                                  <div className="text-[13px] font-semibold">{item.label}</div>
+                                  <div className="text-[11px] text-[var(--ck-text-muted)] mt-0.5 leading-normal">{item.desc}</div>
+                                </div>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                )}
-              </div>
-
-              {/* Utilities Dropdown */}
-              <div 
-                className="relative"
-                onMouseEnter={() => setActiveDropdown('utilities')}
-                onMouseLeave={() => setActiveDropdown(null)}
-              >
-                <button 
-                  className={`px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                    activeDropdown === 'utilities'
-                      ? 'text-violet-600 dark:text-violet-400 bg-violet-50/50 dark:bg-violet-950/20' 
-                      : 'text-slate-650 dark:text-slate-300 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-slate-50 dark:hover:bg-slate-900/50'
-                  }`}
-                >
-                  Utilities
-                  <ChevronDown className="w-3.5 h-3.5" />
-                </button>
-
-                {activeDropdown === 'utilities' && (
-                  <div className="absolute left-0 top-[100%] pt-2 w-[220px] z-50">
-                    <div className="nav-dropdown-panel rounded-xl p-2 flex flex-col gap-0.5 animate-fade-in">
-                      <Link to="/passport-maker" className="flex items-center gap-2 p-2 text-sm font-semibold rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-violet-600">
-                        <UserCheck className="w-4 h-4 text-slate-400" />
-                        Passport Photo Maker
-                      </Link>
-                      <Link to="/govt-assistant" className="flex items-center gap-2 p-2 text-sm font-semibold rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-violet-600">
-                        <Sparkles className="w-4 h-4 text-slate-400" />
-                        Govt Portal Presets
-                      </Link>
-                      <Link to="/remove-background" className="flex items-center gap-2 p-2 text-sm font-semibold rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-violet-600">
-                        <Eraser className="w-4 h-4 text-slate-400" />
-                        Remove BG (AI)
-                      </Link>
-                      <Link to="/ocr-pdf" className="flex items-center gap-2 p-2 text-sm font-semibold rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-violet-600">
-                        <ScanText className="w-4 h-4 text-slate-400" />
-                        OCR PDF text
-                      </Link>
-                    </div>
-                  </div>
-                )}
+                </div>
               </div>
             </nav>
 
-            {/* Action buttons (Right) */}
-            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-              
+            {/* Right actions */}
+            <div className="flex items-center gap-3">
               {/* Dark Mode toggle */}
               <button
                 onClick={toggleDarkMode}
-                className="p-2 rounded-xl text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-900/50 transition-colors cursor-pointer"
+                className="p-2.5 rounded-full text-[var(--ck-text-muted)] hover:text-[var(--ck-text-primary)] hover:bg-[var(--ck-bg-muted)] transition-all cursor-pointer"
                 title="Toggle dark mode"
               >
-                {darkMode ? <Sun className="w-4.5 h-4.5" /> : <Moon className="w-4.5 h-4.5" />}
+                {darkMode ? <Sun className="w-[18px] h-[18px]" /> : <Moon className="w-[18px] h-[18px]" />}
               </button>
-
-              {/* Mobile hamburger menu */}
-              <button
-                onClick={() => setMobileMenuOpen(true)}
-                className="lg:hidden p-2 rounded-xl text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-900/50 transition-colors cursor-pointer"
-              >
-                <Menu className="w-5 h-5" />
-              </button>
-
             </div>
-
           </div>
+
+          {/* Mobile Split Layout (Top-Left Pill, Top-Right Circle) */}
+          <div className="flex lg:hidden items-center justify-between w-full">
+            {/* Left Capsule Link */}
+            <Link 
+              to="/" 
+              className="pointer-events-auto flex items-center gap-2.5 px-4.5 py-2.5 rounded-full bg-white dark:bg-slate-900 border border-slate-950 dark:border-slate-750 shadow-md transition-all active:scale-[0.98]"
+            >
+              <LogoIcon className="w-6 h-6 flex-shrink-0" />
+              <span className="text-sm font-black tracking-tight text-[var(--ck-text-primary)]">CompressKro</span>
+            </Link>
+
+            {/* Right Circle Hamburger Button */}
+            <button
+              onClick={() => setMobileMenuOpen(true)}
+              className="pointer-events-auto flex w-11 h-11 items-center justify-center rounded-full bg-white dark:bg-slate-900 border border-slate-950 dark:border-slate-750 shadow-md text-[var(--ck-text-primary)] active:scale-[0.98] transition-all cursor-pointer"
+            >
+              {/* Two horizontal lines representing menu */}
+              <div className="flex flex-col gap-1.5 items-center justify-center">
+                <div className="w-5 h-[2px] bg-current rounded-full" />
+                <div className="w-5 h-[2px] bg-current rounded-full" />
+              </div>
+            </button>
+          </div>
+
         </header>
 
-        {/* Mobile Menu Drawer Overlay */}
+        {/* =========== MOBILE MENU DRAWER =========== */}
         {mobileMenuOpen && (
           <div className="fixed inset-0 z-50 flex lg:hidden">
             {/* Backdrop */}
             <div 
-              className="fixed inset-0 bg-slate-900/40 dark:bg-black/60 backdrop-blur-xs transition-opacity duration-300"
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300"
               onClick={() => setMobileMenuOpen(false)}
             />
             
-            {/* Side sheet */}
-            <div className="relative ml-auto w-full max-w-xs h-full bg-white dark:bg-slate-950 p-6 flex flex-col shadow-2xl z-10 border-l border-slate-100 dark:border-slate-900/60 overflow-y-auto">
+            {/* Side sheet - Redesigned to be modern, tabbed & searchable */}
+            <div className="relative ml-auto w-full max-w-[325px] h-full bg-[var(--ck-bg-card)] p-5 flex flex-col shadow-2xl z-10 overflow-hidden" style={{ borderLeft: '1px solid var(--ck-border)' }}>
               
-              {/* Header */}
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-900 pb-4">
+              {/* Drawer Header */}
+              <div className="flex items-center justify-between pb-4" style={{ borderBottom: '1px solid var(--ck-border)' }}>
                 <Link to="/" className="flex items-center gap-2.5" onClick={() => setMobileMenuOpen(false)}>
-                  <LogoIcon className="w-10 h-10" />
-                  <span className="text-base font-black text-slate-900 dark:text-slate-100">CompressKro</span>
+                  <LogoIcon className="w-7 h-7 flex-shrink-0" />
+                  <span className="text-base font-black text-[var(--ck-text-primary)]">CompressKro</span>
                 </Link>
                 <button
                   onClick={() => setMobileMenuOpen(false)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900"
+                  className="w-8 h-8 rounded-full bg-[var(--ck-bg-muted)] flex items-center justify-center text-[var(--ck-text-muted)] hover:text-[var(--ck-text-primary)] transition-all active:scale-95"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Nav links */}
-              <div className="mt-6 flex-1 space-y-6">
+              {/* Tool Search Bar */}
+              <div className="relative mt-4">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--ck-text-muted)]" />
+                <input 
+                  type="text"
+                  placeholder="Search tools..."
+                  value={mobileSearchQuery}
+                  onChange={(e) => setMobileSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2.5 text-xs font-semibold rounded-xl bg-[var(--ck-bg-muted)] border border-slate-200/60 dark:border-slate-800/85 outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 transition-all text-[var(--ck-text-primary)]"
+                />
+                {mobileSearchQuery && (
+                  <button 
+                    onClick={() => setMobileSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[var(--ck-text-muted)] hover:text-[var(--ck-text-primary)]"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+
+              {/* Tab Selector (hidden when actively searching) */}
+              {!mobileSearchQuery && (
+                <div className="flex p-1 rounded-xl bg-[var(--ck-bg-muted)] border border-slate-100/50 dark:border-slate-900/50 mt-4 flex-shrink-0">
+                  <button
+                    onClick={() => setMobileActiveTab('pdf')}
+                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all uppercase tracking-wide cursor-pointer ${
+                      mobileActiveTab === 'pdf'
+                        ? 'bg-[var(--ck-bg-card)] text-violet-600 dark:text-violet-400 shadow-sm'
+                        : 'text-[var(--ck-text-secondary)] hover:text-violet-600 dark:hover:text-violet-400'
+                    }`}
+                  >
+                    PDF Tools
+                  </button>
+                  <button
+                    onClick={() => setMobileActiveTab('image')}
+                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all uppercase tracking-wide cursor-pointer ${
+                      mobileActiveTab === 'image'
+                        ? 'bg-[var(--ck-bg-card)] text-violet-600 dark:text-violet-400 shadow-sm'
+                        : 'text-[var(--ck-text-secondary)] hover:text-violet-600 dark:hover:text-violet-400'
+                    }`}
+                  >
+                    Image Tools
+                  </button>
+                </div>
+              )}
+
+              {/* Tools Lists (Collapsible Grids) */}
+              <div className="mt-4 flex-1 overflow-y-auto pr-1">
                 
-                {/* General */}
-                <div className="space-y-1">
-                  <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest px-2">Navigation</div>
+                {/* General Dashboard Link always visible at the top */}
+                {!mobileSearchQuery && (
                   <Link 
                     to="/" 
-                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900"
+                    className={`flex items-center gap-3 p-3 mb-3 rounded-2xl border transition-all text-left ${
+                      location.pathname === '/' 
+                        ? 'bg-violet-550/10 border-violet-500 text-violet-600 dark:text-violet-400' 
+                        : 'bg-[var(--ck-bg-muted)] border-transparent text-[var(--ck-text-primary)] hover:border-[var(--ck-border-hover)]'
+                    }`}
                     onClick={() => setMobileMenuOpen(false)}
                   >
-                    <LayoutDashboard className="w-4 h-4 text-slate-400" />
-                    Dashboard
+                    <div className="w-8 h-8 rounded-lg bg-violet-600 text-white flex items-center justify-center flex-shrink-0">
+                      <LayoutDashboard className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h5 className="text-[12px] font-black leading-tight">Dashboard</h5>
+                      <p className="text-[9.5px] text-[var(--ck-text-muted)] mt-0.5">Go to central workbench</p>
+                    </div>
                   </Link>
-                </div>
+                )}
 
-                {/* PDF Tools */}
-                <div className="space-y-1">
-                  <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest px-2">PDF Utilities</div>
-                  <div className="grid grid-cols-1 gap-0.5 pl-2 max-h-48 overflow-y-auto scrollbar-thin">
-                    {pdfGroups.flatMap(g => g.items).map((item) => {
-                      const Icon = item.icon;
-                      return (
-                        <Link
-                          key={item.path}
-                          to={item.path}
-                          onClick={() => setMobileMenuOpen(false)}
-                          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-bold text-slate-650 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-900"
-                        >
-                          <Icon className="w-3.5 h-3.5 text-slate-450 flex-shrink-0" />
-                          <span className="truncate">{item.label}</span>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
+                {/* Filter and display tools */}
+                {(() => {
+                  const allMobileTools = [
+                    ...pdfGroups.flatMap(g => g.items.map(i => ({ ...i, category: 'pdf' }))),
+                    ...imageGroups.flatMap(g => g.items.map(i => ({ ...i, category: 'image' })))
+                  ];
 
-                {/* Image Tools */}
-                <div className="space-y-1">
-                  <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest px-2">Image Utilities</div>
-                  <div className="grid grid-cols-1 gap-0.5 pl-2 max-h-48 overflow-y-auto scrollbar-thin">
-                    {imageGroups.flatMap(g => g.items).map((item) => {
-                      const Icon = item.icon;
-                      return (
-                        <Link
-                          key={item.path}
-                          to={item.path}
-                          onClick={() => setMobileMenuOpen(false)}
-                          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-bold text-slate-650 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-900"
-                        >
-                          <Icon className="w-3.5 h-3.5 text-slate-450 flex-shrink-0" />
-                          <span className="truncate">{item.label}</span>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
+                  const filteredMobileTools = allMobileTools.filter(tool => {
+                    const matchesSearch = tool.label.toLowerCase().includes(mobileSearchQuery.toLowerCase()) || 
+                                          tool.desc.toLowerCase().includes(mobileSearchQuery.toLowerCase());
+                    if (mobileSearchQuery) return matchesSearch;
+                    return tool.category === mobileActiveTab;
+                  });
 
+                  if (filteredMobileTools.length === 0) {
+                    return (
+                      <div className="py-12 text-center text-xs text-[var(--ck-text-muted)] font-medium">
+                        No matching tools found.
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="grid grid-cols-2 gap-2">
+                      {filteredMobileTools.map((tool) => {
+                        const Icon = tool.icon;
+                        const isToolActive = location.pathname === tool.path;
+                        return (
+                          <Link
+                            key={tool.path}
+                            to={tool.path}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className={`flex flex-col justify-between p-3 rounded-2xl border transition-all text-left min-h-[96px] ${
+                              isToolActive
+                                ? 'bg-violet-550/10 border-violet-500 text-violet-600 dark:text-violet-400'
+                                : 'bg-[var(--ck-bg-muted)] border-transparent text-[var(--ck-text-primary)] hover:border-[var(--ck-border-hover)]'
+                            }`}
+                          >
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                              isToolActive ? 'bg-violet-600 text-white' : 'bg-[var(--ck-bg-card)] text-[var(--ck-text-muted)]'
+                            }`}>
+                              <Icon className="w-4 h-4" />
+                            </div>
+                            <div className="mt-2">
+                              <h5 className="text-[11px] font-black leading-tight truncate">{tool.label}</h5>
+                              <p className="text-[9px] text-[var(--ck-text-muted)] mt-0.5 line-clamp-1 leading-normal">{tool.desc}</p>
+                            </div>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
 
               </div>
 
-              {/* Footer */}
-              <div className="mt-auto pt-6 border-t border-slate-100 dark:border-slate-900 flex flex-col items-center gap-2">
-                <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+              {/* Bottom footer bar */}
+              <div className="mt-auto pt-4 flex flex-col items-center gap-3 flex-shrink-0 border-t border-slate-100 dark:border-slate-800">
+                
+                {/* Dark Mode toggle quick switcher inside drawer */}
+                <button
+                  onClick={toggleDarkMode}
+                  className="flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl bg-[var(--ck-bg-muted)] border border-transparent hover:border-[var(--ck-border-hover)] transition-all cursor-pointer w-full justify-center text-[var(--ck-text-primary)]"
+                >
+                  {darkMode ? (
+                    <>
+                      <Sun className="w-4 h-4 text-amber-500" />
+                      Switch to Light Mode
+                    </>
+                  ) : (
+                    <>
+                      <Moon className="w-4 h-4 text-violet-600" />
+                      Switch to Dark Mode
+                    </>
+                  )}
+                </button>
+
+                <div className="flex items-center gap-1.5 text-emerald-600">
                   <ShieldCheck className="w-4 h-4" />
-                  <span className="text-[10px] font-bold">100% In-Browser Privacy</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider">In-Browser Privacy</span>
                 </div>
-                <div className="text-[9px] text-slate-400">v1.0 · Open Source</div>
+                <div className="text-[9px] text-[var(--ck-text-muted)] font-bold">
+                  v1.0 · Open Source
+                </div>
               </div>
 
             </div>
           </div>
         )}
 
-        {/* Scrollable Page Content */}
-        <main className="flex-1 w-full relative z-10 flex flex-col">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 w-full flex-1">
-            {children}
-          </div>
-        </main>
+        {/* =========== PAGE CONTENT =========== */}
+        {(() => {
+          const isPdfWorkspace = ALL_PDF_TOOL_PATHS.includes(location.pathname);
+          if (isPdfWorkspace) {
+            // PDF workspace pages: full-bleed, no container/padding wrapper
+            return (
+              <main className="flex-1 w-full relative z-10 flex flex-col">
+                {children}
+              </main>
+            );
+          }
+          return (
+            <main className="flex-1 w-full relative z-10 flex flex-col">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 w-full flex-1">
+                {children}
+              </div>
+            </main>
+          );
+        })()}
 
-        {/* Minimalized Modern Footer */}
-        <footer className="relative z-10 border-t border-slate-200/50 dark:border-slate-900/60 bg-white/40 dark:bg-slate-950/40 backdrop-blur-md py-6 select-none flex-shrink-0">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <LogoIcon className="w-5 h-5" />
-              <span className="text-xs font-black text-slate-800 dark:text-slate-200">CompressKro</span>
-              <span className="text-[10px] text-slate-450 dark:text-slate-400 font-bold">· File Compress Kro, Edit Kro, Set Kro, Bas CompressKro!</span>
+        {/* =========== PREMIUM FOOTER (hidden on PDF workspace pages) =========== */}
+        {!ALL_PDF_TOOL_PATHS.includes(location.pathname) && (
+        <footer className="relative z-10 bg-[var(--ck-bg-card)] select-none flex-shrink-0" style={{ borderTop: '1px solid var(--ck-border)' }}>
+          
+          {/* Main Footer Content */}
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12">
+              
+              {/* Brand Column */}
+              <div className="md:col-span-4 space-y-4">
+                <div className="flex items-center gap-2.5">
+                  <LogoIcon className="w-8 h-8" />
+                  <span className="text-lg font-black text-[var(--ck-text-primary)]">CompressKro</span>
+                </div>
+                <p className="text-[13px] text-[var(--ck-text-secondary)] leading-relaxed font-medium max-w-xs">
+                  Your everyday toolkit for PDFs & images. Compress, convert, edit, resize — all free, no sign-up, processed in your browser.
+                </p>
+                <div className="flex items-center gap-4 pt-1">
+                  <div className="flex items-center gap-1.5 text-emerald-600">
+                    <ShieldCheck className="w-4 h-4" />
+                    <span className="text-[11px] font-bold">Privacy-first</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-violet-600">
+                    <Zap className="w-4 h-4" />
+                    <span className="text-[11px] font-bold">100% Free</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* PDF Tools Column */}
+              <div className="md:col-span-3 space-y-3">
+                <h3 className="text-[11px] font-bold text-[var(--ck-text-muted)] uppercase tracking-[0.12em]">PDF Tools</h3>
+                <div className="grid grid-cols-1 gap-1.5">
+                  {[
+                    { path: '/compress-pdf', label: 'Compress PDF' },
+                    { path: '/edit-pdf', label: 'Edit PDF' },
+                    { path: '/merge-pdf', label: 'Merge PDF' },
+                    { path: '/split-pdf', label: 'Split PDF' },
+                    { path: '/ocr-pdf', label: 'OCR PDF' },
+                    { path: '/sign-pdf', label: 'Sign PDF' }
+                  ].map(item => (
+                    <Link key={item.path} to={item.path} className="text-[12.5px] font-medium text-[var(--ck-text-secondary)] hover:text-violet-600 transition-colors py-0.5">{item.label}</Link>
+                  ))}
+                </div>
+              </div>
+
+              {/* Image Tools Column */}
+              <div className="md:col-span-3 space-y-3">
+                <h3 className="text-[11px] font-bold text-[var(--ck-text-muted)] uppercase tracking-[0.12em]">Image Tools</h3>
+                <div className="grid grid-cols-1 gap-1.5">
+                  {[
+                    { path: '/compress-image', label: 'Compress Image' },
+                    { path: '/resize-image', label: 'Resize Image' },
+                    { path: '/convert-image', label: 'Convert Image' },
+                    { path: '/remove-background', label: 'Remove Background' },
+                    { path: '/passport-maker', label: 'Passport Maker' },
+                    { path: '/edit-image', label: 'Image Editor' }
+                  ].map(item => (
+                    <Link key={item.path} to={item.path} className="text-[12.5px] font-medium text-[var(--ck-text-secondary)] hover:text-violet-600 transition-colors py-0.5">{item.label}</Link>
+                  ))}
+                </div>
+              </div>
+
+              {/* Company Column */}
+              <div className="md:col-span-2 space-y-3">
+                <h3 className="text-[11px] font-bold text-[var(--ck-text-muted)] uppercase tracking-[0.12em]">Company</h3>
+                <div className="grid grid-cols-1 gap-1.5">
+                  {[
+                    { label: 'Terms', action: 'Terms' },
+                    { label: 'Privacy Policy', action: 'Privacy' },
+                    { label: 'Contact', action: 'Contact' }
+                  ].map(item => (
+                    <button key={item.label} onClick={() => handleDummyClick(item.action)} className="text-left text-[12.5px] font-medium text-[var(--ck-text-secondary)] hover:text-violet-600 transition-colors py-0.5">{item.label}</button>
+                  ))}
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-4 text-[10px] text-slate-400 font-bold">
-              <button onClick={() => handleDummyClick('Terms')} className="hover:text-violet-500 transition-colors">Terms</button>
-              <button onClick={() => handleDummyClick('Privacy')} className="hover:text-violet-500 transition-colors">Privacy Policy</button>
-              <button onClick={() => handleDummyClick('Contact')} className="hover:text-violet-500 transition-colors">Contact</button>
-              <span className="text-[9px] font-normal font-sans">© 2026 CompressKro. All Rights Reserved.</span>
+          </div>
+
+          {/* Bottom Bar */}
+          <div className="py-4 px-4 sm:px-6 lg:px-8" style={{ borderTop: '1px solid var(--ck-border)' }}>
+            <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+              <span className="text-[11px] text-[var(--ck-text-muted)] font-medium">
+                © 2026 CompressKro. All Rights Reserved.
+              </span>
+              <div className="flex items-center gap-1.5 text-[11px] text-[var(--ck-text-muted)] font-medium">
+                Made with <Heart className="w-3 h-3 text-red-400 fill-red-400" /> in India
+              </div>
             </div>
           </div>
         </footer>
+        )}
 
       </div>
     </div>
@@ -571,25 +689,27 @@ function App() {
             {/* Main Dashboard Grid */}
             <Route path="/" element={<Home />} />
 
-            {/* PDF Pages */}
-            <Route path="/merge-pdf" element={<MergePdf />} />
-            <Route path="/split-pdf" element={<SplitPdf />} />
-            <Route path="/rotate-pdf" element={<RotatePdf />} />
-            <Route path="/images-to-pdf" element={<ImagesToPdf />} />
-            <Route path="/lock-pdf" element={<LockPdf />} />
-            <Route path="/unlock-pdf" element={<UnlockPdf />} />
-            <Route path="/add-watermark" element={<AddWatermark />} />
-            <Route path="/remove-watermark" element={<RemoveWatermark />} />
-            <Route path="/page-numbers" element={<PageNumbers />} />
-            <Route path="/pdf-to-jpg" element={<PdfToJpg />} />
-             <Route path="/ocr-pdf" element={<OcrPdf />} />
-            <Route path="/repair-pdf" element={<RepairPdf />} />
-            <Route path="/compress-pdf" element={<CompressPdf />} />
-            <Route path="/sign-pdf" element={<AddSignature />} />
-            <Route path="/edit-pdf" element={<PdfEditor />} />
-            <Route path="/html-to-pdf" element={<HtmlToPdf />} />
-            <Route path="/extract-images" element={<ExtractImages />} />
-            <Route path="/crop-pdf" element={<CropPdf />} />
+            {/* PDF Workspace — persistent shell with nested tool routes */}
+            <Route element={<PdfWorkspaceShell />}>
+              <Route path="/compress-pdf" element={<CompressPdf />} />
+              <Route path="/merge-pdf" element={<MergePdf />} />
+              <Route path="/split-pdf" element={<SplitPdf />} />
+              <Route path="/rotate-pdf" element={<RotatePdf />} />
+              <Route path="/images-to-pdf" element={<ImagesToPdf />} />
+              <Route path="/lock-pdf" element={<LockPdf />} />
+              <Route path="/unlock-pdf" element={<UnlockPdf />} />
+              <Route path="/add-watermark" element={<AddWatermark />} />
+              <Route path="/remove-watermark" element={<RemoveWatermark />} />
+              <Route path="/page-numbers" element={<PageNumbers />} />
+              <Route path="/pdf-to-jpg" element={<PdfToJpg />} />
+              <Route path="/ocr-pdf" element={<OcrPdf />} />
+              <Route path="/repair-pdf" element={<RepairPdf />} />
+              <Route path="/sign-pdf" element={<AddSignature />} />
+              <Route path="/edit-pdf" element={<PdfEditor />} />
+              <Route path="/html-to-pdf" element={<HtmlToPdf />} />
+              <Route path="/extract-images" element={<ExtractImages />} />
+              <Route path="/crop-pdf" element={<CropPdf />} />
+            </Route>
 
             {/* Image Pages */}
             <Route path="/compress-image" element={<CompressImage />} />

@@ -2,17 +2,17 @@
 // CompressKro — Extract PDF Images Page Component
 // ============================================================
 
-import { useState, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
-import { Upload, FileImage, RefreshCw } from 'lucide-react';
+import { FileImage, RefreshCw } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import { StorageService } from '../../services/storage.service';
 import { HistoryService } from '../../services/history.service';
 import { getFriendlySize } from '../../utils/format';
 import { BACKEND_API_URL } from '../../constants';
-import { ToolPageLayout } from '../../components/ToolPageLayout';
-import type { StepItem, BenefitItem, FAQItem, RelatedToolItem } from '../../components/ToolPageLayout';
 import { CompiledOutputView } from '../../components/CompiledOutputView';
+import { usePdfWorkspace } from '../../context/PdfWorkspaceContext';
+import { HowToUse } from '../../components/ui/HowToUse';
 
 export function ExtractImages() {
   const [pdfFile, setPdfFile] = useState<{ name: string; size: number; blob: File } | null>(null);
@@ -23,8 +23,25 @@ export function ExtractImages() {
   const [outputSize, setOutputSize] = useState<number>(0);
   const [outputName, setOutputName] = useState<string>('');
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const { showSuccess, showError } = useToast();
+  const { activeFile, activeFileName, activeFileSize, clearActiveFile } = usePdfWorkspace();
+ 
+  // Auto-load file from workspace context
+  useEffect(() => {
+    if (activeFile) {
+      const f = activeFile instanceof File
+        ? activeFile
+        : new File([activeFile], activeFileName || 'document.pdf', { type: 'application/pdf' });
+      setPdfFile({
+        name: f.name,
+        size: f.size,
+        blob: f
+      });
+      clearOutputs();
+    } else {
+      setPdfFile(null);
+    }
+  }, [activeFile, activeFileName, activeFileSize]);
 
   const clearOutputs = () => {
     setOutputUrl('');
@@ -35,7 +52,7 @@ export function ExtractImages() {
   const executeExtract = async () => {
     if (!pdfFile) return;
     setIsProcessing(true);
-    setProgressMsg('Scanning and extracting embedded images...');
+    setProgressMsg('Extracting embedded images...');
 
     try {
       const formData = new FormData();
@@ -72,89 +89,58 @@ export function ExtractImages() {
     }
   };
 
-  const steps: StepItem[] = [
-    { step: 1, text: 'Click "Select PDF File" and upload the PDF containing the images you want.' },
-    { step: 2, text: 'Click "Extract All Images" to scan object dictionary tags.' },
-    { step: 3, text: 'Download the completed ZIP archive containing all extracted files.' }
-  ];
-
-  const benefits: BenefitItem[] = [
-    { title: 'Zero Re-compression loss', desc: 'Pulls raw JPEG binary objects directly from the PDF streams without rendering or losing pixels.' },
-    { title: 'Format Standardizing', desc: 'Processes raw RGB or FlateDecode streams, converting them into standard PNG images automatically.' },
-    { title: 'Bundled ZIP Output', desc: 'Compresses all discovered photos into a single neat folder archive for immediate convenience.' }
-  ];
-
-  const faqs: FAQItem[] = [
-    { question: 'What image formats can be extracted?', answer: 'This service extracts JPEG, PNG, and vector-aligned bitmap objects embedded within the PDF stream coordinates.' },
-    { question: 'Will it extract text or background decorations?', answer: 'No. This tool skips background decorations, margins, and text layers, focusing solely on actual photo objects and inline graphics.' },
-    { question: 'What if no images are found?', answer: 'If a PDF contains only text characters and font paths, the scanner will return a notice and skip compilation since there are no image streams.' }
-  ];
-
-  const relatedTools: RelatedToolItem[] = [
-    { name: 'PDF to JPG', desc: 'Render entire PDF pages into JPG images.', path: '/pdf-to-jpg', icon: FileImage },
-    { name: 'Images to PDF', desc: 'Convert multiple images into a single PDF.', path: '/images-to-pdf', icon: FileImage },
-    { name: 'Compress PDF', desc: 'Reduce PDF sizes.', path: '/compress-pdf', icon: FileImage }
-  ];
+  if (!activeFile) {
+    return (
+      <HowToUse
+        title="Extract Images"
+        icon={FileImage}
+        steps={[
+          'Upload your PDF document containing embedded photos/images in the center canvas.',
+          'Click "Extract All Images" in the options panel on the right.',
+          'Download the generated ZIP archive containing all extracted inline images.'
+        ]}
+      />
+    );
+  }
 
   return (
-    <ToolPageLayout
-      title="Extract Images from PDF Online"
-      subtitle="Scan and extract all embedded photos, screenshots, and graphic assets from a PDF document into a ZIP file."
-      breadcrumbName="Extract Images"
-      seoTitle="Extract Images from PDF Free Online - JPG/PNG Extractor | CompressKro"
-      seoDescription="Extract images from PDF online for free. Export inline photos and graphics into a ZIP file. Fast, safe, and no installation required."
-      canonicalPath="/extract-images"
-      steps={steps}
-      benefits={benefits}
-      faqs={faqs}
-      relatedTools={relatedTools}
-    >
-      <div className="space-y-6">
-        {outputUrl ? (
-          <CompiledOutputView
-            outputUrl={outputUrl}
-            outputSize={outputSize}
-            outputName={outputName}
-            onClear={() => {
-              clearOutputs();
-              setPdfFile(null);
-            }}
-          />
-        ) : (
-          <div className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/40 dark:bg-slate-900/40 glass-panel space-y-6 shadow-sm">
-            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-              <FileImage className="w-4 h-4 text-yellow-600" />
-              <span>Extract Inline PDF Images</span>
-            </h3>
+    <div className="space-y-6 animate-fade-in">
+      {outputUrl ? (
+        <CompiledOutputView
+          outputUrl={outputUrl}
+          outputSize={outputSize}
+          outputName={outputName}
+          onClear={() => {
+            clearOutputs();
+            clearActiveFile();
+          }}
+        />
+      ) : (
+        <div className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/40 dark:bg-slate-900/40 glass-panel space-y-6 shadow-sm">
+          <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+            <FileImage className="w-4 h-4 text-yellow-600" />
+            <span>Extract Inline PDF Images</span>
+          </h3>
 
-            <div className="space-y-4">
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={(e) => e.target.files?.[0] && setPdfFile({ name: e.target.files[0].name, size: e.target.files[0].size, blob: e.target.files[0] })} 
-                accept="application/pdf" 
-                className="hidden" 
-              />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full py-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-yellow-600 bg-white/50 dark:bg-slate-950/20 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-center gap-2 transition-colors cursor-pointer"
-              >
-                <Upload className="w-4 h-4 text-yellow-600" />
-                <span>{pdfFile ? pdfFile.name : 'Select PDF File'}</span>
-              </button>
+          <div className="space-y-3 p-3 bg-yellow-500/5 border border-yellow-500/10 rounded-xl text-center">
+            <div className="text-xs font-bold text-[var(--ck-text-primary)] truncate">
+              {pdfFile?.name}
             </div>
-
-            <button
-              onClick={executeExtract}
-              disabled={!pdfFile || isProcessing}
-              className="w-full py-3 rounded-xl font-bold text-xs text-white bg-gradient-to-r from-yellow-600 to-amber-650 hover:opacity-90 disabled:opacity-40 transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
-            >
-              {isProcessing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <FileImage className="w-4 h-4" />}
-              <span>{isProcessing ? progressMsg : 'Extract All Images'}</span>
-            </button>
+            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">
+              {pdfFile ? getFriendlySize(pdfFile.size) : ''}
+            </div>
           </div>
-        )}
-      </div>
-    </ToolPageLayout>
+
+          <button
+            onClick={executeExtract}
+            disabled={!pdfFile || isProcessing}
+            className="w-full py-3 rounded-xl font-bold text-xs text-white bg-gradient-to-r from-yellow-600 to-amber-650 hover:opacity-90 disabled:opacity-40 transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+          >
+            {isProcessing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <FileImage className="w-4 h-4" />}
+            <span>{isProcessing ? progressMsg : 'Extract All Images'}</span>
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

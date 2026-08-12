@@ -2,7 +2,7 @@
 // CompressKro — Add Page Numbers PDF Page Component
 // ============================================================
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import confetti from 'canvas-confetti';
 import { 
@@ -16,10 +16,10 @@ import { useToast } from '../../hooks/useToast';
 import { StorageService } from '../../services/storage.service';
 import { HistoryService } from '../../services/history.service';
 import { getFriendlySize } from '../../utils/format';
-import { ToolPageLayout } from '../../components/ToolPageLayout';
-import type { StepItem, BenefitItem, FAQItem, RelatedToolItem } from '../../components/ToolPageLayout';
-import { CompiledOutputView } from '../../components/CompiledOutputView';
+import { usePdfWorkspace } from '../../context/PdfWorkspaceContext';
+import { PdfTaskCompleted } from '../../components/PdfWorkspaceShell/PdfTaskCompleted';
 import type { PDFFileItem } from '../../types';
+import { HowToUse } from '../../components/ui/HowToUse';
 
 export function PageNumbers() {
   const [pgNumFile, setPgNumFile] = useState<PDFFileItem | null>(null);
@@ -34,9 +34,27 @@ export function PageNumbers() {
   const [outputUrl, setOutputUrl] = useState<string>('');
   const [outputSize, setOutputSize] = useState<number>(0);
   const [outputName, setOutputName] = useState<string>('');
+  const [outputBlob, setOutputBlob] = useState<Blob | null>(null);
 
   const pgNumInputRef = useRef<HTMLInputElement>(null);
   const { showSuccess, showError } = useToast();
+  const { activeFile, activeFileName, activeFileSize, chainOutput } = usePdfWorkspace();
+
+  // Auto-load file from workspace context
+  useEffect(() => {
+    if (activeFile) {
+      setPgNumFile({
+        id: 'active',
+        name: activeFileName,
+        size: activeFileSize,
+        blob: activeFile
+      });
+      clearOutputs();
+      setOutputBlob(null);
+    } else {
+      setPgNumFile(null);
+    }
+  }, [activeFile]);
 
   const clearOutputs = () => {
     setOutputUrl('');
@@ -91,6 +109,7 @@ export function PageNumbers() {
       setOutputUrl(URL.createObjectURL(blob));
       setOutputSize(blob.size);
       setOutputName(`numbered_${pgNumFile.name}`);
+      setOutputBlob(blob);
 
       StorageService.updateStats(1, 0);
       HistoryService.addPdfEntry('Page Numbers', `numbered_${pgNumFile.name}`, blob.size);
@@ -106,54 +125,33 @@ export function PageNumbers() {
     }
   };
 
-  const steps: StepItem[] = [
-    { step: 1, text: 'Click "Select PDF Document" and upload your target file.' },
-    { step: 2, text: 'Choose numbering format, placement, font size, start index, and whether to skip page 1.' },
-    { step: 3, text: 'Click "Process Page Numbers" to overlay page numbers on pages and download.' }
-  ];
 
-  const benefits: BenefitItem[] = [
-    { title: 'Format Presets', desc: 'Select layout formatting: simple digit "1", "Page 1", or compound "Page 1 of 5".' },
-    { title: 'Positioning Controls', desc: 'Place numbers at bottom right, bottom center, bottom left, top right, or top center.' },
-    { title: 'Skip Cover Pages', desc: 'Optionally skip cover or title sheets, keeping numbering starting from page 2.' }
-  ];
-
-  const faqs: FAQItem[] = [
-    { question: 'Can I start page numbering from a number other than 1?', answer: 'Yes. You can customize the "Start Number" text field (e.g. start from 5 or 10) to accommodate continuous volumes.' },
-    { question: 'Why would I want to skip the cover page?', answer: 'Most reports, books, and formal templates include a cover page where page numbers are visually undesirable. Toggling this checkbox keeps page 1 empty.' },
-    { question: 'Are fonts embedded in the output PDF?', answer: 'Yes, standard Helvetica fonts are embedded to display numbers across all PDF readers on any device.' },
-    { question: 'Is the page numbering process secure?', answer: 'Yes, it compiles locally using javascript, ensuring no files or passwords upload to external networks.' }
-  ];
-
-  const relatedTools: RelatedToolItem[] = [
-    { name: 'Add Watermark', desc: 'Overlay logo or text.', path: '/add-watermark', icon: FileText },
-    { name: 'Split PDF', desc: 'Extract pages or split ranges.', path: '/split-pdf', icon: FileText },
-    { name: 'Merge PDF', desc: 'Combine multiple PDF files.', path: '/merge-pdf', icon: ListOrdered }
-  ];
 
   return (
-    <ToolPageLayout
-      title="Add Page Numbers to PDF Online"
-      subtitle="Number your PDF pages automatically with fully customizable format and alignment styles."
-      breadcrumbName="Page Numbers"
-      seoTitle="Add Page Numbers to PDF Online Free | CompressKro"
-      seoDescription="Add page numbers to PDF documents online for free. Fully customizable formatting, positioning, cover page skipping, and starting values. Local privacy-first."
-      canonicalPath="/page-numbers"
-      steps={steps}
-      benefits={benefits}
-      faqs={faqs}
-      relatedTools={relatedTools}
-    >
+    <>
       <div className="space-y-6">
-        {outputUrl ? (
-          <CompiledOutputView
-            outputUrl={outputUrl}
-            outputSize={outputSize}
-            outputName={outputName}
-            onClear={() => {
+        {outputUrl && outputBlob ? (
+          <PdfTaskCompleted
+            fileName={outputName}
+            fileSize={outputSize}
+            originalSize={pgNumFile?.size}
+            outputBlob={outputBlob}
+            onReset={() => {
               clearOutputs();
+              setOutputBlob(null);
               setPgNumFile(null);
             }}
+          />
+        ) : !pgNumFile ? (
+          <HowToUse
+            title="Add Page Numbers"
+            icon={Hash}
+            steps={[
+              'Upload your PDF document in the center canvas.',
+              'Choose your page number format (Simple, Page X, Page X of Y) and placement position (Bottom/Top).',
+              'Specify start page index and whether to skip numbering the cover page (Page 1).',
+              'Click "Process Page Numbers" to stamp your document and download the output.'
+            ]}
           />
         ) : (
           <div className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/40 dark:bg-slate-900/40 glass-panel space-y-6 shadow-sm">
@@ -163,23 +161,7 @@ export function PageNumbers() {
             </h3>
 
             <div className="space-y-4">
-              <input 
-                type="file" 
-                ref={pgNumInputRef} 
-                onChange={(e) => e.target.files?.[0] && setPgNumFile({ id: 'pgnum', name: e.target.files[0].name, size: e.target.files[0].size, blob: e.target.files[0] })} 
-                accept="application/pdf" 
-                className="hidden" 
-              />
-              <button
-                onClick={() => pgNumInputRef.current?.click()}
-                className="w-full py-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-violet-500 bg-white/50 dark:bg-slate-950/20 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-center gap-2 transition-colors cursor-pointer"
-              >
-                <Upload className="w-4 h-4 text-violet-500" />
-                <span>{pgNumFile ? pgNumFile.name : 'Select PDF Document'}</span>
-              </button>
-
-              {pgNumFile && (
-                <div className="space-y-3 border-t border-slate-200/50 dark:border-slate-800/50 pt-4">
+              <div className="space-y-3">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
@@ -257,8 +239,7 @@ export function PageNumbers() {
                     </div>
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
 
             <button
               onClick={executeAddPageNumbers}
@@ -271,6 +252,6 @@ export function PageNumbers() {
           </div>
         )}
       </div>
-    </ToolPageLayout>
+    </>
   );
 }

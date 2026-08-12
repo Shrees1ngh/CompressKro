@@ -20,7 +20,7 @@ const { prepareDocForCompression, runCompressionPass, getCompressionParams } = r
 /**
  * Executes CLI-based pipeline depending on category and available tools.
  */
-function runCliPipeline(inputBuffer, profile, category, options) {
+async function runCliPipeline(inputBuffer, profile, category, options) {
   const hasGs = isGhostscriptAvailable();
   const hasQpdf = isQpdfAvailable();
   const hasMuPdf = isMuPdfAvailable();
@@ -44,7 +44,8 @@ function runCliPipeline(inputBuffer, profile, category, options) {
     if (options.doOcr && hasOcr) {
       const ocrTemp = path.join(tempDir, `ocr_${uniqueId}.pdf`);
       createdFiles.push(ocrTemp);
-      if (processOcr(currentFile, ocrTemp)) {
+      const ocrResult = await processOcr(currentFile, ocrTemp);
+      if (ocrResult.success) {
         currentFile = ocrTemp;
       }
     }
@@ -146,7 +147,7 @@ async function compressPdf(inputBuffer, level, targetSizeKB, options = {}) {
   const { quality, targetDPI, stripMetadata, profile } = getCompressionParams(level, targetSizeKB, originalSize);
 
   // Step 1 & 2: Select and attempt CLI Pipeline first
-  const cliBuffer = runCliPipeline(inputBuffer, profile, initialAnalysis.category, options);
+  const cliBuffer = await runCliPipeline(inputBuffer, profile, initialAnalysis.category, options);
   if (cliBuffer) {
     const compressionTime = Date.now() - startTime;
     return {

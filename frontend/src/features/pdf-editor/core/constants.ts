@@ -212,8 +212,13 @@ export const TEXT_COLOR_PRESETS = [
   '#ef4444',
   '#3b82f6',
   '#10b981',
-  '#f59e0b',
+  '#eab308',
+  '#f97316',
+  '#ec4899',
   '#8b5cf6',
+  '#14b8a6',
+  '#64748b',
+  '#78350f',
   '#ffffff',
 ] as const;
 
@@ -221,16 +226,25 @@ export const SHAPE_COLOR_PRESETS = [
   '#ef4444',
   '#3b82f6',
   '#10b981',
-  '#f59e0b',
-  '#000000',
+  '#eab308',
+  '#f97316',
+  '#ec4899',
   '#8b5cf6',
+  '#14b8a6',
+  '#000000',
+  '#64748b',
+  '#78350f',
 ] as const;
 
 export const SIGNATURE_PEN_COLORS = [
   '#000000',
   '#1e3a8a',
+  '#3b82f6',
   '#10b981',
   '#ef4444',
+  '#f97316',
+  '#ec4899',
+  '#8b5cf6',
 ] as const;
 
 // ---- PDF Standard Font Keys ----

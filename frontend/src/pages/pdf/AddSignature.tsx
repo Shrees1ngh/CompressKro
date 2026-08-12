@@ -23,10 +23,12 @@ import { StorageService } from '../../services/storage.service';
 import { HistoryService } from '../../services/history.service';
 import { getFriendlySize } from '../../utils/format';
 import { loadPdfJs } from '../../utils/pdfLoader';
-import { ToolPageLayout } from '../../components/ToolPageLayout';
-import type { StepItem, BenefitItem, FAQItem, RelatedToolItem } from '../../components/ToolPageLayout';
 import { CompiledOutputView } from '../../components/CompiledOutputView';
 import type { PDFFileItem } from '../../types';
+import { usePdfWorkspace } from '../../context/PdfWorkspaceContext';
+import { PdfTaskCompleted } from '../../components/PdfWorkspaceShell/PdfTaskCompleted';
+import { HowToUse } from '../../components/ui/HowToUse';
+import { ShieldCheck } from 'lucide-react';
 
 export function AddSignature() {
   const [signFile, setSignFile] = useState<PDFFileItem | null>(null);
@@ -43,6 +45,27 @@ export function AddSignature() {
   // Signature Configs
   const [signMode, setSignMode] = useState<'draw' | 'upload' | 'text' | 'stamp'>('draw');
   const [signText, setSignText] = useState<string>('');
+  const { activeFile, activeFileName, activeFileSize, chainOutput } = usePdfWorkspace();
+  const [loadedFileRef, setLoadedFileRef] = useState<File | Blob | null>(null);
+  const [outputBlob, setOutputBlob] = useState<Blob | null>(null);
+
+  // Auto-load file from workspace context
+  useEffect(() => {
+    if (activeFile) {
+      if (activeFile !== loadedFileRef) {
+        setLoadedFileRef(activeFile);
+        processFile(activeFile);
+      }
+    } else {
+      setLoadedFileRef(null);
+      setSignFile(null);
+      setSignPdfDoc(null);
+      setSignNumPages(0);
+      setSignCurrentPageNum(1);
+      clearOutputs();
+      setOutputBlob(null);
+    }
+  }, [activeFile, loadedFileRef]);
   const [signTargetPage, setSignTargetPage] = useState<'current' | 'last' | 'first' | 'all' | 'custom'>('current');
   const [customPageRange, setCustomPageRange] = useState<string>('2,3');
   const [signPosX, setSignPosX] = useState<number>(75); // % from left
@@ -124,23 +147,28 @@ export function AddSignature() {
     }
   };
 
+  const processFile = async (f: File | Blob) => {
+    const item: PDFFileItem = { id: 'sign', name: (f as File).name || activeFileName || 'document.pdf', size: f.size, blob: f };
+    setSignFile(item);
+    clearOutputs();
+    setOutputBlob(null);
+    try {
+      const pdfjsLib = await loadPdfJs();
+      const arrayBuf = await f.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuf }).promise;
+      setSignPdfDoc(pdf);
+      setSignNumPages(pdf.numPages);
+      setSignCurrentPageNum(1);
+    } catch (err) {
+      console.error(err);
+      showError('PDF load failed', 'Could not parse document structure.');
+    }
+  };
+
   // Read File Select
   const handleSignFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const f = e.target.files[0];
-      const item: PDFFileItem = { id: 'sign', name: f.name, size: f.size, blob: f };
-      setSignFile(item);
-      clearOutputs();
-      try {
-        const pdfjsLib = await loadPdfJs();
-        const arrayBuf = await f.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuf }).promise;
-        setSignPdfDoc(pdf);
-        setSignNumPages(pdf.numPages);
-        setSignCurrentPageNum(1);
-      } catch (err) {
-        console.error('Error rendering PDF for signature:', err);
-      }
+      processFile(e.target.files[0]);
     }
   };
 
@@ -616,13 +644,13 @@ export function AddSignature() {
           });
         }
       });
-
       const bytes = await pdfDoc.save();
       const blob = new Blob([bytes as any], { type: 'application/pdf' });
 
       setOutputUrl(URL.createObjectURL(blob));
       setOutputSize(blob.size);
       setOutputName(`signed_${signFile.name}`);
+      setOutputBlob(blob);
 
       StorageService.updateStats(1, 0);
       HistoryService.addPdfEntry('Add Signature', `signed_${signFile.name}`, blob.size);
@@ -638,87 +666,97 @@ export function AddSignature() {
     }
   };
 
-  const steps: StepItem[] = [
-    { step: 1, text: 'Click "Select PDF Document" to open your target document.' },
-    { step: 2, text: 'Draw your signature, select text style, or upload custom stamps. Drag elements into place.' },
-    { step: 3, text: 'Nudge placements using Arrow keys. Select target pages, and click "Sign PDF Document".' }
-  ];
-
-  const benefits: BenefitItem[] = [
-    { title: 'Interactive Multi-Elements', desc: 'Drag-and-drop signatures, stamps, and date overlays independently on the same document.' },
-    { title: 'Keyboard Micro-Nudges', desc: 'Precise Arrow key nudging allows for pixel-perfect positioning of elements.' },
-    { title: 'Local Client-Side Canvas', desc: 'Draw fluid sign lines with vector scaling. Runs offline in standard browsers.' }
-  ];
-
-  const faqs: FAQItem[] = [
-    { question: 'Can I place stamps and dates separately?', answer: 'Yes. In CompressKro, you can toggle on signature drawing, text name, company stamp uploads, and dates separately, and drag each overlay to its own position.' },
-    { question: 'How do I align elements precisely?', answer: 'You can drag them with your mouse/touch, or click to select an overlay and use the Arrow keys on your keyboard for fine pixel nudges (use Shift + Arrow for larger increments).' },
-    { question: 'Will my signature remain sharp in the PDF?', answer: 'Yes. Hand-drawn signatures and formatted text names are compiled into high-resolution PNG buffers which render clearly at any magnification.' },
-    { question: 'Can I sign specific page ranges?', answer: 'Yes. The target page selector lets you embed overlays on the current page, first page, last page, all pages, or a custom page range (e.g. "2, 3-5").' }
-  ];
-
-  const relatedTools: RelatedToolItem[] = [
-    { name: 'Add Watermark', desc: 'Overlay logo or text.', path: '/add-watermark', icon: FileText },
-    { name: 'Merge PDF', desc: 'Combine multiple PDF files.', path: '/merge-pdf', icon: ListOrdered },
-    { name: 'Split PDF', desc: 'Extract pages or split ranges.', path: '/split-pdf', icon: FileText }
-  ];
-
   return (
-    <ToolPageLayout
-      title="Sign PDF Online"
-      subtitle="Draw signatures, upload custom company seals, stamp dates, and drag overlays onto your PDF."
-      breadcrumbName="Sign PDF"
-      seoTitle="Sign PDF Online Free - Add Signature & Stamp | CompressKro"
-      seoDescription="Add digital signatures and custom stamps to PDF online for free. Draw signatures, upload brand stamps, and position them with arrow nudges. Local client privacy."
-      canonicalPath="/sign-pdf"
-      steps={steps}
-      benefits={benefits}
-      faqs={faqs}
-      relatedTools={relatedTools}
-    >
-      <div className="space-y-6">
-        {outputUrl ? (
-          <CompiledOutputView
-            outputUrl={outputUrl}
-            outputSize={outputSize}
-            outputName={outputName}
-            onClear={() => {
-              clearOutputs();
-              setSignFile(null);
-              setSignPdfDoc(null);
-              setSignNumPages(0);
-              setSigPreviewUrl('');
-              setStampImageFile(null);
-              setSignText('');
-            }}
-          />
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-            
-            {/* Sidebar Controls Panel */}
-            <div className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/40 dark:bg-slate-900/40 glass-panel space-y-6">
-              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                <PenTool className="w-4 h-4 text-emerald-500" />
-                <span>Signing Options & Inputs</span>
+    <div className="w-full h-full flex flex-col overflow-hidden bg-[var(--ck-bg-cream)]">
+      {!signFile ? (
+        <div className="flex flex-col lg:flex-row w-full h-full min-h-0 overflow-hidden">
+          {/* Center: Upload Drop Zone */}
+          <div className="flex-1 flex flex-col items-center justify-center p-8 overflow-y-auto">
+            <input 
+              type="file" 
+              ref={signInputRef} 
+              onChange={handleSignFileSelect} 
+              accept="application/pdf" 
+              className="hidden" 
+            />
+            <div
+              onClick={() => signInputRef.current?.click()}
+              className="w-full max-w-md min-h-[280px] border-2 border-dashed rounded-3xl flex flex-col items-center justify-center p-8 text-center cursor-pointer border-[var(--ck-border)] bg-[var(--ck-bg-card)] hover:border-[var(--ck-border-hover)] transition-all animate-fade-in"
+            >
+              <div className="p-4 rounded-full bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 mb-4">
+                <PenTool className="w-7 h-7" />
+              </div>
+              <h3 className="font-bold text-[var(--ck-text-primary)] text-sm">
+                Drag & Drop PDF here
               </h3>
+              <p className="text-xs text-[var(--ck-text-muted)] mt-1.5 max-w-[280px] leading-relaxed font-semibold">
+                or click to browse your files. Upload a PDF to start signing your document.
+              </p>
+            </div>
+          </div>
+          
+          {/* Right: How to use & Privacy */}
+          <div className="w-full lg:w-[320px] bg-[var(--ck-bg-card)] border-t lg:border-t-0 lg:border-l border-[var(--ck-border)] flex flex-col min-h-[250px] lg:min-h-0 overflow-y-auto thin-scrollbar flex-shrink-0 p-5 justify-between">
+            <div className="flex-1 pb-5">
+              <HowToUse
+                title="Sign PDF"
+                icon={PenTool}
+                steps={[
+                  'Upload your PDF document in the center canvas.',
+                  'Choose signature source: Draw with mouse/touchpad, Upload image, or type Text.',
+                  'Drag and position the signature or date stamp overlays onto any page of the viewer.',
+                  'Click "Sign PDF Document" to generate and download your signed file.'
+                ]}
+              />
+            </div>
+            <div className="flex gap-2 p-3 rounded-xl bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/10 mt-auto flex-shrink-0">
+              <ShieldCheck className="w-4.5 h-4.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
+              <div className="space-y-0.5 text-left">
+                <h4 className="text-[10px] font-bold text-emerald-800 dark:text-emerald-400 uppercase tracking-wider">Privacy Guaranteed</h4>
+                <p className="text-[9px] font-medium text-slate-500 dark:text-slate-400 leading-normal font-semibold">
+                  Processing runs 100% locally inside your browser. Your documents never upload to any servers.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 p-6 min-h-0 overflow-hidden">
+          
+          {/* Sidebar Controls Panel */}
+          <div className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/40 dark:bg-slate-900/40 glass-panel flex flex-col justify-start gap-6 h-full overflow-y-auto">
+            {outputUrl && outputBlob ? (
+              <PdfTaskCompleted
+                fileName={outputName}
+                fileSize={outputSize}
+                originalSize={signFile?.size}
+                outputBlob={outputBlob}
+                onReset={() => {
+                  clearOutputs();
+                  setOutputBlob(null);
+                  setSignFile(null);
+                  setSignPdfDoc(null);
+                  setSignNumPages(0);
+                  setSignCurrentPageNum(1);
+                }}
+              />
+            ) : (
+              <>
+                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                  <PenTool className="w-4 h-4 text-emerald-500" />
+                  <span>Signing Options & Inputs</span>
+                </h3>
 
-              <div className="space-y-4">
-                <input 
-                  type="file" 
-                  ref={signInputRef} 
-                  onChange={handleSignFileSelect} 
-                  accept="application/pdf" 
-                  className="hidden" 
-                />
-                <button
-                  onClick={() => signInputRef.current?.click()}
-                  className="w-full py-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-500 bg-white/50 dark:bg-slate-950/20 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                >
-                  <Upload className="w-4 h-4 text-emerald-500" />
-                  <span>{signFile ? signFile.name : 'Select PDF Document'}</span>
-                </button>
+                <div className="space-y-4 mt-4">
+                  <div className="space-y-3 p-3 bg-emerald-500/5 border border-emerald-500/10 rounded-xl text-center">
+                    <div className="text-xs font-bold text-[var(--ck-text-primary)] truncate">
+                      {signFile.name}
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">
+                      {getFriendlySize(signFile.size)}
+                    </div>
+                  </div>
 
-                {signFile && (
                   <div className="space-y-4 pt-4 border-t border-slate-200/50 dark:border-slate-800/50">
                     <div>
                       <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
@@ -960,8 +998,7 @@ export function AddSignature() {
                         </div>
                       )}
                     </div>
-                  </div>
-                )}
+                </div>
               </div>
 
               <button
@@ -972,9 +1009,21 @@ export function AddSignature() {
                 {isProcessing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <PenTool className="w-4 h-4" />}
                 <span>{isProcessing ? progressMsg : 'Sign PDF Document'}</span>
               </button>
-            </div>
 
-            {/* Document Interactive Viewer Panel */}
+              <div className="flex gap-2 p-3 rounded-xl bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/10 mt-3 flex-shrink-0">
+              <ShieldCheck className="w-4.5 h-4.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
+                <div className="space-y-0.5 text-left">
+                  <h4 className="text-[10px] font-bold text-emerald-800 dark:text-emerald-400 uppercase tracking-wider">Privacy Guaranteed</h4>
+                  <p className="text-[9px] font-medium text-slate-500 dark:text-slate-400 leading-normal font-semibold">
+                    Processing runs 100% locally inside your browser. Your documents never upload to any servers.
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Document Interactive Viewer Panel */}
             <div className="lg:col-span-2 space-y-4">
               {signPdfDoc ? (
                 <div className="p-4 border border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-900/10 dark:bg-slate-950/40 space-y-3 flex flex-col items-center select-none relative shadow-inner">
@@ -1232,6 +1281,5 @@ export function AddSignature() {
           </div>
         )}
       </div>
-    </ToolPageLayout>
   );
 }

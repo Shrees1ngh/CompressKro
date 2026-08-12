@@ -9,15 +9,15 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import {
-  Upload, RefreshCw, PenTool, Sparkles,
+  Upload, RefreshCw, PenTool, Sparkles, ShieldCheck, GripVertical, ChevronUp, ChevronDown,
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import { StorageService } from '../../services/storage.service';
 import { HistoryService } from '../../services/history.service';
 import { getFriendlySize } from '../../utils/format';
-import { ToolPageLayout } from '../../components/ToolPageLayout';
-import type { StepItem, BenefitItem, FAQItem, RelatedToolItem } from '../../components/ToolPageLayout';
-import { CompiledOutputView } from '../../components/CompiledOutputView';
+import { usePdfWorkspace } from '../../context/PdfWorkspaceContext';
+import { PdfTaskCompleted } from '../../components/PdfWorkspaceShell/PdfTaskCompleted';
+import { HowToUse } from '../../components/ui/HowToUse';
 
 // PDF Editor feature modules
 import type {
@@ -25,9 +25,12 @@ import type {
   EditorObject,
   TextObject,
   ImageObject,
+  ShapeObject,
+  FreehandObject,
   ToolType,
   ResizeHandle,
   Bounds,
+  Point,
 } from '../../features/pdf-editor/core/types';
 import {
   DEFAULT_FONT_SIZE,
@@ -58,11 +61,13 @@ import type { FontProperties } from '../../features/pdf-editor/core/types';
 // ============================================================
 
 export function PdfEditor() {
+  const { activeFile, activeFileName, activeFileSize, chainOutput } = usePdfWorkspace();
   // ---- Document State ----
   const [document, setDocument] = useState<ParsedDocument | null>(null);
   const [objects, setObjects] = useState<Map<string, EditorObject>>(new Map());
   const [isLoading, setIsLoading] = useState(false);
   const [progressMsg, setProgressMsg] = useState('');
+  const [editorLoadedFile, setEditorLoadedFile] = useState<File | Blob | null>(null);
 
   // ---- Selection & Editing ----
   const [selection, setSelection] = useState<Set<string>>(new Set());
@@ -87,8 +92,9 @@ export function PdfEditor() {
   const [outputUrl, setOutputUrl] = useState('');
   const [outputSize, setOutputSize] = useState(0);
   const [outputName, setOutputName] = useState('');
+  const [outputBlob, setOutputBlob] = useState<Blob | null>(null);
   // ---- OCR Option (Phase 4) ----
-  const [doOcr, setDoOcr] = useState(false);
+  const [doOcr, setDoOcr] = useState(true);
 
   // ---- History ----
   const historyRef = useRef(new HistoryEngine());
@@ -138,6 +144,7 @@ export function PdfEditor() {
     setActiveTool('select');
     setCurrentPageIndex(0);
     clearOutputs();
+    setOutputBlob(null);
     historyRef.current.clear();
   };
 
@@ -260,6 +267,36 @@ export function PdfEditor() {
     }
   }, [selection, objects, executeCommand]);
 
+  const handleShapeColorChange = useCallback((color: string) => {
+    setShapeColor(color);
+    if (selection.size === 1) {
+      const id = Array.from(selection)[0];
+      const obj = objects.get(id);
+      if (obj && obj.type === 'shape') {
+        const shapeObj = obj as ShapeObject;
+        if (shapeObj.shapeKind === 'rectangle' && shapeObj.strokeWidth === 0) {
+          const cmd = new EditPropertyCommand(id, 'fillColor' as any, shapeObj.fillColor, color);
+          executeCommand(cmd);
+        } else if (shapeObj.shapeKind === 'line' || shapeObj.shapeKind === 'arrow') {
+          const cmd = new EditPropertyCommand(id, 'strokeColor' as any, shapeObj.strokeColor, color);
+          executeCommand(cmd);
+        } else {
+          if (shapeObj.fillColor) {
+            const cmd = new EditPropertyCommand(id, 'fillColor' as any, shapeObj.fillColor, color);
+            executeCommand(cmd);
+          } else {
+            const cmd = new EditPropertyCommand(id, 'strokeColor' as any, shapeObj.strokeColor, color);
+            executeCommand(cmd);
+          }
+        }
+      } else if (obj && obj.type === 'freehand') {
+        const freeObj = obj as FreehandObject;
+        const cmd = new EditPropertyCommand(id, 'strokeColor' as any, freeObj.strokeColor, color);
+        executeCommand(cmd);
+      }
+    }
+  }, [selection, objects, executeCommand]);
+
   const handleFontSizeChange = useCallback((size: number) => {
     setFontSize(size);
     if (selection.size === 1) {
@@ -370,6 +407,7 @@ export function PdfEditor() {
   const [dragState, setDragState] = useState<{
     id: string; type: 'drag' | 'resize'; handle?: ResizeHandle;
     startX: number; startY: number; startBounds: Bounds;
+    startPoints?: Point[];
   } | null>(null);
 
   const handleStartDrag = useCallback((e: React.PointerEvent, id: string) => {
@@ -381,6 +419,11 @@ export function PdfEditor() {
       id, type: 'drag',
       startX: e.clientX, startY: e.clientY,
       startBounds: { ...obj.bounds },
+      startPoints: obj.type === 'freehand'
+        ? [...(obj as FreehandObject).points]
+        : (obj.type === 'shape' && ((obj as ShapeObject).shapeKind === 'line' || (obj as ShapeObject).shapeKind === 'arrow'))
+          ? [(obj as ShapeObject).startPoint!, (obj as ShapeObject).endPoint!]
+          : undefined,
     });
   }, [objects]);
 
@@ -393,6 +436,11 @@ export function PdfEditor() {
       id, type: 'resize', handle,
       startX: e.clientX, startY: e.clientY,
       startBounds: { ...obj.bounds },
+      startPoints: obj.type === 'freehand'
+        ? [...(obj as FreehandObject).points]
+        : (obj.type === 'shape' && ((obj as ShapeObject).shapeKind === 'line' || (obj as ShapeObject).shapeKind === 'arrow'))
+          ? [(obj as ShapeObject).startPoint!, (obj as ShapeObject).endPoint!]
+          : undefined,
     });
   }, [objects]);
 
@@ -414,13 +462,36 @@ export function PdfEditor() {
         const dxPdf = dx / zoom;
         const dyPdf = -dy / zoom;
         const updated = new Map(currentObjects);
-        updated.set(obj.id, {
-          ...obj,
+        
+        const changes: any = {
           bounds: {
             ...obj.bounds,
             x: dragState.startBounds.x + dxPdf,
             y: dragState.startBounds.y + dyPdf,
-          },
+          }
+        };
+
+        if (obj.type === 'freehand' && dragState.startPoints) {
+          changes.points = dragState.startPoints.map(pt => ({
+            x: pt.x + dxPdf,
+            y: pt.y + dyPdf
+          }));
+        } else if (obj.type === 'shape' && ((obj as ShapeObject).shapeKind === 'line' || (obj as ShapeObject).shapeKind === 'arrow')) {
+          if (dragState.startPoints && dragState.startPoints.length >= 2) {
+            changes.startPoint = {
+              x: dragState.startPoints[0].x + dxPdf,
+              y: dragState.startPoints[0].y + dyPdf
+            };
+            changes.endPoint = {
+              x: dragState.startPoints[1].x + dxPdf,
+              y: dragState.startPoints[1].y + dyPdf
+            };
+          }
+        }
+
+        updated.set(obj.id, {
+          ...obj,
+          ...changes
         } as EditorObject);
         setObjects(updated);
       } else if (dragState.type === 'resize' && dragState.handle) {
@@ -442,7 +513,32 @@ export function PdfEditor() {
 
         const pdfBounds = viewportRectToPdfBounds(vLeft, vTop, vWidth, vHeight, viewport);
         const updated = new Map(currentObjects);
-        updated.set(obj.id, { ...obj, bounds: pdfBounds } as EditorObject);
+
+        const changes: any = { bounds: pdfBounds };
+
+        if (obj.type === 'freehand' && dragState.startPoints) {
+          const scaleX = pdfBounds.width / dragState.startBounds.width;
+          const scaleY = pdfBounds.height / dragState.startBounds.height;
+          changes.points = dragState.startPoints.map(pt => ({
+            x: pdfBounds.x + (pt.x - dragState.startBounds.x) * scaleX,
+            y: pdfBounds.y + (pt.y - dragState.startBounds.y) * scaleY
+          }));
+        } else if (obj.type === 'shape' && ((obj as ShapeObject).shapeKind === 'line' || (obj as ShapeObject).shapeKind === 'arrow')) {
+          if (dragState.startPoints && dragState.startPoints.length >= 2) {
+            const scaleX = pdfBounds.width / dragState.startBounds.width;
+            const scaleY = pdfBounds.height / dragState.startBounds.height;
+            changes.startPoint = {
+              x: pdfBounds.x + (dragState.startPoints[0].x - dragState.startBounds.x) * scaleX,
+              y: pdfBounds.y + (dragState.startPoints[0].y - dragState.startBounds.y) * scaleY
+            };
+            changes.endPoint = {
+              x: pdfBounds.x + (dragState.startPoints[1].x - dragState.startBounds.x) * scaleX,
+              y: pdfBounds.y + (dragState.startPoints[1].y - dragState.startBounds.y) * scaleY
+            };
+          }
+        }
+
+        updated.set(obj.id, { ...obj, ...changes } as EditorObject);
         setObjects(updated);
       }
     };
@@ -541,14 +637,11 @@ export function PdfEditor() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selection, objects, handleUndo, handleRedo, handleDelete, handleClearSelection, executeCommand, toggleBold, toggleItalic, adjustFontSize]);
 
-  // ---- File Upload ----
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files?.[0]) return;
-    const file = e.target.files[0];
+  const loadEditorDocument = async (file: File | Blob) => {
     setIsLoading(true);
-
+    setProgressMsg('Parsing PDF structure...');
     try {
-      const parsed = await parsePdf(file, (msg, _progress) => {
+      const parsed = await parsePdf(file as File, (msg, _progress) => {
         setProgressMsg(msg);
       });
       setDocument(parsed);
@@ -561,7 +654,7 @@ export function PdfEditor() {
       }
       setObjects(objs);
       historyRef.current.clear();
-      showSuccess('PDF loaded!', `${file.name} — ${parsed.numPages} pages analyzed.`);
+      showSuccess('PDF loaded!', `${file instanceof File ? file.name : 'document.pdf'} — ${parsed.numPages} pages analyzed.`);
     } catch (err) {
       console.error(err);
       showError('PDF Parse Error', 'Could not parse this document.');
@@ -570,6 +663,28 @@ export function PdfEditor() {
       setIsLoading(false);
       setProgressMsg('');
     }
+  };
+
+  // Auto-load file from workspace context
+  useEffect(() => {
+    if (activeFile) {
+      if (activeFile !== editorLoadedFile) {
+        setEditorLoadedFile(activeFile);
+        const fileToProcess = activeFile instanceof File
+          ? activeFile
+          : new File([activeFile], activeFileName || 'document.pdf', { type: 'application/pdf' });
+        loadEditorDocument(fileToProcess);
+      }
+    } else {
+      setEditorLoadedFile(null);
+      resetAll();
+    }
+  }, [activeFile, editorLoadedFile]);
+
+  // ---- File Upload ----
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.[0]) return;
+    loadEditorDocument(e.target.files[0]);
   };
 
   // ---- Image Insertion ----
@@ -667,8 +782,10 @@ export function PdfEditor() {
       setOutputUrl(URL.createObjectURL(blob));
       setOutputSize(blob.size);
       setOutputName(`edited_${document.file.name}`);
+      setOutputBlob(blob);
       StorageService.updateStats(1, 0);
       HistoryService.addPdfEntry('Edit PDF', `edited_${document.file.name}`, blob.size);
+
       showSuccess('PDF ready!', `edited_${document.file.name} · ${getFriendlySize(blob.size)}`);
       confetti({ particleCount: 65, spread: 50, origin: { y: 0.85 } });
     } catch (err) {
@@ -695,190 +812,282 @@ export function PdfEditor() {
     return result.sort((a, b) => a.zIndex - b.zIndex);
   }, [objects]);
 
-  // ---- SEO Content ----
-  const steps: StepItem[] = [
-    { step: 1, text: 'Upload your PDF document to load its layout client-side.' },
-    { step: 2, text: 'Click text blocks to edit them inline, or draw shapes, whiteouts, and add images.' },
-    { step: 3, text: 'Click "Apply & Save PDF" to generate and download your edited PDF.' },
-  ];
-  const benefits: BenefitItem[] = [
-    { title: 'Privacy First', desc: 'No files are ever uploaded. All edits are compiled within your browser.' },
-    { title: 'Direct Text Editing', desc: 'Select existing text blocks to modify them natively.' },
-    { title: 'Interactive Toolbox', desc: 'Whiteout, draw shapes, sign, or upload custom images.' },
-  ];
-  const faqs: FAQItem[] = [
-    { question: 'Why is some text not editable?', answer: 'This tool extracts text layers from native PDFs. Scanned PDFs need OCR first.' },
-    { question: 'Can I replace images?', answer: 'Yes! Select the Images tool, hover over detected images, and click Replace.' },
-    { question: 'How do I erase details?', answer: 'Select Whiteout, then click and drag a box over any area.' },
-  ];
-  const relatedTools: RelatedToolItem[] = [
-    { name: 'Sign PDF', desc: 'Embed signatures on sheets.', path: '/sign-pdf', icon: PenTool },
-    { name: 'OCR PDF', desc: 'Render flat text layers.', path: '/ocr-pdf', icon: Sparkles },
-    { name: 'Rotate & Order', desc: 'Rearrange page slots.', path: '/rotate-pdf', icon: RefreshCw },
-  ];
+
+
+  // ---- Page Reordering ----
+  const movePage = (currentIndex: number, direction: 'up' | 'down') => {
+    if (!document) return;
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= document.numPages) return;
+
+    const reorderedPages = [...document.pages];
+    const [removed] = reorderedPages.splice(currentIndex, 1);
+    reorderedPages.splice(targetIndex, 0, removed);
+
+    setDocument({
+      ...document,
+      pages: reorderedPages,
+    });
+    
+    setCurrentPageIndex(targetIndex);
+    clearOutputs();
+  };
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    e.dataTransfer.setData('text/plain', index.toString());
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    if (!document) return;
+    const sourceIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
+    if (isNaN(sourceIndex) || sourceIndex === targetIndex) return;
+
+    const reorderedPages = [...document.pages];
+    const [removed] = reorderedPages.splice(sourceIndex, 1);
+    reorderedPages.splice(targetIndex, 0, removed);
+
+    setDocument({
+      ...document,
+      pages: reorderedPages,
+    });
+
+    setCurrentPageIndex(targetIndex);
+    clearOutputs();
+  };
 
   return (
-    <ToolPageLayout
-      title="Edit PDF Online"
-      subtitle="Modify existing text, insert shapes, replace images, and whiteout details in your PDF."
-      breadcrumbName="Edit PDF"
-      seoTitle="Edit PDF Online Free - Edit Text & Replace Images | CompressKro"
-      seoDescription="Edit PDF text online for free. Delete or replace images, draw rectangles, apply whiteouts, and sign documents client-side."
-      canonicalPath="/edit-pdf"
-      steps={steps} benefits={benefits} faqs={faqs} relatedTools={relatedTools}
-      maxWidthClass="max-w-7xl"
-    >
-      <div className="space-y-6">
-        {outputUrl ? (
-          <CompiledOutputView
-            outputUrl={outputUrl} outputSize={outputSize}
-            outputName={outputName} onClear={resetAll}
-          />
-        ) : (
-          <div className="space-y-6">
-            {!document ? (
-              /* ---- Upload Area ---- */
-              <div className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/40 dark:bg-slate-900/40 glass-panel space-y-6 shadow-sm">
-                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                  <Upload className="w-4 h-4 text-pink-500" />
-                  <span>Upload Document to Edit</span>
-                </h3>
-                <div className="space-y-4">
-                  <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="application/pdf" className="hidden" />
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full py-8 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-pink-500 bg-white/50 dark:bg-slate-950/20 text-xs font-bold text-slate-700 dark:text-slate-300 flex flex-col items-center justify-center gap-3 transition-colors cursor-pointer"
-                  >
-                    <div className="p-3 bg-pink-50 dark:bg-pink-950/40 rounded-full">
-                      <Upload className="w-6 h-6 text-pink-600" />
-                    </div>
-                    <span className="text-sm">Click to select PDF document</span>
-                    <span className="text-slate-400 font-medium text-[10px]">Max file size: 100MB</span>
-                  </button>
-                  {isLoading && (
-                    <div className="flex items-center justify-center gap-2 text-xs text-slate-500 dark:text-slate-400 pt-2">
-                      <RefreshCw className="w-4 h-4 animate-spin text-pink-500" />
-                      <span>{progressMsg}</span>
-                    </div>
-                  )}
-                </div>
+    <div className="w-full h-full flex flex-col overflow-hidden bg-[var(--ck-bg-cream)]">
+      {!document ? (
+        <div className="flex flex-col lg:flex-row w-full h-full min-h-0 overflow-hidden">
+          {/* Center: Upload Drop Zone */}
+          <div className="flex-1 flex flex-col items-center justify-center p-8 overflow-y-auto">
+            <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="application/pdf" className="hidden" />
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full max-w-md min-h-[280px] border-2 border-dashed rounded-3xl flex flex-col items-center justify-center p-8 text-center cursor-pointer border-[var(--ck-border)] bg-[var(--ck-bg-card)] hover:border-[var(--ck-border-hover)] transition-all"
+            >
+              <div className="p-4 rounded-full bg-pink-50 dark:bg-pink-950/20 text-pink-600 dark:text-pink-400 mb-4">
+                <Upload className="w-7 h-7" />
               </div>
-            ) : (
-              /* ---- Editor Workspace ---- */
-              <div className="flex flex-col gap-4 relative">
-                <EditorToolbar
-                  activeTool={activeTool}
-                  setActiveTool={setActiveTool}
-                  canUndo={historyRef.current.canUndo}
-                  canRedo={historyRef.current.canRedo}
-                  onUndo={handleUndo}
-                  onRedo={handleRedo}
-                  onApply={handleApply}
-                  onReset={resetAll}
-                  isProcessing={isLoading}
-                  hasOperations={hasModifications()}
-                  textColor={textColor} setTextColor={handleTextColorChange}
-                  fontSize={fontSize} setFontSize={handleFontSizeChange}
-                  fontName={fontName} setFontName={(name) => handleFontChange(name, isBold, isItalic)}
-                  isBold={isBold} setIsBold={(b) => handleFontChange(fontName, b, isItalic)}
-                  isItalic={isItalic} setIsItalic={(i) => handleFontChange(fontName, isBold, i)}
-                  shapeColor={shapeColor} setShapeColor={setShapeColor}
-                  shapeFill={shapeFill} setShapeFill={setShapeFill}
-                  shapeStrokeWidth={shapeStrokeWidth} setShapeStrokeWidth={setShapeStrokeWidth}
-                  onAddImage={triggerAddImage}
-                  onOpenSignature={() => setSignModalOpen(true)}
-                  doOcr={doOcr}
-                  setDoOcr={setDoOcr}
-                />
-
-                {/* Split Workspace */}
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
-                  {/* Thumbnail Sidebar */}
-                  <div className="lg:col-span-1 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/40 dark:bg-slate-900/40 glass-panel space-y-4 max-h-[640px] overflow-y-auto lg:sticky lg:top-24">
-                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      Pages ({document.numPages})
-                    </h4>
-                    <div className="grid grid-cols-3 lg:grid-cols-1 gap-3">
-                      {document.pages.map((page, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => scrollToPage(idx)}
-                          className={`p-2.5 rounded-xl border text-center transition-all flex flex-col items-center gap-1.5 cursor-pointer ${
-                            currentPageIndex === idx
-                              ? 'border-pink-500 bg-pink-500/10 dark:bg-pink-500/5 ring-2 ring-pink-500/20'
-                              : 'border-slate-200 dark:border-slate-800 hover:border-slate-350 dark:hover:border-slate-700 bg-white/60 dark:bg-slate-950/20'
-                          }`}
-                        >
-                          <span className="text-[10px] font-extrabold text-slate-600 dark:text-slate-400">
-                            Page {idx + 1}
-                          </span>
-                          <div className="w-16 h-20 bg-slate-50 dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-800 flex items-center justify-center shadow-sm">
-                            <span className="text-[9px] text-slate-400 font-bold">
-                              {Math.round(page.widthPts)}×{Math.round(page.heightPts)}
-                            </span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Canvas Center */}
-                  <div className="lg:col-span-3 space-y-8 flex flex-col items-center overflow-x-auto max-h-[80vh] overflow-y-auto border border-slate-200/50 dark:border-slate-800/50 rounded-2xl bg-slate-950/5 p-4 shadow-inner">
-                    {document.pages.map((page, idx) => (
-                      <PageCanvas
-                        key={idx}
-                        pageIndex={idx}
-                        pdfjsDoc={document.pdfjsDocument}
-                        zoom={zoom}
-                        pageWidthPts={page.widthPts}
-                        pageHeightPts={page.heightPts}
-                        pageObjects={getPageObjects(idx)}
-                        activeTool={activeTool}
-                        selectedIds={selection}
-                        editingTextId={editingTextId}
-                        textColor={textColor}
-                        fontSize={fontSize}
-                        fontName={fontName}
-                        isBold={isBold}
-                        isItalic={isItalic}
-                        shapeColor={shapeColor}
-                        shapeFill={shapeFill}
-                        shapeStrokeWidth={shapeStrokeWidth}
-                        onSelect={handleSelect}
-                        onClearSelection={handleClearSelection}
-                        onStartDrag={handleStartDrag}
-                        onStartResize={handleStartResize}
-                        onDelete={handleDelete}
-                        onEditText={handleEditText}
-                        onStartEditing={handleStartEditing}
-                        onStopEditing={handleStopEditing}
-                        onInsertObject={handleInsertObject}
-                        onReplaceImage={handleReplaceImage}
-                        onBecameVisible={() => {
-                          if (currentPageIndex !== idx) setCurrentPageIndex(idx);
-                        }}
-                        onTextColorsExtracted={handleTextColorsExtracted}
-                        viewportsRef={viewportsRef}
-                      />
-                    ))}
-                  </div>
-                </div>
-                
-                {/* Loader overlay */}
-                {isLoading && (
-                  <div className="absolute inset-0 bg-slate-950/20 dark:bg-slate-950/40 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center gap-3 z-50 animate-fade-in">
-                    <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200/60 dark:border-slate-800/60 flex flex-col items-center gap-3 max-w-xs text-center">
-                      <RefreshCw className="w-8 h-8 animate-spin text-pink-500" />
-                      <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">Processing PDF</h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 font-medium px-4">{progressMsg}</p>
-                    </div>
-                  </div>
-                )}
+              <h3 className="font-bold text-[var(--ck-text-primary)] text-sm">
+                Drag & Drop PDF here
+              </h3>
+              <p className="text-xs text-[var(--ck-text-muted)] mt-1.5 max-w-[280px] leading-relaxed font-semibold">
+                or click to browse your files. Upload a PDF to start annotating, drawing, or typing text.
+              </p>
+            </div>
+            {isLoading && (
+              <div className="flex items-center justify-center gap-2 text-xs text-slate-500 dark:text-slate-400 pt-3">
+                <RefreshCw className="w-4 h-4 animate-spin text-pink-500" />
+                <span>{progressMsg}</span>
               </div>
             )}
           </div>
-        )}
-      </div>
+          
+          {/* Right: How to use & Privacy */}
+          <div className="w-full lg:w-[320px] bg-[var(--ck-bg-card)] border-t lg:border-t-0 lg:border-l border-[var(--ck-border)] flex flex-col min-h-[250px] lg:min-h-0 overflow-y-auto thin-scrollbar flex-shrink-0 p-5 justify-between">
+            <div className="flex-1 pb-5">
+              <HowToUse
+                title="PDF Editor"
+                icon={PenTool}
+                steps={[
+                  'Upload your PDF document in the center canvas.',
+                  'Use the toolbar to choose tools: Add Text, Draw shapes, insert Images, or Draw Signatures.',
+                  'Drag objects to move them, and resize them using boundary handles.',
+                  'Click "Apply & Export PDF" on the toolbar to build and download the output.'
+                ]}
+                warning="Note: Editing or flattening the PDF may increase the output file size. Selecting or searching text in the edited regions might have minor discrepancies."
+              />
+            </div>
+            <div className="flex gap-2 p-3 rounded-xl bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/10 mt-auto flex-shrink-0">
+              <ShieldCheck className="w-4.5 h-4.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
+              <div className="space-y-0.5 text-left">
+                <h4 className="text-[10px] font-bold text-emerald-800 dark:text-emerald-400 uppercase tracking-wider">Privacy Guaranteed</h4>
+                <p className="text-[9px] font-medium text-slate-500 dark:text-slate-400 leading-normal font-semibold">
+                  Processing runs 100% locally inside your browser. Your documents never upload to any servers.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* ---- Editor Workspace ---- */
+        <div className="flex-1 flex flex-col p-6 overflow-hidden gap-4 min-h-0 relative">
+          <EditorToolbar
+            activeTool={activeTool}
+            setActiveTool={setActiveTool}
+            canUndo={historyRef.current.canUndo}
+            canRedo={historyRef.current.canRedo}
+            onUndo={handleUndo}
+            onRedo={handleRedo}
+            onApply={handleApply}
+            onReset={resetAll}
+            isProcessing={isLoading}
+            hasOperations={hasModifications()}
+            textColor={textColor} setTextColor={handleTextColorChange}
+            fontSize={fontSize} setFontSize={handleFontSizeChange}
+            fontName={fontName} setFontName={(name) => handleFontChange(name, isBold, isItalic)}
+            isBold={isBold} setIsBold={(b) => handleFontChange(fontName, b, isItalic)}
+            isItalic={isItalic} setIsItalic={(i) => handleFontChange(fontName, isBold, i)}
+            shapeColor={shapeColor} setShapeColor={handleShapeColorChange}
+            shapeFill={shapeFill} setShapeFill={setShapeFill}
+            shapeStrokeWidth={shapeStrokeWidth} setShapeStrokeWidth={setShapeStrokeWidth}
+            onAddImage={triggerAddImage}
+            onOpenSignature={() => setSignModalOpen(true)}
+          />
+
+          {/* Split Workspace */}
+          <div className={`flex-1 grid grid-cols-1 gap-6 min-h-0 overflow-hidden ${
+            outputUrl && outputBlob ? 'lg:grid-cols-5' : 'lg:grid-cols-4'
+          }`}>
+            {/* Thumbnail Sidebar */}
+            <div className="lg:col-span-1 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/40 dark:bg-slate-900/40 glass-panel space-y-4 h-full overflow-y-auto">
+              <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                Pages ({document.numPages})
+              </h4>
+              <div className="grid grid-cols-3 lg:grid-cols-1 gap-3">
+                {document.pages.map((page, idx) => (
+                  <div
+                    key={page.pageIndex}
+                    draggable={true}
+                    onDragStart={(e) => handleDragStart(e, idx)}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, idx)}
+                    className={`p-2.5 rounded-xl border transition-all flex flex-col items-center gap-1.5 relative group ${
+                      currentPageIndex === idx
+                        ? 'border-pink-500 bg-pink-500/10 dark:bg-pink-500/5 ring-2 ring-pink-500/20'
+                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-350 dark:hover:border-slate-700 bg-white/60 dark:bg-slate-950/20'
+                    }`}
+                  >
+                    {/* Header: Page Index & Reordering Arrows */}
+                    <div className="w-full flex items-center justify-between gap-1 text-[10px] font-extrabold text-slate-650 dark:text-slate-400">
+                      <div className="flex items-center gap-1 min-w-0">
+                        <GripVertical className="w-3.5 h-3.5 text-slate-450 cursor-grab active:cursor-grabbing shrink-0" />
+                        <span className="truncate">Page {idx + 1}</span>
+                      </div>
+                      <div className="flex items-center gap-0.5 shrink-0 opacity-80 hover:opacity-100">
+                        <button
+                          type="button"
+                          disabled={idx === 0}
+                          onClick={(e) => { e.stopPropagation(); movePage(idx, 'up'); }}
+                          className="p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800 disabled:opacity-20 text-slate-500 dark:text-slate-450 cursor-pointer"
+                          title="Move Page Up"
+                        >
+                          <ChevronUp className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={idx === document.pages.length - 1}
+                          onClick={(e) => { e.stopPropagation(); movePage(idx, 'down'); }}
+                          className="p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800 disabled:opacity-20 text-slate-500 dark:text-slate-450 cursor-pointer"
+                          title="Move Page Down"
+                        >
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Body: Thumbnail Box */}
+                    <div
+                      onClick={() => scrollToPage(idx)}
+                      className="w-full h-20 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 flex items-center justify-center shadow-sm cursor-pointer hover:border-pink-300 dark:hover:border-pink-850 transition-colors"
+                    >
+                      <span className="text-[9px] text-slate-400 font-bold">
+                        {Math.round(page.widthPts)}×{Math.round(page.heightPts)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Canvas Center */}
+            <div
+              onMouseDown={(e) => {
+                if (e.target === e.currentTarget) {
+                  handleClearSelection();
+                }
+              }}
+              className={`${
+                outputUrl && outputBlob ? 'lg:col-span-3' : 'lg:col-span-3'
+              } space-y-8 flex flex-col items-center overflow-x-auto h-full overflow-y-auto border border-slate-200/50 dark:border-slate-800/50 rounded-2xl bg-slate-950/5 p-4 shadow-inner`}
+            >
+              {document.pages.map((page, idx) => (
+                <PageCanvas
+                  key={page.pageIndex}
+                  pageIndex={page.pageIndex}
+                  pdfjsDoc={document.pdfjsDocument}
+                  zoom={zoom}
+                  pageWidthPts={page.widthPts}
+                  pageHeightPts={page.heightPts}
+                  pageObjects={getPageObjects(page.pageIndex)}
+                  activeTool={activeTool}
+                  selectedIds={selection}
+                  editingTextId={editingTextId}
+                  textColor={textColor}
+                  fontSize={fontSize}
+                  fontName={fontName}
+                  isBold={isBold}
+                  isItalic={isItalic}
+                  shapeColor={shapeColor}
+                  shapeFill={shapeFill}
+                  shapeStrokeWidth={shapeStrokeWidth}
+                  onSelect={handleSelect}
+                  onClearSelection={handleClearSelection}
+                  onStartDrag={handleStartDrag}
+                  onStartResize={handleStartResize}
+                  onDelete={handleDelete}
+                  onEditText={handleEditText}
+                  onStartEditing={handleStartEditing}
+                  onStopEditing={handleStopEditing}
+                  onInsertObject={handleInsertObject}
+                  onReplaceImage={handleReplaceImage}
+                  onBecameVisible={() => {
+                    if (currentPageIndex !== idx) setCurrentPageIndex(idx);
+                  }}
+                  onTextColorsExtracted={handleTextColorsExtracted}
+                  viewportsRef={viewportsRef}
+                />
+              ))}
+            </div>
+
+            {/* Task Completed Panel on the right */}
+            {outputUrl && outputBlob && (
+              <div className="lg:col-span-1 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm h-full overflow-y-auto thin-scrollbar">
+                <PdfTaskCompleted
+                  fileName={outputName}
+                  fileSize={outputSize}
+                  originalSize={document ? document.file.size : undefined}
+                  outputBlob={outputBlob}
+                  onReset={resetAll}
+                  onContinueEditing={() => {
+                    setOutputUrl('');
+                    setOutputBlob(null);
+                    setOutputSize(0);
+                    setOutputName('');
+                  }}
+                />
+              </div>
+            )}
+          </div>
+          
+          {/* Loader overlay */}
+          {isLoading && (
+            <div className="absolute inset-0 bg-slate-950/20 dark:bg-slate-950/40 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center gap-3 z-50 animate-fade-in">
+              <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200/60 dark:border-slate-800/60 flex flex-col items-center gap-3 max-w-xs text-center">
+                <RefreshCw className="w-8 h-8 animate-spin text-pink-500" />
+                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">Processing PDF</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium px-4">{progressMsg}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Hidden file inputs */}
       <input type="file" ref={imageInputRef} onChange={handleAddImageFile} accept="image/png, image/jpeg" className="hidden" />
@@ -891,6 +1100,6 @@ export function PdfEditor() {
           onAdd={handleSignatureAdd}
         />
       )}
-    </ToolPageLayout>
+    </div>
   );
 }

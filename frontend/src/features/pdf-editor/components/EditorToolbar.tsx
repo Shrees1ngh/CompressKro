@@ -4,11 +4,13 @@
 // Main floating toolbar with tool buttons, undo/redo, and
 // sub-toolbars for text/shape properties.
 // ============================================================
-
+import { useState, useRef, useEffect } from 'react';
 import {
   MousePointerClick, Type, Eraser, Image as ImageIcon,
   PenTool, Square, Undo2, Redo2, Check, X, RefreshCw,
-  Bold, Italic, Sparkles,
+  Bold, Italic, Sparkles, ChevronDown, Highlighter,
+  Underline as UnderlineIcon, Strikethrough, Pencil,
+  Circle, MoveRight, Slash,
 } from 'lucide-react';
 import type { ToolType } from '../core/types';
 import { TEXT_COLOR_PRESETS, SHAPE_COLOR_PRESETS } from '../core/constants';
@@ -45,17 +47,7 @@ interface EditorToolbarProps {
   // Image/Sign actions
   onAddImage: () => void;
   onOpenSignature: () => void;
-  // OCR actions
-  doOcr: boolean;
-  setDoOcr: (val: boolean) => void;
 }
-
-const tools: Array<{ id: ToolType; icon: any; label: string; title: string }> = [
-  { id: 'select', icon: MousePointerClick, label: 'Select', title: 'Select / Move Elements' },
-  { id: 'text', icon: Type, label: 'Text', title: 'Add or Edit Text' },
-  { id: 'whiteout', icon: Eraser, label: 'Whiteout', title: 'Erase / Whiteout Rectangles' },
-  { id: 'shape', icon: Square, label: 'Shapes', title: 'Draw Rectangular Shape' },
-];
 
 export function EditorToolbar({
   activeTool, setActiveTool,
@@ -65,31 +57,222 @@ export function EditorToolbar({
   isBold, setIsBold, isItalic, setIsItalic,
   shapeColor, setShapeColor, shapeFill, setShapeFill, shapeStrokeWidth, setShapeStrokeWidth,
   onAddImage, onOpenSignature,
-  doOcr, setDoOcr,
 }: EditorToolbarProps) {
+  const [activeDropdown, setActiveDropdown] = useState<'annotate' | 'shapes' | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setActiveDropdown(null);
+      }
+    };
+    window.addEventListener('click', handleOutsideClick);
+    return () => window.removeEventListener('click', handleOutsideClick);
+  }, []);
+
+  const isAnnotateActive = ['strikeout', 'highlight', 'underline', 'freehand-highlight', 'freehand'].includes(activeTool);
+  const isShapesActive = ['shape', 'ellipse', 'line', 'arrow'].includes(activeTool);
+
   return (
-    <div className="space-y-3">
-      {/* Main Toolbar */}
-      <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 glass-panel flex flex-wrap items-center justify-between gap-4 sticky top-4 z-40 shadow-md">
-        <div className="flex items-center gap-2">
-          {tools.map(({ id, icon: Icon, label, title }) => (
+    <div className="space-y-3" ref={dropdownRef}>
+      <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-wrap items-center justify-between gap-4 shadow-sm z-40">
+        <div className="flex items-center gap-2 relative">
+          
+          {/* Select Button */}
+          <button
+            onClick={() => { setActiveTool('select'); setActiveDropdown(null); }}
+            className={`p-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all ${
+              activeTool === 'select'
+                ? 'bg-pink-600 text-white shadow-sm'
+                : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-300'
+            }`}
+            title="Select / Move Elements"
+          >
+            <MousePointerClick className="w-4 h-4" />
+            <span className="hidden sm:inline">Select</span>
+          </button>
+
+          {/* Text Button */}
+          <button
+            onClick={() => { setActiveTool('text'); setActiveDropdown(null); }}
+            className={`p-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all ${
+              activeTool === 'text'
+                ? 'bg-pink-600 text-white shadow-sm'
+                : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-300'
+            }`}
+            title="Add or Edit Text"
+          >
+            <Type className="w-4 h-4" />
+            <span className="hidden sm:inline">Text</span>
+          </button>
+
+          {/* Annotate Dropdown Button */}
+          <div className="relative">
             <button
-              key={id}
-              onClick={() => setActiveTool(id)}
-              className={`p-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all ${
-                activeTool === id
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveDropdown(prev => prev === 'annotate' ? null : 'annotate');
+              }}
+              className={`p-2 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-all ${
+                isAnnotateActive
                   ? 'bg-pink-600 text-white shadow-sm'
                   : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-300'
               }`}
-              title={title}
+              title="Highlight, underline, strikeout text, or draw freehand"
             >
-              <Icon className="w-4 h-4" />
-              <span className="hidden sm:inline">{label}</span>
+              <Highlighter className="w-4 h-4" />
+              <span className="hidden sm:inline">
+                {activeTool === 'strikeout' ? 'Strike out' :
+                 activeTool === 'highlight' ? 'Highlight' :
+                 activeTool === 'underline' ? 'Underline' :
+                 activeTool === 'freehand-highlight' ? 'Freehand Highlight' :
+                 activeTool === 'freehand' ? 'Draw' : 'Annotate'}
+              </span>
+              <ChevronDown className="w-3.5 h-3.5 opacity-60 ml-0.5" />
             </button>
-          ))}
 
+            {activeDropdown === 'annotate' && (
+              <div className="absolute top-full left-0 mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-1.5 min-w-[180px] z-50 space-y-0.5">
+                <div className="px-2 py-1 text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Text markup</div>
+                <button
+                  onClick={() => { setActiveTool('strikeout'); setActiveDropdown(null); }}
+                  className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 cursor-pointer transition-all ${
+                    activeTool === 'strikeout' ? 'bg-pink-500/10 text-pink-600 dark:text-pink-400' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  <Strikethrough className="w-3.5 h-3.5" />
+                  <span>Strike out</span>
+                </button>
+                <button
+                  onClick={() => { setActiveTool('highlight'); setActiveDropdown(null); }}
+                  className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 cursor-pointer transition-all ${
+                    activeTool === 'highlight' ? 'bg-pink-500/10 text-pink-600 dark:text-pink-400' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  <Highlighter className="w-3.5 h-3.5" />
+                  <span>Highlight</span>
+                </button>
+                <button
+                  onClick={() => { setActiveTool('underline'); setActiveDropdown(null); }}
+                  className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 cursor-pointer transition-all ${
+                    activeTool === 'underline' ? 'bg-pink-500/10 text-pink-600 dark:text-pink-400' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  <UnderlineIcon className="w-3.5 h-3.5" />
+                  <span>Underline</span>
+                </button>
+                
+                <div className="h-px bg-slate-100 dark:bg-slate-800 my-1" />
+                <div className="px-2 py-1 text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Freehand</div>
+                <button
+                  onClick={() => { setActiveTool('freehand-highlight'); setActiveDropdown(null); }}
+                  className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 cursor-pointer transition-all ${
+                    activeTool === 'freehand-highlight' ? 'bg-pink-500/10 text-pink-600 dark:text-pink-400' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  <Highlighter className="w-3.5 h-3.5 animate-pulse" />
+                  <span>Freehand Highlight</span>
+                </button>
+                <button
+                  onClick={() => { setActiveTool('freehand'); setActiveDropdown(null); }}
+                  className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 cursor-pointer transition-all ${
+                    activeTool === 'freehand' ? 'bg-pink-500/10 text-pink-600 dark:text-pink-400' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  <span>Draw</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Shapes Dropdown Button */}
+          <div className="relative">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveDropdown(prev => prev === 'shapes' ? null : 'shapes');
+              }}
+              className={`p-2 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-all ${
+                isShapesActive
+                  ? 'bg-pink-600 text-white shadow-sm'
+                  : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-300'
+              }`}
+              title="Draw geometric shapes (ellipse, rectangle, line, arrow)"
+            >
+              {activeTool === 'ellipse' ? <Circle className="w-4 h-4" /> :
+               activeTool === 'line' ? <Slash className="w-4 h-4" /> :
+               activeTool === 'arrow' ? <MoveRight className="w-4 h-4" /> :
+               <Square className="w-4 h-4" />}
+              <span className="hidden sm:inline">
+                {activeTool === 'ellipse' ? 'Ellipse' :
+                 activeTool === 'shape' ? 'Rectangle' :
+                 activeTool === 'line' ? 'Line' :
+                 activeTool === 'arrow' ? 'Arrow' : 'Shapes'}
+              </span>
+              <ChevronDown className="w-3.5 h-3.5 opacity-60 ml-0.5" />
+            </button>
+
+            {activeDropdown === 'shapes' && (
+              <div className="absolute top-full left-0 mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-1.5 min-w-[150px] z-50 space-y-0.5">
+                <button
+                  onClick={() => { setActiveTool('ellipse'); setActiveDropdown(null); }}
+                  className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 cursor-pointer transition-all ${
+                    activeTool === 'ellipse' ? 'bg-pink-500/10 text-pink-600 dark:text-pink-400' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  <Circle className="w-3.5 h-3.5" />
+                  <span>Ellipse</span>
+                </button>
+                <button
+                  onClick={() => { setActiveTool('shape'); setActiveDropdown(null); }}
+                  className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 cursor-pointer transition-all ${
+                    activeTool === 'shape' ? 'bg-pink-500/10 text-pink-600 dark:text-pink-400' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  <Square className="w-3.5 h-3.5" />
+                  <span>Rectangle</span>
+                </button>
+                <button
+                  onClick={() => { setActiveTool('line'); setActiveDropdown(null); }}
+                  className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 cursor-pointer transition-all ${
+                    activeTool === 'line' ? 'bg-pink-500/10 text-pink-600 dark:text-pink-400' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  <Slash className="w-3.5 h-3.5" />
+                  <span>Line</span>
+                </button>
+                <button
+                  onClick={() => { setActiveTool('arrow'); setActiveDropdown(null); }}
+                  className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 cursor-pointer transition-all ${
+                    activeTool === 'arrow' ? 'bg-pink-500/10 text-pink-600 dark:text-pink-400' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  <MoveRight className="w-3.5 h-3.5" />
+                  <span>Arrow</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Whiteout Button */}
           <button
-            onClick={() => { setActiveTool('image'); onAddImage(); }}
+            onClick={() => { setActiveTool('whiteout'); setActiveDropdown(null); }}
+            className={`p-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all ${
+              activeTool === 'whiteout'
+                ? 'bg-pink-600 text-white shadow-sm'
+                : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-300'
+            }`}
+            title="Erase / Whiteout Rectangles"
+          >
+            <Eraser className="w-4 h-4" />
+            <span className="hidden sm:inline">Whiteout</span>
+          </button>
+
+          {/* Images Button */}
+          <button
+            onClick={() => { setActiveTool('image'); onAddImage(); setActiveDropdown(null); }}
             className={`p-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all ${
               activeTool === 'image'
                 ? 'bg-pink-600 text-white shadow-sm'
@@ -101,8 +284,9 @@ export function EditorToolbar({
             <span className="hidden sm:inline">Images</span>
           </button>
 
+          {/* Sign Button */}
           <button
-            onClick={() => { setActiveTool('signature'); onOpenSignature(); }}
+            onClick={() => { setActiveTool('signature'); onOpenSignature(); setActiveDropdown(null); }}
             className={`p-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all ${
               activeTool === 'signature'
                 ? 'bg-pink-600 text-white shadow-sm'
@@ -113,6 +297,7 @@ export function EditorToolbar({
             <PenTool className="w-4 h-4" />
             <span className="hidden sm:inline">Sign</span>
           </button>
+
         </div>
 
         <div className="flex items-center gap-3">
@@ -152,27 +337,7 @@ export function EditorToolbar({
         </div>
       </div>
 
-      {/* Privacy Warning Note & OCR Checkbox */}
-      <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium px-4 py-2 bg-slate-50/50 dark:bg-slate-900/50 rounded-xl border border-slate-200/55 dark:border-slate-800/55 flex flex-col gap-2 shadow-sm">
-        <div className="flex items-center gap-1.5">
-          <Sparkles className="w-3.5 h-3.5 text-pink-500 shrink-0" />
-          <span>Exported PDF is flattened for privacy — text will not be selectable or searchable in the output.</span>
-        </div>
-        <div className="flex flex-col gap-1 border-t border-slate-200/40 dark:border-slate-800/40 pt-2">
-          <label className="flex items-center gap-2 font-bold text-slate-700 dark:text-slate-350 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={doOcr}
-              onChange={(e) => setDoOcr(e.target.checked)}
-              className="accent-pink-500 rounded"
-            />
-            <span>Add searchable text layer (OCR)</span>
-          </label>
-          <span className="text-[9px] text-slate-400 pl-5">
-            Note: OCR is processed client-side. Accuracy is not perfect and may misread some characters/fonts.
-          </span>
-        </div>
-      </div>
+
 
       {/* Text Sub-toolbar */}
       {activeTool === 'text' && (
@@ -241,8 +406,8 @@ export function EditorToolbar({
         </div>
       )}
 
-      {/* Shape Sub-toolbar */}
-      {activeTool === 'shape' && (
+      {/* Shape/Annotation Sub-toolbar */}
+      {['shape', 'ellipse', 'line', 'arrow', 'freehand', 'freehand-highlight', 'highlight', 'underline', 'strikeout'].includes(activeTool) && (
         <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/40 dark:bg-slate-900/40 text-xs flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2">
             <span className="text-slate-400 font-bold">Color:</span>
@@ -257,26 +422,44 @@ export function EditorToolbar({
               ))}
             </div>
           </div>
-          <label className="flex items-center gap-1.5 font-bold cursor-pointer select-none">
-            <input
-              type="checkbox" checked={shapeFill}
-              onChange={(e) => setShapeFill(e.target.checked)}
-              className="accent-pink-500 rounded"
-            />
-            <span>Filled</span>
-          </label>
-          <div className="flex items-center gap-2">
-            <span className="text-slate-400 font-bold">Border:</span>
-            <input
-              type="number" min="1" max="20"
-              value={shapeStrokeWidth}
-              onChange={(e) => setShapeStrokeWidth(parseInt(e.target.value) || 2)}
-              className="w-12 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-1 rounded text-center font-bold"
-            />
-            <span className="text-slate-400">px</span>
-          </div>
-          <span className="text-[10px] text-slate-400 italic">
-            Click and drag on a page to draw a shape.
+          
+          {['shape', 'ellipse'].includes(activeTool) && (
+            <label className="flex items-center gap-1.5 font-bold cursor-pointer select-none">
+              <input
+                type="checkbox" checked={shapeFill}
+                onChange={(e) => setShapeFill(e.target.checked)}
+                className="accent-pink-500 rounded"
+              />
+              <span>Filled</span>
+            </label>
+          )}
+
+          {!['highlight'].includes(activeTool) && (
+            <div className="flex items-center gap-2">
+              <span className="text-slate-400 font-bold">
+                {['shape', 'ellipse'].includes(activeTool) ? 'Border:' : 'Thickness:'}
+              </span>
+              <input
+                type="number" min="1" max="20"
+                value={shapeStrokeWidth}
+                onChange={(e) => setShapeStrokeWidth(parseInt(e.target.value) || 2)}
+                className="w-12 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-1 rounded text-center font-bold"
+              />
+              <span className="text-slate-400">px</span>
+            </div>
+          )}
+
+          <span className="text-[10px] text-pink-650 dark:text-pink-400 font-bold bg-pink-500/5 px-2 py-1 rounded-lg border border-pink-500/10">
+            {activeTool === 'highlight' ? '👉 Click and drag a box over the text area you want to highlight.' :
+             activeTool === 'underline' ? '👉 Click and drag a box over the text area to underline it.' :
+             activeTool === 'strikeout' ? '👉 Click and drag a box over the text area to strike it out.' :
+             activeTool === 'freehand' ? '👉 Click and drag on the page to draw freehand lines.' :
+             activeTool === 'freehand-highlight' ? '👉 Click and drag on the page to draw translucent freehand highlights.' :
+             activeTool === 'shape' ? '👉 Click and drag on the page to draw a rectangle.' :
+             activeTool === 'ellipse' ? '👉 Click and drag on the page to draw an ellipse/circle.' :
+             activeTool === 'line' ? '👉 Click and drag on the page to draw a straight line.' :
+             activeTool === 'arrow' ? '👉 Click and drag on the page to draw an arrow.' :
+             '👉 Click and drag on the page to place the annotation.'}
           </span>
         </div>
       )}

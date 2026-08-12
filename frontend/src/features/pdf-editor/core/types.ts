@@ -243,7 +243,14 @@ export type ToolType =
   | 'image'
   | 'signature'
   | 'shape'
-  | 'freehand';
+  | 'ellipse'
+  | 'line'
+  | 'arrow'
+  | 'freehand'
+  | 'freehand-highlight'
+  | 'highlight'
+  | 'underline'
+  | 'strikeout';
 
 // ---- History / Command ----
 
@@ -289,6 +296,7 @@ export interface DrawInteraction {
   startY: number;
   currentX: number;
   currentY: number;
+  points?: Point[];
 }
 
 // ---- Editor State ----

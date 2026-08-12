@@ -1,5 +1,9 @@
+import { useId } from 'react';
 
 export function LogoIcon({ className = "w-9 h-9" }: { className?: string }) {
+  const gradId = useId().replace(/:/g, "");
+  const gradientUrl = `url(#logo-grad-${gradId})`;
+
   return (
     <svg 
       viewBox="0 0 100 100" 
@@ -8,26 +12,26 @@ export function LogoIcon({ className = "w-9 h-9" }: { className?: string }) {
       xmlns="http://www.w3.org/2000/svg"
     >
       <defs>
-        <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <linearGradient id={`logo-grad-${gradId}`} x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stopColor="#601ff5" />
           <stop offset="100%" stopColor="#2c58f5" />
         </linearGradient>
       </defs>
       
-      <circle cx="16" cy="30" r="2.5" fill="url(#logoGradient)" />
-      <rect x="22" y="27.5" width="10" height="5" rx="2.5" fill="url(#logoGradient)" />
+      <circle cx="16" cy="30" r="2.5" fill={gradientUrl} />
+      <rect x="22" y="27.5" width="10" height="5" rx="2.5" fill={gradientUrl} />
       
-      <circle cx="10" cy="40" r="2.5" fill="url(#logoGradient)" />
-      <rect x="16" y="37.5" width="16" height="5" rx="2.5" fill="url(#logoGradient)" />
+      <circle cx="10" cy="40" r="2.5" fill={gradientUrl} />
+      <rect x="16" y="37.5" width="16" height="5" rx="2.5" fill={gradientUrl} />
       
-      <circle cx="4" cy="50" r="2.5" fill="url(#logoGradient)" />
-      <rect x="10" y="47.5" width="22" height="5" rx="2.5" fill="url(#logoGradient)" />
+      <circle cx="4" cy="50" r="2.5" fill={gradientUrl} />
+      <rect x="10" y="47.5" width="22" height="5" rx="2.5" fill={gradientUrl} />
       
-      <circle cx="10" cy="60" r="2.5" fill="url(#logoGradient)" />
-      <rect x="16" y="57.5" width="16" height="5" rx="2.5" fill="url(#logoGradient)" />
+      <circle cx="10" cy="60" r="2.5" fill={gradientUrl} />
+      <rect x="16" y="57.5" width="16" height="5" rx="2.5" fill={gradientUrl} />
       
-      <circle cx="16" cy="70" r="2.5" fill="url(#logoGradient)" />
-      <rect x="22" y="67.5" width="10" height="5" rx="2.5" fill="url(#logoGradient)" />
+      <circle cx="16" cy="70" r="2.5" fill={gradientUrl} />
+      <rect x="22" y="67.5" width="10" height="5" rx="2.5" fill={gradientUrl} />
 
       <path 
         d="M 44 12
@@ -42,7 +46,7 @@ export function LogoIcon({ className = "w-9 h-9" }: { className?: string }) {
            L 38 41
            V 18
            C 38 14.7 40.7 12 44 12 Z" 
-        fill="url(#logoGradient)" 
+        fill={gradientUrl} 
       />
       
       <path 

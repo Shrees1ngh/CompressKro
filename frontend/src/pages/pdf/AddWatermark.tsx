@@ -2,7 +2,7 @@
 // CompressKro — Add Watermark PDF Page Component
 // ============================================================
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { PDFDocument, rgb, StandardFonts, degrees } from 'pdf-lib';
 import confetti from 'canvas-confetti';
 import { 
@@ -15,10 +15,10 @@ import { useToast } from '../../hooks/useToast';
 import { StorageService } from '../../services/storage.service';
 import { HistoryService } from '../../services/history.service';
 import { getFriendlySize } from '../../utils/format';
-import { ToolPageLayout } from '../../components/ToolPageLayout';
-import type { StepItem, BenefitItem, FAQItem, RelatedToolItem } from '../../components/ToolPageLayout';
-import { CompiledOutputView } from '../../components/CompiledOutputView';
+import { usePdfWorkspace } from '../../context/PdfWorkspaceContext';
+import { PdfTaskCompleted } from '../../components/PdfWorkspaceShell/PdfTaskCompleted';
 import type { PDFFileItem } from '../../types';
+import { HowToUse } from '../../components/ui/HowToUse';
 
 export function AddWatermark() {
   const [wmFile, setWmFile] = useState<PDFFileItem | null>(null);
@@ -36,10 +36,28 @@ export function AddWatermark() {
   const [outputUrl, setOutputUrl] = useState<string>('');
   const [outputSize, setOutputSize] = useState<number>(0);
   const [outputName, setOutputName] = useState<string>('');
+  const [outputBlob, setOutputBlob] = useState<Blob | null>(null);
 
   const wmInputRef = useRef<HTMLInputElement>(null);
   const wmImageInputRef = useRef<HTMLInputElement>(null);
   const { showSuccess, showError } = useToast();
+  const { activeFile, activeFileName, activeFileSize, chainOutput } = usePdfWorkspace();
+
+  // Auto-load file from workspace context
+  useEffect(() => {
+    if (activeFile) {
+      setWmFile({
+        id: 'active',
+        name: activeFileName,
+        size: activeFileSize,
+        blob: activeFile
+      });
+      clearOutputs();
+      setOutputBlob(null);
+    } else {
+      setWmFile(null);
+    }
+  }, [activeFile]);
 
   const clearOutputs = () => {
     setOutputUrl('');
@@ -128,6 +146,7 @@ export function AddWatermark() {
       setOutputUrl(URL.createObjectURL(blob));
       setOutputSize(blob.size);
       setOutputName(`watermarked_${wmFile.name}`);
+      setOutputBlob(blob);
 
       StorageService.updateStats(1, 0);
       HistoryService.addPdfEntry('Add Watermark', `watermarked_${wmFile.name}`, blob.size);
@@ -143,55 +162,34 @@ export function AddWatermark() {
     }
   };
 
-  const steps: StepItem[] = [
-    { step: 1, text: 'Click "Select PDF Document" and upload your target document.' },
-    { step: 2, text: 'Choose either Text or Image stamp watermark type, and configure styles (size, position, rotation, opacity).' },
-    { step: 3, text: 'Click "Apply Watermark" to overlay it onto all pages and download.' }
-  ];
 
-  const benefits: BenefitItem[] = [
-    { title: 'Text or Image Logo', desc: 'Allows stamping custom watermark strings or embedding PNG/JPG brand logos.' },
-    { title: 'Complete Style Control', desc: 'Adjust rotation angles, transparency opacity, and relative layout positioning.' },
-    { title: 'Privacy Guarantee', desc: 'Processing runs locally using pdf-lib, ensuring your document stays strictly confidential.' }
-  ];
-
-  const faqs: FAQItem[] = [
-    { question: 'What options can I customize for text watermarks?', answer: 'You can change the text string, font size, opacity (transparency), rotation angle, color, and vertical layout position (header, footer, center).' },
-    { question: 'Can I add transparent PNG logos?', answer: 'Yes. PNG alpha channel transparency is fully preserved when embedding image watermarks onto PDF pages.' },
-    { question: 'Will the watermark cover the text contents?', answer: 'Watermarks are placed over the existing page content. By setting opacity to a low value (like 0.2 or 0.3), the underlying text remains fully readable.' },
-    { question: 'Does this apply to all pages?', answer: 'Yes. The tool automatically loops over all pages in the PDF document and applies the watermark at the exact same relative coordinates on each page.' }
-  ];
-
-  const relatedTools: RelatedToolItem[] = [
-    { name: 'Remove Watermark', desc: 'Strip annotations and masks.', path: '/remove-watermark', icon: FileText },
-    { name: 'Page Numbers', desc: 'Add page indices.', path: '/page-numbers', icon: FileText },
-    { name: 'Lock PDF', desc: 'Encrypt with password.', path: '/lock-pdf', icon: FileText }
-  ];
 
   return (
-    <ToolPageLayout
-      title="Add Watermark to PDF Online"
-      subtitle="Overlay custom text or brand image logos onto all pages of your PDF."
-      breadcrumbName="Add Watermark"
-      seoTitle="Add Watermark to PDF Free - Text/Image Logo Stamp | CompressKro"
-      seoDescription="Add watermarks to PDF files online for free. Custom text strings, brand logo images, adjustable rotation, and opacity options. Privacy-first browser process."
-      canonicalPath="/add-watermark"
-      steps={steps}
-      benefits={benefits}
-      faqs={faqs}
-      relatedTools={relatedTools}
-    >
+    <>
       <div className="space-y-6">
-        {outputUrl ? (
-          <CompiledOutputView
-            outputUrl={outputUrl}
-            outputSize={outputSize}
-            outputName={outputName}
-            onClear={() => {
+        {outputUrl && outputBlob ? (
+          <PdfTaskCompleted
+            fileName={outputName}
+            fileSize={outputSize}
+            originalSize={wmFile?.size}
+            outputBlob={outputBlob}
+            onReset={() => {
               clearOutputs();
+              setOutputBlob(null);
               setWmFile(null);
               setWmImageFile(null);
             }}
+          />
+        ) : !wmFile ? (
+          <HowToUse
+            title="Add Watermark"
+            icon={Droplets}
+            steps={[
+              'Upload your PDF document in the center canvas.',
+              'Choose either Text Watermark or Image Logo Watermark on the right.',
+              'Configure size, opacity, color, angle, and position.',
+              'Click "Apply Watermark" to stamp pages and download your document.'
+            ]}
           />
         ) : (
           <div className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/40 dark:bg-slate-900/40 glass-panel space-y-6 shadow-sm">
@@ -201,20 +199,14 @@ export function AddWatermark() {
             </h3>
 
             <div className="space-y-4">
-              <input 
-                type="file" 
-                ref={wmInputRef} 
-                onChange={(e) => e.target.files?.[0] && setWmFile({ id: 'wm', name: e.target.files[0].name, size: e.target.files[0].size, blob: e.target.files[0] })} 
-                accept="application/pdf" 
-                className="hidden" 
-              />
-              <button
-                onClick={() => wmInputRef.current?.click()}
-                className="w-full py-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-500 bg-white/50 dark:bg-slate-950/20 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-center gap-2 transition-colors cursor-pointer"
-              >
-                <Upload className="w-4 h-4 text-blue-500" />
-                <span>{wmFile ? wmFile.name : 'Select PDF Document'}</span>
-              </button>
+              <div className="space-y-3 p-3 bg-blue-500/5 border border-blue-500/10 rounded-xl text-center">
+                <div className="text-xs font-bold text-[var(--ck-text-primary)] truncate">
+                  {wmFile.name}
+                </div>
+                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">
+                  {getFriendlySize(wmFile.size)}
+                </div>
+              </div>
 
               {wmFile && (
                 <div className="space-y-4 border-t border-slate-200/50 dark:border-slate-800/50 pt-4">
@@ -385,6 +377,6 @@ export function AddWatermark() {
           </div>
         )}
       </div>
-    </ToolPageLayout>
+    </>
   );
 }

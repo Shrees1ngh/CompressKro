@@ -2,7 +2,7 @@
 // CompressKro — HTML to PDF Page Component
 // ============================================================
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import { RefreshCw, Code, Globe } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
@@ -10,9 +10,8 @@ import { StorageService } from '../../services/storage.service';
 import { HistoryService } from '../../services/history.service';
 import { getFriendlySize } from '../../utils/format';
 import { BACKEND_API_URL } from '../../constants';
-import { ToolPageLayout } from '../../components/ToolPageLayout';
-import type { StepItem, BenefitItem, FAQItem, RelatedToolItem } from '../../components/ToolPageLayout';
-import { CompiledOutputView } from '../../components/CompiledOutputView';
+import { usePdfWorkspace } from '../../context/PdfWorkspaceContext';
+import { PdfTaskCompleted } from '../../components/PdfWorkspaceShell/PdfTaskCompleted';
 
 export function HtmlToPdf() {
   const [activeTab, setActiveTab] = useState<'html' | 'url'>('html');
@@ -24,13 +23,16 @@ export function HtmlToPdf() {
   const [outputUrl, setOutputUrl] = useState<string>('');
   const [outputSize, setOutputSize] = useState<number>(0);
   const [outputName, setOutputName] = useState<string>('');
+  const [outputBlob, setOutputBlob] = useState<Blob | null>(null);
 
   const { showSuccess, showError } = useToast();
+  const { chainOutput } = usePdfWorkspace();
 
   const clearOutputs = () => {
     setOutputUrl('');
     setOutputSize(0);
     setOutputName('');
+    setOutputBlob(null);
   };
 
   const executeConvert = async () => {
@@ -63,66 +65,36 @@ export function HtmlToPdf() {
       setOutputUrl(URL.createObjectURL(blob));
       setOutputSize(blob.size);
       setOutputName(outName);
+      setOutputBlob(blob);
 
       StorageService.updateStats(1, 0);
       HistoryService.addPdfEntry('HTML to PDF', outName, blob.size);
 
-      showSuccess('PDF Document ready!', `${outName} · ${getFriendlySize(blob.size)}`);
+      // Chain output
+      chainOutput(blob, outName);
+
+      showSuccess('PDF compiled successfully!', `${outName} · ${getFriendlySize(blob.size)}`);
       confetti({ particleCount: 65, spread: 50, origin: { y: 0.85 } });
     } catch (err: any) {
       console.error(err);
-      showError('Conversion failed', err.message || 'Could not convert input to PDF.');
+      showError('Compile failed', err.message || 'Error converting HTML markup to PDF.');
     } finally {
       setIsProcessing(false);
       setProgressMsg('');
     }
   };
 
-  const steps: StepItem[] = [
-    { step: 1, text: 'Choose either HTML Code input or enter a target Web URL.' },
-    { step: 2, text: 'Click "Convert to PDF" to compile the tags or capture the page.' },
-    { step: 3, text: 'Download the completed standard PDF document immediately.' }
-  ];
-
-  const benefits: BenefitItem[] = [
-    { title: 'Responsive Layouts', desc: 'Auto-fits standard A4 dimensions with clean margins.' },
-    { title: 'Live Capture Rendering', desc: 'Renders stylesheets, visual graphics, and page alignments.' },
-    { title: '100% Secure', desc: 'Captures webpage layout securely, preserving session sandboxing.' }
-  ];
-
-  const faqs: FAQItem[] = [
-    { question: 'What HTML tags are parsed?', answer: 'Headings, lists, breaks, divs, paragraphs, and styles are cleanly rendered into the output document.' },
-    { question: 'Does URL rendering support media styles?', answer: 'Yes. Headless browsers apply print-media standard stylesheet settings to translate web layouts into document pages.' },
-    { question: 'Are credentials or cookies shared?', answer: 'No. Target URLs are fetched independently by our sandbox environment without any user session parameters.' }
-  ];
-
-  const relatedTools: RelatedToolItem[] = [
-    { name: 'Merge PDF', desc: 'Combine multiple PDF files.', path: '/merge-pdf', icon: Globe },
-    { name: 'Edit PDF', desc: 'Add text and shape annotations to PDFs.', path: '/edit-pdf', icon: Code },
-    { name: 'Page Numbers', desc: 'Insert running numbers on pages.', path: '/page-numbers', icon: Code }
-  ];
-
   return (
-    <ToolPageLayout
-      title="Compile HTML or URL to PDF"
-      subtitle="Convert raw HTML code or capture entire webpage links into clean, standard PDF documents online for free."
-      breadcrumbName="HTML & URL to PDF"
-      seoTitle="Compile HTML or URL to PDF Online Free - Webpage to PDF | CompressKro"
-      seoDescription="Convert raw HTML markup or target website URLs to PDF online for free. High-fidelity layouts, safe and private."
-      canonicalPath="/html-to-pdf"
-      steps={steps}
-      benefits={benefits}
-      faqs={faqs}
-      relatedTools={relatedTools}
-    >
+    <>
       <div className="space-y-6">
-        {outputUrl ? (
-          <CompiledOutputView
-            outputUrl={outputUrl}
-            outputSize={outputSize}
-            outputName={outputName}
-            onClear={() => {
+        {outputUrl && outputBlob ? (
+          <PdfTaskCompleted
+            fileName={outputName}
+            fileSize={outputSize}
+            outputBlob={outputBlob}
+            onReset={() => {
               clearOutputs();
+              setOutputBlob(null);
             }}
           />
         ) : (
@@ -161,7 +133,7 @@ export function HtmlToPdf() {
             {activeTab === 'html' ? (
               <div className="space-y-4">
                 <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                  <Code className="w-4 h-4 text-cyan-500" />
+                  <Code className="w-4 h-4 text-pink-500" />
                   <span>Input HTML Code Markup</span>
                 </h3>
 
@@ -170,7 +142,7 @@ export function HtmlToPdf() {
                     value={htmlCode}
                     onChange={(e) => setHtmlCode(e.target.value)}
                     rows={10}
-                    className="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/20 text-xs font-mono text-slate-700 dark:text-slate-350 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 outline-hidden transition-all"
+                    className="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/20 text-xs font-mono text-slate-700 dark:text-slate-350 focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500 outline-hidden transition-all"
                     placeholder="<h1>Type HTML code here...</h1>"
                   />
                 </div>
@@ -178,7 +150,7 @@ export function HtmlToPdf() {
             ) : (
               <div className="space-y-4">
                 <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                  <Globe className="w-4 h-4 text-cyan-500" />
+                  <Globe className="w-4 h-4 text-pink-500" />
                   <span>Input Website URL Target</span>
                 </h3>
 
@@ -187,7 +159,7 @@ export function HtmlToPdf() {
                     type="text"
                     value={targetUrl}
                     onChange={(e) => setTargetUrl(e.target.value)}
-                    className="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/20 text-xs text-slate-700 dark:text-slate-350 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 outline-hidden transition-all"
+                    className="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/20 text-xs text-slate-700 dark:text-slate-350 focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500 outline-hidden transition-all"
                     placeholder="e.g. https://google.com"
                   />
                 </div>
@@ -199,14 +171,32 @@ export function HtmlToPdf() {
               disabled={
                 (activeTab === 'html' ? !htmlCode.trim() : !targetUrl.trim()) || isProcessing
               }
-              className="w-full py-3 rounded-xl font-bold text-xs text-white bg-gradient-to-r from-cyan-500 to-blue-650 hover:opacity-90 disabled:opacity-40 transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+              className="w-full py-3 rounded-xl font-bold text-xs text-white bg-gradient-to-r from-pink-500 to-pink-600 hover:opacity-90 disabled:opacity-40 transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
             >
               {isProcessing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
               <span>{isProcessing ? progressMsg : 'Convert to PDF'}</span>
             </button>
+
+            <div className="border-t border-slate-200/50 dark:border-slate-800/50 pt-4 space-y-3">
+              <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">How to use HTML to PDF</h4>
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <span className="w-4 h-4 rounded-full bg-pink-100 dark:bg-pink-950 text-pink-600 dark:text-pink-400 flex items-center justify-center text-[9px] font-bold flex-shrink-0 mt-0.5">1</span>
+                  <p className="text-[10.5px] font-semibold text-slate-500 dark:text-slate-400 leading-normal">Choose between raw HTML Code entry or Web URL link.</p>
+                </div>
+                <div className="flex gap-2">
+                  <span className="w-4 h-4 rounded-full bg-pink-100 dark:bg-pink-950 text-pink-600 dark:text-pink-400 flex items-center justify-center text-[9px] font-bold flex-shrink-0 mt-0.5">2</span>
+                  <p className="text-[10.5px] font-semibold text-slate-500 dark:text-slate-400 leading-normal">Input custom HTML markup or paste the target webpage address.</p>
+                </div>
+                <div className="flex gap-2">
+                  <span className="w-4 h-4 rounded-full bg-pink-100 dark:bg-pink-950 text-pink-600 dark:text-pink-400 flex items-center justify-center text-[9px] font-bold flex-shrink-0 mt-0.5">3</span>
+                  <p className="text-[10.5px] font-semibold text-slate-500 dark:text-slate-400 leading-normal">Click "Convert to PDF" to generate and download the rendered document.</p>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
-    </ToolPageLayout>
+    </>
   );
 }

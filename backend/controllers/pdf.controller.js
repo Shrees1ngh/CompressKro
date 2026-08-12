@@ -160,12 +160,12 @@ async function handleOcrPdf(req, res, next) {
 
     fs.writeFileSync(inputPath, req.file.buffer);
 
-    const success = processOcr(inputPath, outputPath);
+    const result = await processOcr(inputPath, outputPath);
 
     try { if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath); } catch {}
 
-    if (!success || !fs.existsSync(outputPath)) {
-      return res.status(500).json({ error: 'OCR processing failed' });
+    if (!result.success || !fs.existsSync(outputPath)) {
+      return res.status(500).json({ error: result.error || 'OCR processing failed' });
     }
 
     const outputBuffer = fs.readFileSync(outputPath);
@@ -178,6 +178,7 @@ async function handleOcrPdf(req, res, next) {
     });
     res.send(outputBuffer);
   } catch (err) {
+    console.error('[OCR Controller] Unhandled error:', err);
     next(err);
   }
 }

@@ -2,7 +2,7 @@
 // CompressKro — Remove Watermark PDF Page Component
 // ============================================================
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { PDFDocument, rgb, PDFName } from 'pdf-lib';
 import confetti from 'canvas-confetti';
 import { 
@@ -16,10 +16,10 @@ import { StorageService } from '../../services/storage.service';
 import { HistoryService } from '../../services/history.service';
 import { getFriendlySize } from '../../utils/format';
 import { BACKEND_API_URL } from '../../constants';
-import { ToolPageLayout } from '../../components/ToolPageLayout';
-import type { StepItem, BenefitItem, FAQItem, RelatedToolItem } from '../../components/ToolPageLayout';
-import { CompiledOutputView } from '../../components/CompiledOutputView';
+import { usePdfWorkspace } from '../../context/PdfWorkspaceContext';
+import { PdfTaskCompleted } from '../../components/PdfWorkspaceShell/PdfTaskCompleted';
 import type { PDFFileItem } from '../../types';
+import { HowToUse } from '../../components/ui/HowToUse';
 
 export function RemoveWatermark() {
   const [rmFile, setRmFile] = useState<PDFFileItem | null>(null);
@@ -30,9 +30,27 @@ export function RemoveWatermark() {
   const [outputUrl, setOutputUrl] = useState<string>('');
   const [outputSize, setOutputSize] = useState<number>(0);
   const [outputName, setOutputName] = useState<string>('');
+  const [outputBlob, setOutputBlob] = useState<Blob | null>(null);
 
   const rmInputRef = useRef<HTMLInputElement>(null);
   const { showSuccess, showError } = useToast();
+  const { activeFile, activeFileName, activeFileSize, chainOutput } = usePdfWorkspace();
+
+  // Auto-load file from workspace context
+  useEffect(() => {
+    if (activeFile) {
+      setRmFile({
+        id: 'active',
+        name: activeFileName,
+        size: activeFileSize,
+        blob: activeFile
+      });
+      clearOutputs();
+      setOutputBlob(null);
+    } else {
+      setRmFile(null);
+    }
+  }, [activeFile]);
 
   const clearOutputs = () => {
     setOutputUrl('');
@@ -102,74 +120,53 @@ export function RemoveWatermark() {
       });
 
       const bytes = await pdfDoc.save();
-      const blob = new Blob([bytes as any], { type: 'application/pdf' });
+      const outputBlob = new Blob([bytes as any], { type: 'application/pdf' });
 
-      setOutputUrl(URL.createObjectURL(blob));
-      setOutputSize(blob.size);
+      setOutputUrl(URL.createObjectURL(outputBlob));
+      setOutputSize(outputBlob.size);
       setOutputName(`clean_${rmFile.name}`);
+      setOutputBlob(outputBlob);
 
       StorageService.updateStats(1, 0);
-      HistoryService.addPdfEntry('Remove Watermark', `clean_${rmFile.name}`, blob.size);
+      HistoryService.addPdfEntry('Remove Watermark', `clean_${rmFile.name}`, outputBlob.size);
 
-      showSuccess('PDF ready!', `clean_${rmFile.name} · ${getFriendlySize(blob.size)}`);
+      showSuccess('Watermark removed!', `clean_${rmFile.name} · ${getFriendlySize(outputBlob.size)}`);
       confetti({ particleCount: 65, spread: 50, origin: { y: 0.85 } });
     } catch (err) {
       console.error(err);
-      showError('Cleanup failed', 'Error stripping annotations or watermark regions.');
+      showError('Cleanup failed', 'Error removing watermarks or masking PDF.');
     } finally {
       setIsProcessing(false);
       setProgressMsg('');
     }
   };
 
-  const steps: StepItem[] = [
-    { step: 1, text: 'Click "Select PDF Document" and upload your watermarked PDF file.' },
-    { step: 2, text: 'Select Removal Mode: either strip digital Annotation layers or place custom white Masks.' },
-    { step: 3, text: 'Click "Process Cleanup" to strip watermark metadata and download.' }
-  ];
 
-  const benefits: BenefitItem[] = [
-    { title: 'Strip Annotations', desc: 'Queries backend Ghostscript engine to drop PDF stamps and comments layers.' },
-    { title: 'Custom Area Masking', desc: 'Allows blocking header, footer, or center regions with solid white page masks.' },
-    { title: 'Clean Documents', desc: 'Generates polished, clean outputs without altering the vector layouts.' }
-  ];
-
-  const faqs: FAQItem[] = [
-    { question: 'How does annotation stripping work?', answer: 'Many PDF watermarks are saved as digital "Annotation" layers. Our tool strips these specific dictionary entries, removing the watermark while preserving page contents.' },
-    { question: 'What is regional masking?', answer: 'If watermarks are permanently rasterized/flattened onto the page, they cannot be deleted. Instead, regional masking draws a solid white rectangle over target areas (header, footer, center) to cover them.' },
-    { question: 'Will this make the file look messy?', answer: 'Annotation stripping keeps the layout perfectly clean. Region masking covers the background, which is ideal if the background is solid white.' },
-    { question: 'Can I remove text watermarks that are merged into the main content?', answer: 'If a text watermark is completely baked into the content stream as vector paths, it cannot be safely stripped without removing normal page text. In this case, use "Mask Center" or another masking option.' }
-  ];
-
-  const relatedTools: RelatedToolItem[] = [
-    { name: 'Add Watermark', desc: 'Add text or logo watermark.', path: '/add-watermark', icon: FileText },
-    { name: 'Split PDF', desc: 'Extract pages or split ranges.', path: '/split-pdf', icon: FileText },
-    { name: 'Page Numbers', desc: 'Add page indices.', path: '/page-numbers', icon: FileText }
-  ];
 
   return (
-    <ToolPageLayout
-      title="Remove Watermark from PDF Online"
-      subtitle="Strip digital annotation layers or overlay clean white region masks on your PDF."
-      breadcrumbName="Remove Watermark"
-      seoTitle="Remove Watermark from PDF Free - Strip PDF Watermarks | CompressKro"
-      seoDescription="Remove watermarks from PDF documents online for free. Strip annotation stamps or mask header/footer/center watermark zones. Secure local browser edits."
-      canonicalPath="/remove-watermark"
-      steps={steps}
-      benefits={benefits}
-      faqs={faqs}
-      relatedTools={relatedTools}
-    >
+    <>
       <div className="space-y-6">
-        {outputUrl ? (
-          <CompiledOutputView
-            outputUrl={outputUrl}
-            outputSize={outputSize}
-            outputName={outputName}
-            onClear={() => {
+        {outputUrl && outputBlob ? (
+          <PdfTaskCompleted
+            fileName={outputName}
+            fileSize={outputSize}
+            originalSize={rmFile?.size}
+            outputBlob={outputBlob}
+            onReset={() => {
               clearOutputs();
+              setOutputBlob(null);
               setRmFile(null);
             }}
+          />
+        ) : !rmFile ? (
+          <HowToUse
+            title="Remove Watermark"
+            icon={Eraser}
+            steps={[
+              'Upload your PDF document in the center canvas.',
+              'Select a removal mode: Strip annotations layer or Mask/Cover specific regions (Header, Footer, Center).',
+              'Click "Process Cleanup" to strip watermarks and download your clean PDF.'
+            ]}
           />
         ) : (
           <div className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/40 dark:bg-slate-900/40 glass-panel space-y-6 shadow-sm">
@@ -179,38 +176,21 @@ export function RemoveWatermark() {
             </h3>
 
             <div className="space-y-4">
-              <input 
-                type="file" 
-                ref={rmInputRef} 
-                onChange={(e) => e.target.files?.[0] && setRmFile({ id: 'rm', name: e.target.files[0].name, size: e.target.files[0].size, blob: e.target.files[0] })} 
-                accept="application/pdf" 
-                className="hidden" 
-              />
-              <button
-                onClick={() => rmInputRef.current?.click()}
-                className="w-full py-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-rose-500 bg-white/50 dark:bg-slate-950/20 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-center gap-2 transition-colors cursor-pointer"
-              >
-                <Upload className="w-4 h-4 text-rose-500" />
-                <span>{rmFile ? rmFile.name : 'Select PDF Document'}</span>
-              </button>
-
-              {rmFile && (
-                <div className="space-y-2">
-                  <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400">
-                    Removal Mode
-                  </label>
-                  <select
-                    value={rmMode}
-                    onChange={(e) => setRmMode(e.target.value as any)}
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-rose-500/30"
-                  >
-                    <option value="annotations">Strip Annotations & Watermark Markup Layers</option>
-                    <option value="maskHeader">Mask Header Region (Cover Top Box)</option>
-                    <option value="maskFooter">Mask Footer Region (Cover Bottom Box)</option>
-                    <option value="maskCenter">Mask Center Region (Cover Center Stamp)</option>
-                  </select>
-                </div>
-              )}
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400">
+                  Removal Mode
+                </label>
+                <select
+                  value={rmMode}
+                  onChange={(e) => setRmMode(e.target.value as any)}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-rose-500/30"
+                >
+                  <option value="annotations">Strip Annotations & Watermark Markup Layers</option>
+                  <option value="maskHeader">Mask Header Region (Cover Top Box)</option>
+                  <option value="maskFooter">Mask Footer Region (Cover Bottom Box)</option>
+                  <option value="maskCenter">Mask Center Region (Cover Center Stamp)</option>
+                </select>
+              </div>
             </div>
 
             <button
@@ -224,6 +204,6 @@ export function RemoveWatermark() {
           </div>
         )}
       </div>
-    </ToolPageLayout>
+    </>
   );
 }

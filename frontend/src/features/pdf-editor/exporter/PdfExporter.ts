@@ -82,6 +82,24 @@ function detectIfPageIsGrayscale(ctx: CanvasRenderingContext2D, width: number, h
 }
 
 /**
+ * Checks if a hex color code represents a non-grayscale color.
+ */
+function isHexColorColored(hex: string): boolean {
+  if (!hex) return false;
+  let clean = hex.replace('#', '').trim();
+  if (clean.length === 3) {
+    clean = clean[0] + clean[0] + clean[1] + clean[1] + clean[2] + clean[2];
+  }
+  if (clean.length !== 6) return false;
+  const r = parseInt(clean.substring(0, 2), 16);
+  const g = parseInt(clean.substring(2, 4), 16);
+  const b = parseInt(clean.substring(4, 6), 16);
+  const avg = (r + g + b) / 3;
+  const dev = (Math.abs(r - avg) + Math.abs(g - avg) + Math.abs(b - avg)) / 3;
+  return dev > 10;
+}
+
+/**
  * Converts the canvas to grayscale using standard luminance weights.
  */
 function convertCanvasToGrayscale(ctx: CanvasRenderingContext2D, width: number, height: number) {
@@ -130,7 +148,8 @@ export async function exportPdf(
   for (let pageIdx = 0; pageIdx < totalPages; pageIdx++) {
     onProgress?.(`Rendering and flattening page ${pageIdx + 1} of ${totalPages}...`, (pageIdx / totalPages) * 0.8);
 
-    const page = await document.pdfjsDocument.getPage(pageIdx + 1);
+    const pageData = document.pages[pageIdx];
+    const page = await document.pdfjsDocument.getPage(pageData.pageIndex + 1);
     const viewport = page.getViewport({ scale });
 
     // Create an offscreen canvas
@@ -147,9 +166,9 @@ export async function exportPdf(
     const renderTask = page.render({ canvasContext: ctx, viewport });
     await renderTask.promise;
 
-    // Filter and sort page objects by zIndex
+    // Filter and sort page objects by zIndex (map to pageData's original pageIndex)
     const pageObjects = Array.from(objects.values())
-      .filter((obj) => obj.pageIndex === pageIdx)
+      .filter((obj) => obj.pageIndex === pageData.pageIndex)
       .sort((a, b) => a.zIndex - b.zIndex);
 
     // Render each overlay edit object onto the canvas
@@ -287,8 +306,22 @@ export async function exportPdf(
       ctx.restore();
     }
 
+    // Check if user has added any color annotations to this page
+    let hasColorAnnotation = false;
+    for (const obj of pageObjects) {
+      if (obj.type === 'text' && isHexColorColored((obj as TextObject).color)) {
+        hasColorAnnotation = true;
+      } else if (obj.type === 'shape') {
+        const s = obj as ShapeObject;
+        if (s.strokeColor && isHexColorColored(s.strokeColor)) hasColorAnnotation = true;
+        if (s.fillColor && isHexColorColored(s.fillColor)) hasColorAnnotation = true;
+      } else if (obj.type === 'freehand' && isHexColorColored((obj as FreehandObject).strokeColor)) {
+        hasColorAnnotation = true;
+      }
+    }
+
     // Adaptive Color Detection (Phase 1)
-    const isGrayscale = detectIfPageIsGrayscale(ctx, canvas.width, canvas.height);
+    const isGrayscale = !hasColorAnnotation && detectIfPageIsGrayscale(ctx, canvas.width, canvas.height);
     if (isGrayscale) {
       convertCanvasToGrayscale(ctx, canvas.width, canvas.height);
     }
@@ -318,23 +351,27 @@ export async function exportPdf(
     if (options?.doOcr) {
       onProgress?.(`Running OCR on page ${pageIdx + 1} of ${totalPages}...`, 0.8 + (pageIdx / totalPages) * 0.08);
       try {
-        const { data } = await Tesseract.recognize(dataUrl, 'eng');
-        const words = (data as any).words || [];
+        const { data } = await Tesseract.recognize(dataUrl, 'eng', {
+          workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.0.5/dist/worker.min.js',
+          langPath: 'https://tessdata.projectnaptha.com/4.0.0',
+          corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.0.0/tesseract-core.wasm.js',
+        });
+        const lines = (data as any).lines || [];
         
-        for (const word of words) {
-          const { x0, y0, y1 } = word.bbox;
+        for (const line of lines) {
+          const { x0, y0, y1 } = line.bbox;
           
           // Map canvas pixel coordinates to PDF point coordinates
-          const wordHeight = (y1 - y0) / scale;
-          const wordX = x0 / scale;
-          const wordY = originalHeight - (y1 / scale);
+          const lineHeight = (y1 - y0) / scale;
+          const lineX = x0 / scale;
+          const lineY = originalHeight - (y1 / scale);
           
-          newPage.drawText(word.text, {
-            x: wordX,
-            y: wordY,
-            size: wordHeight * 0.8, // size slightly smaller than box height
+          newPage.drawText(line.text.trim(), {
+            x: lineX,
+            y: lineY,
+            size: lineHeight * 0.8, // size slightly smaller than box height
             font: ocrFont,
-            opacity: 0, // Invisible selectable layer
+            opacity: 0.01, // 0.01 is invisible to the human eye but indexes perfectly on desktop & mobile (iOS/Android)
           });
         }
       } catch (ocrErr) {

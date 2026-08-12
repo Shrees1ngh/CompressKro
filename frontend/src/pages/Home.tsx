@@ -1,58 +1,86 @@
 // ============================================================
-// CompressKro — Homepage & Home Dashboard Component
+// CompressKro - Homepage & Tool Finder
+// 2026 Premium Redesign — Warm, human, professional
 // ============================================================
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { 
-  ListOrdered, 
-  FileText, 
-  RotateCw, 
-  Upload, 
-  Lock, 
-  Unlock, 
-  Droplets, 
-  Eraser, 
-  PenTool, 
-  Hash, 
-  FileImage, 
-  FileSpreadsheet, 
-  ScanText, 
-  FileDown,
-  Image as ImageIcon,
-  Maximize2,
-  UserCheck,
-  Sparkles,
-  Zap,
-  ShieldCheck,
-  LockKeyhole,
-  TrendingDown,
-  History,
-  Trash2,
-  Search,
-  X,
-  RotateCcw,
-  Clock,
-  Edit3,
-  Wrench,
-  Crop,
-  Globe,
+import {
   ArrowRight,
-  Play,
   Check,
-  MousePointer,
-  CloudUpload,
   ChevronRight,
-  Folder,
+  Clock,
+  CloudUpload,
+  Crop,
+  Droplets,
+  Eraser,
+  FileDown,
+  FileImage,
+  FileSpreadsheet,
+  FileText,
+  Globe,
   HelpCircle,
-  ChevronDown,
-  ChevronUp
+  History,
+  Image as ImageIcon,
+  Layers3,
+  ListOrdered,
+  Lock,
+  LockKeyhole,
+  Maximize2,
+  Minus,
+  PenTool,
+  Plus,
+  RotateCcw,
+  RotateCw,
+  ScanText,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  Star,
+  Trash2,
+  Upload,
+  UserCheck,
+  Wand2,
+  Wrench,
+  X,
+  Zap
 } from 'lucide-react';
 
+import heroImage from '../assets/hero.png';
 import { StorageService } from '../services/storage.service';
 import { useHistory } from '../hooks/useHistory';
 import { useToast } from '../hooks/useToast';
+
+// ---- Scroll Reveal Hook ----
+function useScrollReveal() {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          el.classList.add('revealed');
+          observer.unobserve(el);
+        }
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  return ref;
+}
+
+function RevealSection({ children, className = '', stagger = false }: { children: React.ReactNode; className?: string; stagger?: boolean }) {
+  const ref = useScrollReveal();
+  return (
+    <div ref={ref} className={`animate-reveal ${stagger ? 'stagger-children' : ''} ${className}`}>
+      {children}
+    </div>
+  );
+}
 
 interface ToolItem {
   name: string;
@@ -60,211 +88,134 @@ interface ToolItem {
   path: string;
   icon: React.ElementType;
   color: string;
+  bgColor: string;
+  badge?: string;
 }
 
 interface CategoryGroup {
   title: string;
   desc: string;
+  icon: React.ElementType;
+  accentColor: string;
   tools: ToolItem[];
 }
 
 const TOOL_FILTER_OPTIONS = ['All', 'Compression', 'Resize', 'Format Convert', 'Passport Maker', 'PDF'] as const;
 
+const trustPoints = [
+  { title: 'Privacy first', desc: 'Most tools run directly in your browser — files never leave your device.', icon: ShieldCheck, accent: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/30' },
+  { title: 'No sign up needed', desc: 'Open a tool, add your file, download the result. That simple.', icon: Zap, accent: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-950/30' },
+  { title: 'Portal ready', desc: 'Target exact KB limits for government forms and exam uploads.', icon: Check, accent: 'text-violet-600', bg: 'bg-violet-50 dark:bg-violet-950/30' },
+  { title: 'Clean exports', desc: 'Reduce file size and strip metadata for professional output.', icon: LockKeyhole, accent: 'text-sky-600', bg: 'bg-sky-50 dark:bg-sky-950/30' }
+];
+
 const faqs = [
   {
-    question: "Is CompressKro completely free to use?",
-    answer: "Yes, CompressKro is 100% free with no sign-ups, no limitations, no paywalls, and no watermarks. You can optimize, compress, and edit as many files as you need."
+    question: 'Is CompressKro completely free?',
+    answer: 'Yes. CompressKro is free to use, with no sign up, no watermark, and no paid gate on normal PDF and image tasks.'
   },
   {
-    question: "How does CompressKro keep my files private?",
-    answer: "Your privacy is our core priority. Most operations (compressing, merging, splitting, converting, editing) run entirely inside your browser container using client-side technologies (like WebAssembly and Canvas). Your files never leave your device. For tools that require server-side computing (like PDF Repair or OCR), data routes are fully HTTPS encrypted, processed securely in transient memory, and immediately deleted afterwards. We never permanently store or see your data."
+    question: 'Are my files uploaded to a server?',
+    answer: 'Most PDF and image operations run inside your browser, so files stay on your device. Tools that require heavier processing, such as OCR or repair, use encrypted transfer and temporary processing only.'
   },
   {
-    question: "What is the maximum file size limit?",
-    answer: "You can optimize and process files up to 100MB each. This limit applies to all free PDF and image processing tools."
+    question: 'Which files can I work with?',
+    answer: 'You can use CompressKro for PDFs, JPG, PNG, WebP, HEIC, HTML conversions, passport photos, signatures, and government portal size presets.'
   },
   {
-    question: "What are Govt Portal Presets?",
-    answer: "We offer pre-configured presets for popular government portals (like SSC, UPSC, bank exams, etc.). These presets automatically resize your passport photos and signatures to match the exact dimensions and file size bounds (e.g., under 50KB or 20KB) required by official portal guidelines."
+    question: 'Can I make files fit under 20KB, 50KB, or 100KB?',
+    answer: 'Yes. The compression and government portal tools are designed around exact target sizes, so you can fit documents, photos, and signatures under common upload limits.'
   },
   {
-    question: "Does CompressKro store my data?",
-    answer: "No. Since processing happens client-side in your browser sandbox, we have zero knowledge of your files. When server-side computation is used, files are kept strictly in transient memory and deleted immediately after the task is finished."
-  },
-  {
-    question: "Can I use CompressKro on mobile devices?",
-    answer: "Yes! CompressKro is fully responsive and optimized for mobile browsers, tablets, and desktops alike. You can easily compress and edit files on the go."
+    question: 'Does CompressKro work on mobile?',
+    answer: 'Yes. The interface is responsive and built for quick use on phones, tablets, laptops, and desktops.'
   }
 ];
 
 export function Home() {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   const [historySearch, setHistorySearch] = useState('');
   const [historyFilter, setHistoryFilter] = useState<string>('All');
   const [showAllHistory, setShowAllHistory] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
-  
   const [simProgress, setSimProgress] = useState(0);
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
 
   const { history, deleteEntry, clearHistory } = useHistory();
   const { showInfo } = useToast();
-
   const stats = StorageService.getStats();
-
-  const handleClearHistory = () => {
-    clearHistory();
-    showInfo('History cleared', 'All operation history has been removed.');
-  };
-
-  const handleDummyClick = (action: string) => {
-    showInfo(`${action} triggered`, `Demo simulation of ${action} completed.`);
-  };
 
   useEffect(() => {
     const timer = setInterval(() => {
       setSimProgress((prev) => (prev >= 100 ? 0 : prev + 1));
-    }, 45);
+    }, 55);
     return () => clearInterval(timer);
   }, []);
 
-  const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      setSelectedFile(e.dataTransfer.files[0]);
-    }
-  };
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setSelectedFile(e.target.files[0]);
-    }
-  };
-
-  const clearSelectedFile = () => {
-    setSelectedFile(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
-  const navigateToTool = (path: string) => {
-    if (selectedFile) {
-      navigate(path, { state: { file: selectedFile } });
-    }
-  };
-
-  const getToolOptionsForFile = () => {
-    if (!selectedFile) return [];
-    const name = selectedFile.name.toLowerCase();
-    
-    if (name.endsWith('.pdf')) {
-      return [
-        { name: 'Compress PDF', path: '/compress-pdf', icon: FileDown, desc: 'Reduce PDF file size.' },
-        { name: 'Split PDF', path: '/split-pdf', icon: FileText, desc: 'Extract specific pages.' },
-        { name: 'Merge PDF', path: '/merge-pdf', icon: ListOrdered, desc: 'Combine with other files.' },
-        { name: 'Rotate PDF', path: '/rotate-pdf', icon: RotateCw, desc: 'Reorder and spin pages.' },
-        { name: 'OCR PDF', path: '/ocr-pdf', icon: ScanText, desc: 'Make scanned pages searchable.' }
-      ];
-    }
-    
-    if (name.endsWith('.jpg') || name.endsWith('.jpeg') || name.endsWith('.png') || name.endsWith('.webp') || name.endsWith('.heic')) {
-      return [
-        { name: 'Compress Image', path: '/compress-image', icon: ImageIcon, desc: 'Target a specific file size.' },
-        { name: 'Resize Image', path: '/resize-image', icon: Maximize2, desc: 'Crop or scale dimensions.' },
-        { name: 'Format Converter', path: '/convert-image', icon: FileSpreadsheet, desc: 'Convert PNG/JPG/WebP/HEIC.' },
-        { name: 'Passport Photo Maker', path: '/passport-maker', icon: UserCheck, desc: 'Fit portal layouts.' },
-        { name: 'Remove Background', path: '/remove-background', icon: Eraser, desc: 'Erase background instantly.' },
-        { name: 'Image Editor', path: '/edit-image', icon: Edit3, desc: 'Apply filters and crops.' }
-      ];
-    }
-
-    return [
-      { name: 'Images to PDF', path: '/images-to-pdf', icon: Upload, desc: 'Compile documents.' },
-      { name: 'HTML to PDF', path: '/html-to-pdf', icon: Globe, desc: 'Save webpages.' }
-    ];
-  };
-
-  const popularTools = [
-    { name: 'Compress PDF', desc: 'Reduce PDF size while preserving quality.', path: '/compress-pdf', icon: FileDown, color: 'text-purple-500', bg: 'bg-purple-50 dark:bg-purple-950/20' },
-    { name: 'Merge PDF', desc: 'Combine multiple files in any sequence.', path: '/merge-pdf', icon: ListOrdered, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-950/20' },
-    { name: 'Split PDF', desc: 'Split documents or extract single pages.', path: '/split-pdf', icon: FileText, color: 'text-violet-500', bg: 'bg-violet-50 dark:bg-violet-950/20' },
-    { name: 'OCR PDF', desc: 'Convert scanned documents to searchable text.', path: '/ocr-pdf', icon: ScanText, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-950/20' },
-    { name: 'Compress Image', desc: 'Target KB size compression for web portals.', path: '/compress-image', icon: ImageIcon, color: 'text-pink-500', bg: 'bg-pink-50 dark:bg-pink-950/20' },
-    { name: 'Remove Background', desc: 'AI background remover running fully offline.', path: '/remove-background', icon: Eraser, color: 'text-rose-500', bg: 'bg-rose-50 dark:bg-rose-950/20' }
-  ];
-
   const categories: CategoryGroup[] = [
     {
-      title: 'Organize PDF',
-      desc: 'Rearrange, merge, and split PDF pages with absolute ease.',
+      title: 'PDF Tools',
+      desc: 'Compress, merge, split, edit, secure, OCR, and convert PDF documents.',
+      icon: FileText,
+      accentColor: 'violet',
       tools: [
-        { name: 'Merge PDF', desc: 'Combine multiple PDF files in any order.', path: '/merge-pdf', icon: ListOrdered, color: 'text-blue-500' },
-        { name: 'Split PDF', desc: 'Extract pages or split document ranges.', path: '/split-pdf', icon: FileText, color: 'text-violet-500' },
-        { name: 'Rotate & Order', desc: 'Rearrange and rotate pages with drag-and-drop.', path: '/rotate-pdf', icon: RotateCw, color: 'text-indigo-500' },
-        { name: 'Crop PDF', desc: 'Crop page margins and define custom boundaries.', path: '/crop-pdf', icon: Crop, color: 'text-purple-500' }
-      ]
-    },
-    {
-      title: 'Convert PDF',
-      desc: 'Convert PDF files to and from other common file formats.',
-      tools: [
-        { name: 'PDF to JPG', desc: 'Save PDF pages as JPEG images.', path: '/pdf-to-jpg', icon: FileImage, color: 'text-rose-500' },
-        { name: 'Images to PDF', desc: 'Convert PNG, JPG, and WebP into PDF pages.', path: '/images-to-pdf', icon: Upload, color: 'text-teal-500' },
-        { name: 'Extract Images', desc: 'Extract inline photos and assets from PDF.', path: '/extract-images', icon: ImageIcon, color: 'text-yellow-600' }
-      ]
-    },
-    {
-      title: 'Edit PDF',
-      desc: 'Annotate, customize, seal, or stamp your PDF documents.',
-      tools: [
-        { name: 'Edit PDF', desc: 'Modify text, add shapes, images, or whiteout regions.', path: '/edit-pdf', icon: Edit3, color: 'text-pink-500' },
-        { name: 'Add Signature', desc: 'Sign PDFs, draw names, or upload stamp seals.', path: '/sign-pdf', icon: PenTool, color: 'text-fuchsia-500' },
-        { name: 'Add Watermark', desc: 'Add text or logo watermarks behind pages.', path: '/add-watermark', icon: Droplets, color: 'text-sky-500' },
-        { name: 'Remove Watermark', desc: 'Clean annotations and watermark layers.', path: '/remove-watermark', icon: Eraser, color: 'text-red-500' },
-        { name: 'Page Numbers', desc: 'Add customizable page numbers automatically.', path: '/page-numbers', icon: Hash, color: 'text-orange-500' }
-      ]
-    },
-    {
-      title: 'Security & Compression',
-      desc: 'Compress size, add passwords, OCR, or decrypt PDFs.',
-      tools: [
-        { name: 'Compress PDF', desc: 'Reduce PDF file size keeping high quality.', path: '/compress-pdf', icon: FileDown, color: 'text-purple-500' },
-        { name: 'OCR PDF', desc: 'Overlay searchable text layer on scanned pages.', path: '/ocr-pdf', icon: ScanText, color: 'text-amber-500' },
-        { name: 'Lock PDF', desc: 'Encrypt your document with passwords.', path: '/lock-pdf', icon: Lock, color: 'text-slate-650' },
-        { name: 'Unlock PDF', desc: 'Decrypt and remove owner passwords.', path: '/unlock-pdf', icon: Unlock, color: 'text-zinc-550' },
-        { name: 'Repair PDF', desc: 'Fix corrupted, damaged, or unreadable PDF files.', path: '/repair-pdf', icon: Wrench, color: 'text-emerald-500' },
-        { name: 'HTML to PDF', desc: 'Convert HTML code or web links into printable PDF.', path: '/html-to-pdf', icon: Globe, color: 'text-cyan-500' }
+        { name: 'Compress PDF', desc: 'Reduce PDF size while keeping clear output.', path: '/compress-pdf', icon: FileDown, color: 'text-violet-600', bgColor: 'bg-violet-50 dark:bg-violet-950/30', badge: 'Popular' },
+        { name: 'Edit PDF', desc: 'Add text, images, whiteout, shapes, and notes.', path: '/edit-pdf', icon: Wand2, color: 'text-fuchsia-600', bgColor: 'bg-fuchsia-50 dark:bg-fuchsia-950/30' },
+        { name: 'Merge PDF', desc: 'Combine multiple files into one ordered PDF.', path: '/merge-pdf', icon: ListOrdered, color: 'text-blue-600', bgColor: 'bg-blue-50 dark:bg-blue-950/30' },
+        { name: 'Split PDF', desc: 'Extract pages or split a PDF into ranges.', path: '/split-pdf', icon: FileText, color: 'text-indigo-600', bgColor: 'bg-indigo-50 dark:bg-indigo-950/30' },
+        { name: 'Rotate & Order', desc: 'Rotate pages and reorder them visually.', path: '/rotate-pdf', icon: RotateCw, color: 'text-sky-600', bgColor: 'bg-sky-50 dark:bg-sky-950/30' },
+        { name: 'Crop PDF', desc: 'Trim page margins and adjust visible areas.', path: '/crop-pdf', icon: Crop, color: 'text-purple-600', bgColor: 'bg-purple-50 dark:bg-purple-950/30' },
+        { name: 'OCR PDF', desc: 'Make scanned pages searchable and selectable.', path: '/ocr-pdf', icon: ScanText, color: 'text-amber-600', bgColor: 'bg-amber-50 dark:bg-amber-950/30' },
+        { name: 'Lock PDF', desc: 'Protect a document with a password.', path: '/lock-pdf', icon: Lock, color: 'text-slate-700 dark:text-slate-300', bgColor: 'bg-slate-100 dark:bg-slate-800/40' },
+        { name: 'Unlock PDF', desc: 'Remove restrictions from your own PDFs.', path: '/unlock-pdf', icon: LockKeyhole, color: 'text-zinc-700 dark:text-zinc-300', bgColor: 'bg-zinc-100 dark:bg-zinc-800/40' },
+        { name: 'Repair PDF', desc: 'Fix damaged or unreadable PDF files.', path: '/repair-pdf', icon: Wrench, color: 'text-emerald-600', bgColor: 'bg-emerald-50 dark:bg-emerald-950/30' },
+        { name: 'Sign PDF', desc: 'Add signatures, stamps, and initials.', path: '/sign-pdf', icon: PenTool, color: 'text-rose-600', bgColor: 'bg-rose-50 dark:bg-rose-950/30' },
+        { name: 'Watermark PDF', desc: 'Add or clean document watermarks.', path: '/add-watermark', icon: Droplets, color: 'text-cyan-600', bgColor: 'bg-cyan-50 dark:bg-cyan-950/30' }
       ]
     },
     {
       title: 'Image Tools',
-      desc: 'Crop, resize, convert format, and design portal photos.',
+      desc: 'Compress, resize, convert, edit, remove backgrounds, and prepare official photos.',
+      icon: ImageIcon,
+      accentColor: 'coral',
       tools: [
-        { name: 'Image Compressor', desc: 'Smart KB-targeted image compression.', path: '/compress-image', icon: ImageIcon, color: 'text-pink-500' },
-        { name: 'Image Resizer', desc: 'Resize pixels, crop bounds, and dimensions.', path: '/resize-image', icon: Maximize2, color: 'text-cyan-500' },
-        { name: 'Format Converter', desc: 'Convert formats between PNG, JPG, WebP, HEIC.', path: '/convert-image', icon: FileSpreadsheet, color: 'text-teal-650' },
-        { name: 'Passport Maker', desc: 'Print-ready passport photo layouts.', path: '/passport-maker', icon: UserCheck, color: 'text-lime-600' },
-        { name: 'Govt Assistant', desc: 'Portal presets (SSC, UPSC, etc.) templates.', path: '/govt-assistant', icon: Sparkles, color: 'text-yellow-500' },
-        { name: 'HTML to Image', desc: 'Convert HTML code markup or web URLs to PNG/JPG.', path: '/html-to-image', icon: Globe, color: 'text-violet-500' },
-        { name: 'Image Editor', desc: 'Filters, cropping, drawing, adjustments.', path: '/edit-image', icon: Edit3, color: 'text-pink-500' },
-        { name: 'Remove Background', desc: 'Erase backgrounds from signatures, logos, or green screens locally.', path: '/remove-background', icon: Eraser, color: 'text-rose-500' }
+        { name: 'Compress Image', desc: 'Hit target sizes like 20KB, 50KB, or 100KB.', path: '/compress-image', icon: ImageIcon, color: 'text-pink-600', bgColor: 'bg-pink-50 dark:bg-pink-950/30', badge: 'Popular' },
+        { name: 'Resize Image', desc: 'Resize by pixels, aspect ratio, or dimensions.', path: '/resize-image', icon: Maximize2, color: 'text-cyan-600', bgColor: 'bg-cyan-50 dark:bg-cyan-950/30' },
+        { name: 'Convert Image', desc: 'Convert JPG, PNG, WebP, and HEIC formats.', path: '/convert-image', icon: FileSpreadsheet, color: 'text-teal-600', bgColor: 'bg-teal-50 dark:bg-teal-950/30' },
+        { name: 'Image Editor', desc: 'Crop, tune, annotate, and export cleanly.', path: '/edit-image', icon: Wand2, color: 'text-violet-600', bgColor: 'bg-violet-50 dark:bg-violet-950/30' },
+        { name: 'Remove Background', desc: 'Cut out product photos, signatures, and IDs.', path: '/remove-background', icon: Eraser, color: 'text-rose-600', bgColor: 'bg-rose-50 dark:bg-rose-950/30', badge: 'Popular' },
+        { name: 'Passport Maker', desc: 'Create passport photo sheets and layouts.', path: '/passport-maker', icon: UserCheck, color: 'text-lime-700', bgColor: 'bg-lime-50 dark:bg-lime-950/30' },
+        { name: 'Govt Assistant', desc: 'Presets for forms, exams, photos, and signatures.', path: '/govt-assistant', icon: Sparkles, color: 'text-yellow-600', bgColor: 'bg-yellow-50 dark:bg-yellow-950/30' },
+        { name: 'HTML to Image', desc: 'Export HTML or webpage previews to images.', path: '/html-to-image', icon: Globe, color: 'text-blue-600', bgColor: 'bg-blue-50 dark:bg-blue-950/30' }
+      ]
+    },
+    {
+      title: 'Converters',
+      desc: 'Move between documents, images, and web formats without installing apps.',
+      icon: FileSpreadsheet,
+      accentColor: 'teal',
+      tools: [
+        { name: 'PDF to JPG', desc: 'Turn PDF pages into high-quality images.', path: '/pdf-to-jpg', icon: FileImage, color: 'text-red-600', bgColor: 'bg-red-50 dark:bg-red-950/30' },
+        { name: 'Images to PDF', desc: 'Convert photos and scans into one PDF.', path: '/images-to-pdf', icon: Upload, color: 'text-emerald-600', bgColor: 'bg-emerald-50 dark:bg-emerald-950/30' },
+        { name: 'Extract Images', desc: 'Pull embedded images out of PDF files.', path: '/extract-images', icon: Layers3, color: 'text-orange-600', bgColor: 'bg-orange-50 dark:bg-orange-950/30' },
+        { name: 'HTML to PDF', desc: 'Save markup or web pages as printable PDFs.', path: '/html-to-pdf', icon: Globe, color: 'text-sky-600', bgColor: 'bg-sky-50 dark:bg-sky-950/30' }
       ]
     }
   ];
+
+  const popularTools = [
+    categories[0].tools[0],
+    categories[1].tools[0],
+    categories[1].tools[4],
+    categories[0].tools[1],
+    categories[1].tools[6],
+    categories[0].tools[2]
+  ];
+
+  const flatTools = categories.flatMap((cat) => cat.tools);
 
   const filteredHistory = history.filter(h => {
     const matchesSearch =
@@ -277,10 +228,60 @@ export function Home() {
 
   const displayedHistory = showAllHistory ? filteredHistory : filteredHistory.slice(0, 6);
 
-  const getSimProgressText = () => {
-    if (simProgress < 30) return 'Analyzing layout structure...';
-    if (simProgress >= 30 && simProgress < 75) return 'Downscaling in-memory buffers...';
-    return 'Re-assembling binary descriptors...';
+  const handleClearHistory = () => {
+    clearHistory();
+    showInfo('History cleared', 'Your local operation history has been removed.');
+  };
+
+  const handleDummyClick = (action: string) => {
+    showInfo(action, 'Preview complete. Choose any tool to process your own file.');
+  };
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(e.type === 'dragenter' || e.type === 'dragover');
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) setSelectedFile(file);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) setSelectedFile(file);
+  };
+
+  const clearSelectedFile = () => {
+    setSelectedFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const navigateToTool = (path: string) => {
+    if (selectedFile) navigate(path, { state: { file: selectedFile } });
+  };
+
+  const getToolOptionsForFile = () => {
+    if (!selectedFile) return [];
+    const name = selectedFile.name.toLowerCase();
+
+    if (name.endsWith('.pdf')) {
+      return flatTools.filter(tool =>
+        ['Compress PDF', 'Edit PDF', 'Split PDF', 'Merge PDF', 'OCR PDF', 'PDF to JPG'].includes(tool.name)
+      );
+    }
+
+    if (/\.(jpg|jpeg|png|webp|heic)$/i.test(name)) {
+      return flatTools.filter(tool =>
+        ['Compress Image', 'Resize Image', 'Convert Image', 'Remove Background', 'Passport Maker', 'Image Editor'].includes(tool.name)
+      );
+    }
+
+    return flatTools.filter(tool => ['Images to PDF', 'HTML to PDF', 'HTML to Image'].includes(tool.name));
   };
 
   const scrollToAllTools = () => {
@@ -291,642 +292,611 @@ export function Home() {
     document.getElementById('how-it-works-section')?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const getSimProgressText = () => {
+    if (simProgress < 34) return 'Reading file structure...';
+    if (simProgress < 72) return 'Optimizing size and quality...';
+    return 'Preparing private download...';
+  };
+
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@type': 'WebApplication',
+    name: 'CompressKro',
+    url: 'https://compresskro.vercel.app/',
+    applicationCategory: 'UtilitiesApplication',
+    operatingSystem: 'Web',
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+    description: 'Free browser-based PDF and image tools to compress, convert, edit, resize, remove backgrounds, OCR, merge, split, and prepare files for government portals.'
+  };
+
+  const getCategoryBorderClass = (accentColor: string) => {
+    switch (accentColor) {
+      case 'coral': return 'ck-card-accent-coral';
+      case 'teal': return 'ck-card-accent-teal';
+      case 'amber': return 'ck-card-accent-amber';
+      default: return 'ck-card-accent';
+    }
+  };
+
   return (
-    <div className="space-y-16 md:space-y-24 animate-fade-in pb-12">
-      
+    <div className="space-y-16 md:space-y-24 pb-12 animate-fade-in">
       <Helmet>
-        <title>CompressKro — Free Online PDF & Image Optimization Tools</title>
-        <meta name="description" content="Merge, split, compress, lock, unlock, and OCR PDFs, or compress, resize, and convert images online for free. No signup, privacy-first." />
+        <title>CompressKro - Free PDF & Image Compressor, Editor and Converter</title>
+        <meta
+          name="description"
+          content="Use CompressKro for free PDF and image tools: compress PDF, edit PDF, merge, split, OCR, resize images, convert images, remove background, and fit files under KB limits. No sign up."
+        />
+        <meta name="keywords" content="CompressKro, compress PDF, PDF editor, image compressor, image editor, remove background, resize image, government portal photo, PDF converter" />
         <meta name="robots" content="index, follow" />
         <link rel="canonical" href="https://compresskro.vercel.app/" />
-        <meta property="og:title" content="CompressKro — Free Online PDF & Image Optimization Tools" />
-        <meta property="og:description" content="Merge, split, compress, lock, unlock, and OCR PDFs, or compress, resize, and convert images online for free. No signup, privacy-first." />
+        <meta property="og:title" content="CompressKro - Free PDF & Image Tools" />
+        <meta property="og:description" content="Compress, convert, edit, resize, OCR, and prepare PDFs and images for free. No sign up and privacy-first." />
         <meta property="og:url" content="https://compresskro.vercel.app/" />
         <meta property="og:type" content="website" />
+        <script type="application/ld+json">{JSON.stringify(structuredData)}</script>
       </Helmet>
 
-      <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center pt-2 md:pt-6">
-        
-        <div className="lg:col-span-7 space-y-6 text-left">
-               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-violet-50 dark:bg-violet-950/20 border border-violet-100 dark:border-violet-900/30 text-violet-600 dark:text-violet-400">
-            <ShieldCheck className="w-4 h-4 text-violet-500" />
-            <span className="text-xs font-bold uppercase tracking-wider">100% Free · No Sign up · Your files stay private</span>
-          </div>
+      {/* =========== HERO SECTION =========== */}
+      <section className="relative overflow-hidden rounded-[var(--ck-radius-xl)] ck-grain" style={{ background: 'linear-gradient(135deg, var(--ck-bg-cream) 0%, var(--ck-bg-card) 50%, var(--ck-accent-violet-soft) 100%)' }}>
+        <img
+          src={heroImage}
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute right-4 top-4 hidden h-32 w-32 opacity-[0.08] sm:block md:h-44 md:w-44"
+        />
 
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-slate-900 dark:text-slate-50 leading-tight">
-            Make files <span className="relative inline-block text-transparent bg-clip-text bg-gradient-to-r from-violet-600 to-fuchsia-600">lighter.</span>
-          </h1>
-
-          <p className="text-sm sm:text-base text-slate-500 dark:text-slate-400 font-semibold leading-relaxed max-w-xl">
-            Compress, convert, edit and optimize your PDFs and images — fast, free and private. Everything runs in-browser so your documents never touch a remote server.
-          </p>
-
-          <div className="grid grid-cols-2 gap-4 max-w-lg">
+        <div className="relative z-10 px-5 py-10 sm:px-8 md:px-12 md:py-16">
+          <div className="mx-auto max-w-4xl text-center">
             
-            <div className="flex gap-2.5 items-start">
-              <div className="w-5 h-5 rounded-md bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center text-emerald-650 flex-shrink-0 mt-0.5">
-                <Check className="w-3.5 h-3.5" />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">Local processing</h4>
-                <p className="text-xs text-slate-550 dark:text-slate-400 mt-0.5 leading-normal">Runs fully in-browser.</p>
-              </div>
+            {/* Trust badge */}
+            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 dark:bg-emerald-950/30 px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-400" style={{ border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+              <ShieldCheck className="h-3.5 w-3.5" />
+              100% free · no sign up · files stay private
             </div>
 
-            <div className="flex gap-2.5 items-start">
-              <div className="w-5 h-5 rounded-md bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center text-emerald-650 flex-shrink-0 mt-0.5">
-                <Check className="w-3.5 h-3.5" />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">No limitations</h4>
-                <p className="text-xs text-slate-550 dark:text-slate-400 mt-0.5 leading-normal">Unlimited uploads & page tasks.</p>
-              </div>
-            </div>
+            {/* Headline */}
+            <h1 className="mt-7 text-4xl font-black leading-[1.1] tracking-tight sm:text-5xl lg:text-[3.5rem]">
+              <span className="text-[var(--ck-text-primary)]">Your everyday toolkit for</span>
+              <br />
+              <span className="gradient-text">PDFs & Images</span>
+            </h1>
 
-            <div className="flex gap-2.5 items-start">
-              <div className="w-5 h-5 rounded-md bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center text-emerald-650 flex-shrink-0 mt-0.5">
-                <Check className="w-3.5 h-3.5" />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">Govt Portal ready</h4>
-                <p className="text-xs text-slate-550 dark:text-slate-400 mt-0.5 leading-normal">Presets to fit exactly under KB bounds.</p>
-              </div>
-            </div>
+            {/* Subtitle */}
+            <p className="mx-auto mt-5 max-w-2xl text-[15px] font-medium leading-7 text-[var(--ck-text-secondary)] sm:text-base">
+              Compress, convert, edit, resize, OCR, and prepare files in one clean workspace.
+              <br className="hidden sm:block" />
+              Built for documents, portal uploads, passport photos, and quick fixes.
+            </p>
 
-            <div className="flex gap-2.5 items-start">
-              <div className="w-5 h-5 rounded-md bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center text-emerald-650 flex-shrink-0 mt-0.5">
-                <Check className="w-3.5 h-3.5" />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">Clean metadata</h4>
-                <p className="text-xs text-slate-550 dark:text-slate-400 mt-0.5 leading-normal">Removes tracking and author tags.</p>
-              </div>
-            </div>
-
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 pt-2">
-            <button 
-              onClick={scrollToAllTools}
-              className="px-6 py-3 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-750 hover:to-fuchsia-750 shadow-md shadow-violet-500/20 active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
-            >
-              <Zap className="w-4 h-4" />
-              Explore All Tools
-            </button>
-            <button 
-              onClick={scrollToHowItWorks}
-              className="px-5 py-3 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-350 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-2 cursor-pointer"
-            >
-              <Play className="w-3.5 h-3.5 fill-current" />
-              How it works
-            </button>
-          </div>
-
-        </div>
-
-        <div className="lg:col-span-5 relative flex justify-center py-6 lg:py-0">
-          
-          <div className="hidden sm:block absolute -top-4 left-6 z-20 animate-pulse pointer-events-auto">
-            <div className="bg-white dark:bg-slate-900 shadow-lg rounded-2xl p-2.5 border border-slate-200/50 dark:border-slate-800 flex items-center gap-2.5 max-w-[130px] hover:scale-105 transition-transform duration-300">
-              <div className="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-950/20 flex items-center justify-center text-red-500">
-                <FileText className="w-4.5 h-4.5" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-[10px] font-black text-slate-800 dark:text-slate-200 truncate">Report.pdf</div>
-                <div className="text-[8px] font-bold text-slate-400">2.4 MB</div>
-              </div>
+            {/* CTA Buttons */}
+            <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
+              <button
+                onClick={scrollToAllTools}
+                className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-6 py-3 text-sm font-bold text-white shadow-md shadow-violet-500/20 transition-all hover:-translate-y-0.5 hover:bg-violet-700 hover:shadow-lg hover:shadow-violet-500/25 active:scale-[0.98]"
+              >
+                Explore all tools
+                <ArrowRight className="h-4 w-4" />
+              </button>
+              <button
+                onClick={scrollToHowItWorks}
+                className="inline-flex items-center gap-2 rounded-xl bg-[var(--ck-bg-card)] px-6 py-3 text-sm font-bold text-[var(--ck-text-secondary)] shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]"
+                style={{ border: '1px solid var(--ck-border)' }}
+              >
+                How it works
+                <ChevronRight className="h-4 w-4" />
+              </button>
             </div>
           </div>
 
-          <div className="hidden sm:block absolute bottom-12 -left-6 z-20 animate-pulse pointer-events-auto">
-            <div className="bg-white dark:bg-slate-900 shadow-lg rounded-2xl p-2.5 border border-slate-200/50 dark:border-slate-800 flex items-center gap-2.5 max-w-[130px] hover:scale-105 transition-transform duration-300">
-              <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/20 flex items-center justify-center text-blue-500">
-                <ImageIcon className="w-4.5 h-4.5" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-[10px] font-black text-slate-800 dark:text-slate-200 truncate">Photo.jpg</div>
-                <div className="text-[8px] font-bold text-slate-400">1.6 MB</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="hidden sm:block absolute -top-8 right-6 z-20 animate-pulse pointer-events-auto">
-            <div className="bg-white dark:bg-slate-900 shadow-lg rounded-2xl p-2.5 border border-slate-200/50 dark:border-slate-800 flex items-center gap-2.5 max-w-[130px] hover:scale-105 transition-transform duration-300">
-              <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/20 flex items-center justify-center text-indigo-500">
-                <FileText className="w-4.5 h-4.5" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-[10px] font-black text-slate-800 dark:text-slate-200 truncate">Essay.docx</div>
-                <div className="text-[8px] font-bold text-slate-400">2.1 MB</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="hidden sm:block absolute bottom-8 -right-4 z-20 animate-pulse pointer-events-auto">
-            <div className="bg-white dark:bg-slate-900 shadow-lg rounded-2xl p-2.5 border border-slate-200/50 dark:border-slate-800 flex items-center gap-2.5 max-w-[130px] hover:scale-105 transition-transform duration-300">
-              <div className="w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-950/20 flex items-center justify-center text-purple-500">
-                <Folder className="w-4.5 h-4.5" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-[10px] font-black text-slate-800 dark:text-slate-200 truncate">Archive.zip</div>
-                <div className="text-[8px] font-bold text-slate-400">4.3 MB</div>
-              </div>
-            </div>
-          </div>
-
-          <div 
-            className="w-full max-w-[370px] z-10"
+          {/* Upload Zone */}
+          <div
+            className="mx-auto mt-10 max-w-3xl"
             onDragEnter={handleDrag}
             onDragOver={handleDrag}
             onDragLeave={handleDrag}
             onDrop={handleDrop}
           >
-            <div className={`bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/40 rounded-3xl p-6 md:p-8 shadow-xl transition-all duration-300 ${dragActive ? 'scale-105 border-violet-500 ring-4 ring-violet-500/5' : ''}`}>
-              
-              <input 
-                type="file" 
+            <div className={`rounded-[var(--ck-radius-lg)] p-3 transition-all ${dragActive ? 'ring-4 ring-violet-200 dark:ring-violet-900/40' : ''}`} style={{ background: 'var(--ck-bg-muted)', border: '1px solid var(--ck-border)' }}>
+              <input
+                type="file"
                 ref={fileInputRef}
                 onChange={handleFileSelect}
                 className="hidden"
                 accept=".pdf,.jpg,.jpeg,.png,.webp,.heic"
               />
+
               {!selectedFile ? (
-                <div 
+                <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-slate-200 hover:border-violet-500 dark:border-slate-800 dark:hover:border-violet-500 rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all h-[240px] select-none"
+                  className={`flex min-h-[200px] w-full flex-col items-center justify-center rounded-[var(--ck-radius-md)] bg-[var(--ck-bg-card)] px-6 py-8 text-center transition-all hover:shadow-md ${dragActive ? '' : 'animate-pulse-border'}`}
+                  style={{ border: '2px dashed var(--ck-border)' }}
                 >
-                  <div className="w-12 h-12 rounded-full bg-violet-50 dark:bg-violet-950/30 flex items-center justify-center text-violet-600 mb-4 animate-bounce">
-                    <CloudUpload className="w-6 h-6" />
-                  </div>
-                  <h3 className="text-sm font-black text-slate-800 dark:text-slate-200">Drop your files here</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">or click to <span className="text-violet-600 font-bold">browse</span></p>
-                  <span className="text-[10.5px] text-slate-400 dark:text-slate-500 mt-4 leading-normal">PDF, JPG, PNG, WEBP and more<br />Up to 100MB per file</span>
-                </div>
+                  <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-50 dark:bg-violet-950/30 text-violet-600">
+                    <CloudUpload className="h-7 w-7" />
+                  </span>
+                  <span className="mt-4 text-lg font-black text-[var(--ck-text-primary)]">Drop a PDF or image here</span>
+                  <span className="mt-1.5 text-sm font-medium text-[var(--ck-text-secondary)]">or click to browse from your device</span>
+                  <span className="mt-5 text-[11px] font-bold uppercase tracking-wide text-[var(--ck-text-muted)]">PDF, JPG, PNG, WebP, HEIC — up to 100MB</span>
+                </button>
               ) : (
-                <div className="space-y-4 text-left">
-                  <div className="flex items-center gap-3 p-3 bg-violet-50/50 dark:bg-violet-950/20 rounded-2xl border border-violet-100/40 dark:border-violet-900/20">
-                     <div className="w-10 h-10 rounded-xl bg-violet-100 dark:bg-violet-900 flex items-center justify-center text-violet-600 flex-shrink-0">
-                      <FileText className="w-5.5 h-5.5" />
+                <div className="space-y-3 rounded-[var(--ck-radius-md)] bg-[var(--ck-bg-card)] p-4 text-left">
+                  <div className="flex items-center gap-3 rounded-xl p-3" style={{ background: 'var(--ck-accent-violet-soft)', border: '1px solid rgba(124, 58, 237, 0.1)' }}>
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--ck-bg-card)] text-violet-600">
+                      <FileText className="h-5 w-5" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="text-xs font-black text-slate-800 dark:text-slate-200 truncate">{selectedFile.name}</div>
-                      <div className="text-xs text-slate-450 dark:text-slate-500 mt-0.5">{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</div>
+                      <div className="truncate text-sm font-black text-[var(--ck-text-primary)]">{selectedFile.name}</div>
+                      <div className="mt-0.5 text-xs font-medium text-[var(--ck-text-secondary)]">{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB ready</div>
                     </div>
-                    <button 
+                    <button
                       onClick={clearSelectedFile}
-                      className="p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                      className="rounded-lg p-2 text-[var(--ck-text-muted)] transition-colors hover:bg-[var(--ck-bg-card)] hover:text-red-500"
+                      title="Remove selected file"
                     >
-                      <X className="w-4 h-4" />
+                      <X className="h-4 w-4" />
                     </button>
                   </div>
 
-                  <div className="space-y-1">
-                    <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest pl-1">Choose a utility:</div>
-                    <div className="space-y-1 max-h-[180px] overflow-y-auto pr-1 scrollbar-thin">
-                      {getToolOptionsForFile().map((opt) => {
-                        const Icon = opt.icon;
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {getToolOptionsForFile().map((opt) => {
+                      const Icon = opt.icon;
+                      return (
+                        <button
+                          key={opt.name}
+                          onClick={() => navigateToTool(opt.path)}
+                          className="group flex items-center justify-between rounded-xl bg-[var(--ck-bg-card)] p-3 text-left transition-all hover:shadow-md"
+                          style={{ border: '1px solid var(--ck-border)' }}
+                        >
+                          <span className="flex min-w-0 items-center gap-3">
+                            <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${opt.bgColor}`}>
+                              <Icon className={`h-4 w-4 ${opt.color}`} />
+                            </div>
+                            <span className="min-w-0">
+                              <span className="block text-sm font-bold text-[var(--ck-text-primary)]">{opt.name}</span>
+                              <span className="block truncate text-xs text-[var(--ck-text-muted)]">{opt.desc}</span>
+                            </span>
+                          </span>
+                          <ChevronRight className="h-4 w-4 shrink-0 text-[var(--ck-text-muted)] transition-transform group-hover:translate-x-0.5 group-hover:text-violet-600" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Trust Pills */}
+              <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 px-2 py-3 text-[11px] font-bold text-[var(--ck-text-muted)]">
+                <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-emerald-500" /> Browser-first privacy</span>
+                <span className="inline-flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-emerald-500" /> No watermark</span>
+                <span className="inline-flex items-center gap-1.5"><Zap className="h-3.5 w-3.5 text-amber-500" /> Fast exports</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* =========== TRUST POINTS =========== */}
+      <RevealSection stagger>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {trustPoints.map((point) => {
+            const Icon = point.icon;
+            return (
+              <div key={point.title} className="ck-card p-5 text-left">
+                <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${point.bg}`}>
+                  <Icon className={`h-5 w-5 ${point.accent}`} />
+                </div>
+                <h2 className="mt-4 text-sm font-black text-[var(--ck-text-primary)]">{point.title}</h2>
+                <p className="mt-1.5 text-[13px] font-medium leading-relaxed text-[var(--ck-text-secondary)]">{point.desc}</p>
+              </div>
+            );
+          })}
+        </div>
+      </RevealSection>
+
+      {/* =========== POPULAR TOOLS =========== */}
+      <RevealSection>
+        <div className="space-y-6">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-violet-600">
+                <Star className="h-3.5 w-3.5 fill-violet-600" />
+                Most used
+              </div>
+              <h2 className="mt-1.5 text-2xl font-black text-[var(--ck-text-primary)]">Popular tools</h2>
+            </div>
+            <button
+              onClick={scrollToAllTools}
+              className="inline-flex items-center gap-1.5 text-sm font-bold text-violet-600 transition-colors hover:text-violet-800"
+            >
+              View complete toolkit
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {popularTools.map((tool) => {
+              const Icon = tool.icon;
+              return (
+                <Link
+                  key={tool.name}
+                  to={tool.path}
+                  className="group ck-card flex min-h-[120px] items-start justify-between p-5 text-left glow-effect"
+                >
+                  <span className="flex min-w-0 gap-4">
+                    <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${tool.bgColor}`}>
+                      <Icon className={`h-5 w-5 ${tool.color}`} />
+                    </span>
+                    <span>
+                      <span className="flex items-center gap-2">
+                        <span className="block text-[15px] font-black text-[var(--ck-text-primary)] group-hover:text-violet-600 transition-colors">{tool.name}</span>
+                        {tool.badge && (
+                          <span className="rounded-full bg-violet-100 dark:bg-violet-900/40 px-2 py-0.5 text-[9px] font-bold text-violet-700 dark:text-violet-300 uppercase">{tool.badge}</span>
+                        )}
+                      </span>
+                      <span className="mt-1 block text-[13px] font-medium leading-relaxed text-[var(--ck-text-secondary)]">{tool.desc}</span>
+                    </span>
+                  </span>
+                  <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-[var(--ck-text-muted)] transition-all group-hover:translate-x-1 group-hover:text-violet-600" />
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      </RevealSection>
+
+      {/* =========== HOW IT WORKS =========== */}
+      <RevealSection>
+        <section id="how-it-works-section" className="ck-card overflow-hidden">
+          <div className="grid grid-cols-1 gap-8 p-6 lg:grid-cols-12 lg:p-8">
+            
+            {/* Left: Description */}
+            <div className="lg:col-span-4">
+              <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-violet-600">
+                <Zap className="h-3.5 w-3.5" />
+                Simple flow
+              </div>
+              <h2 className="mt-2 text-2xl font-black text-[var(--ck-text-primary)]">Choose, process, download</h2>
+              <p className="mt-3 text-[13px] font-medium leading-relaxed text-[var(--ck-text-secondary)]">
+                Upload immediately, pick the right operation, and leave with the finished file. No account needed.
+              </p>
+            </div>
+
+            {/* Center: Steps */}
+            <div className="lg:col-span-5">
+              <div className="grid gap-3">
+                {[
+                  { step: '1', title: 'Pick the tool', desc: 'Search by file type or choose from PDF, image, and converter groups.', accent: 'bg-violet-600' },
+                  { step: '2', title: 'Add your file', desc: 'Drag and drop from your device. Supported tools suggest themselves.', accent: 'bg-indigo-600' },
+                  { step: '3', title: 'Export cleanly', desc: 'Download optimized files without creating an account.', accent: 'bg-emerald-600' }
+                ].map(({ step, title, desc, accent }) => (
+                  <div key={step} className="flex gap-4 rounded-xl p-4" style={{ background: 'var(--ck-bg-muted)' }}>
+                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${accent} text-sm font-black text-white shadow-sm`}>{step}</div>
+                    <div>
+                      <h3 className="text-sm font-black text-[var(--ck-text-primary)]">{title}</h3>
+                      <p className="mt-0.5 text-xs font-medium leading-5 text-[var(--ck-text-secondary)]">{desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right: Live Demo Card */}
+            <div className="lg:col-span-3">
+              <div className="rounded-[var(--ck-radius-lg)] p-4 text-left" style={{ background: 'var(--ck-bg-muted)', border: '1px solid var(--ck-border)' }}>
+                <div className="flex items-center justify-between pb-3" style={{ borderBottom: '1px solid var(--ck-border)' }}>
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-red-500" />
+                    <div>
+                      <div className="text-xs font-black text-[var(--ck-text-primary)]">application.pdf</div>
+                      <div className="text-[11px] font-medium text-[var(--ck-text-muted)]">2.7 MB</div>
+                    </div>
+                  </div>
+                  <div className="rounded-lg bg-emerald-100 dark:bg-emerald-950/30 px-2 py-1 text-[11px] font-black text-emerald-700 dark:text-emerald-400">82% smaller</div>
+                </div>
+                <div className="my-4 space-y-2">
+                  <div className="flex items-center justify-between text-[11px] font-bold text-[var(--ck-text-secondary)]">
+                    <span>{getSimProgressText()}</span>
+                    <span>{simProgress}%</span>
+                  </div>
+                  <div className="ck-progress-bar">
+                    <div style={{ width: `${simProgress}%` }} />
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleDummyClick('Download preview')}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 py-2.5 text-sm font-bold text-white transition-all hover:bg-violet-700 active:scale-[0.98]"
+                >
+                  <FileDown className="h-4 w-4" />
+                  Download file
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </RevealSection>
+
+      {/* =========== ALL TOOLS =========== */}
+      <RevealSection>
+        <section id="all-tools-section" className="space-y-10 pt-4">
+          <div className="mx-auto max-w-2xl text-center">
+            <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-violet-600">
+              <Sparkles className="h-3.5 w-3.5" />
+              Complete toolkit
+            </div>
+            <h2 className="mt-2 text-2xl font-black text-[var(--ck-text-primary)] sm:text-3xl">One place for PDFs, images, and conversions</h2>
+            <p className="mt-3 text-[14px] font-medium leading-relaxed text-[var(--ck-text-secondary)]">
+              Find what you need in seconds. Every tool works directly in your browser.
+            </p>
+          </div>
+
+          <div className="space-y-12">
+            {categories.map((cat) => {
+              const CatIcon = cat.icon;
+              return (
+                <RevealSection key={cat.title} stagger>
+                  <div className="space-y-5">
+                    <div className="flex items-center gap-3 text-left">
+                      <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${
+                        cat.accentColor === 'violet' ? 'bg-violet-50 dark:bg-violet-950/30' :
+                        cat.accentColor === 'coral' ? 'bg-rose-50 dark:bg-rose-950/30' :
+                        'bg-teal-50 dark:bg-teal-950/30'
+                      }`}>
+                        <CatIcon className={`h-4.5 w-4.5 ${
+                          cat.accentColor === 'violet' ? 'text-violet-600' :
+                          cat.accentColor === 'coral' ? 'text-rose-600' :
+                          'text-teal-600'
+                        }`} />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-black text-[var(--ck-text-primary)]">{cat.title}</h3>
+                        <p className="text-[13px] font-medium text-[var(--ck-text-secondary)]">{cat.desc}</p>
+                      </div>
+                      <span className="ml-auto rounded-full bg-[var(--ck-bg-muted)] px-2.5 py-1 text-[10px] font-bold text-[var(--ck-text-muted)]">{cat.tools.length} tools</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                      {cat.tools.map((tool) => {
+                        const Icon = tool.icon;
                         return (
-                          <button
-                            key={opt.name}
-                            onClick={() => navigateToTool(opt.path)}
-                            className="w-full flex items-center justify-between p-2.5 rounded-xl border border-slate-100 hover:border-violet-500 dark:border-slate-800 dark:hover:border-violet-500 bg-white/40 dark:bg-slate-900/30 hover:bg-violet-50/20 dark:hover:bg-violet-950/10 hover:shadow-xs transition-all text-left group cursor-pointer"
+                          <Link
+                            key={tool.path}
+                            to={tool.path}
+                            className={`group ${getCategoryBorderClass(cat.accentColor)} flex min-h-[120px] flex-col justify-between p-4 text-left glow-effect ${
+                              cat.accentColor === 'coral' ? 'glow-coral' :
+                              cat.accentColor === 'teal' ? 'glow-teal' : ''
+                            }`}
                           >
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <Icon className="w-4 h-4 text-violet-600 dark:text-violet-400 flex-shrink-0" />
-                              <div className="min-w-0">
-                                <div className="text-xs font-bold text-slate-800 dark:text-slate-100 group-hover:text-violet-600 transition-colors">{opt.name}</div>
-                                <div className="text-[10.5px] text-slate-550 mt-0.5 truncate">{opt.desc}</div>
+                            <div className="flex items-start justify-between">
+                              <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${tool.bgColor}`}>
+                                <Icon className={`h-5 w-5 ${tool.color}`} />
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {tool.badge && (
+                                  <span className="rounded-full bg-violet-100 dark:bg-violet-900/40 px-2 py-0.5 text-[8px] font-bold text-violet-700 dark:text-violet-300 uppercase">{tool.badge}</span>
+                                )}
+                                <ArrowRight className="h-4 w-4 text-[var(--ck-text-muted)] transition-all group-hover:translate-x-1 group-hover:text-violet-600" />
                               </div>
                             </div>
-                            <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-                          </button>
+                            <div className="mt-3">
+                              <h4 className="text-sm font-black text-[var(--ck-text-primary)] group-hover:text-violet-600 transition-colors">{tool.name}</h4>
+                              <p className="mt-1 line-clamp-2 text-xs font-medium leading-5 text-[var(--ck-text-secondary)]">{tool.desc}</p>
+                            </div>
+                          </Link>
                         );
                       })}
                     </div>
                   </div>
-                </div>
-              )}
-
-              <div className="mt-4 flex items-center justify-center gap-1.5 text-xs font-medium text-slate-450 dark:text-slate-500 select-none">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                <span>Your files are safe with us</span>
-              </div>
-
-            </div>
+                </RevealSection>
+              );
+            })}
           </div>
+        </section>
+      </RevealSection>
 
-        </div>
+      {/* =========== STATS STRIP =========== */}
+      <RevealSection>
+        <section className="rounded-[var(--ck-radius-xl)] overflow-hidden" style={{ background: 'linear-gradient(135deg, #7C3AED 0%, #4F46E5 50%, #6D28D9 100%)' }}>
+          <div className="grid grid-cols-1 gap-6 p-8 md:grid-cols-3 md:p-10">
+            {[
+              { label: 'Privacy score', value: stats.privacyScore, sub: 'Local-first processing for everyday work', icon: ShieldCheck },
+              { label: 'Files optimized', value: stats.filesProcessed.toString(), sub: 'Your local activity on this device', icon: Upload },
+              { label: 'Space saved', value: `${stats.mbSaved.toFixed(2)} MB`, sub: 'Storage returned from completed tasks', icon: FileDown }
+            ].map((stat) => {
+              const Icon = stat.icon;
+              return (
+                <div key={stat.label} className="text-center md:text-left">
+                  <div className="flex items-center justify-center gap-3 md:justify-start">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/15">
+                      <Icon className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-white/60">{stat.label}</div>
+                      <div className="text-2xl font-black text-white">{stat.value}</div>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-[13px] font-medium text-white/60">{stat.sub}</p>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      </RevealSection>
 
-      </section>
-
-      <section className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-slate-50 flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-violet-500 animate-pulse" />
-            <span>Popular Tools</span>
-          </h2>
-          <button 
-            onClick={scrollToAllTools}
-            className="text-xs font-bold text-violet-600 hover:text-violet-750 dark:text-violet-400 flex items-center gap-1 transition-colors cursor-pointer"
-          >
-            View all tools
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {popularTools.map((tool) => {
-            const Icon = tool.icon;
-            return (
-              <Link
-                key={tool.name}
-                to={tool.path}
-                className="p-5 rounded-2xl border border-slate-200/50 dark:border-slate-800/40 bg-white/70 dark:bg-slate-900/60 hover:bg-white dark:hover:bg-slate-900 hover:border-violet-500 hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.99] transition-all flex items-center justify-between group cursor-pointer"
+      {/* =========== HISTORY =========== */}
+      {history.length > 0 && (
+        <RevealSection>
+          <section className="ck-card space-y-4 p-5 text-left">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="flex items-center gap-2 text-lg font-black text-[var(--ck-text-primary)]">
+                <History className="h-5 w-5 text-violet-600" />
+                Recent activity
+                <span className="text-xs font-bold text-[var(--ck-text-muted)]">({history.length})</span>
+              </h2>
+              <button
+                onClick={handleClearHistory}
+                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-bold text-red-500 transition-colors hover:bg-red-50 dark:hover:bg-red-950/20"
               >
-                <div className="flex items-center gap-4 min-w-0">
-                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${tool.bg} group-hover:scale-105 transition-transform`}>
-                    <Icon className={`w-5 h-5 ${tool.color}`} />
-                  </div>
-                  <div className="min-w-0 text-left">
-                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 group-hover:text-violet-600 transition-colors">{tool.name}</h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed truncate max-w-[200px]">{tool.desc}</p>
-                  </div>
-                </div>
-                <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-violet-600 group-hover:translate-x-1 transition-all" />
-              </Link>
-            );
-          })}
-        </div>
-      </section>
-
-      <section id="how-it-works-section" className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center bg-violet-50/20 dark:bg-violet-950/5 border border-slate-200/40 dark:border-slate-800/20 rounded-3xl p-6 sm:p-8 md:p-12 relative overflow-hidden">
-        
-        <div className="lg:col-span-6 space-y-8 text-left z-10">
-          <div className="space-y-2">
-            <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-slate-50 flex items-center gap-2">
-              <MousePointer className="w-5 h-5 text-violet-500" />
-              <span>How it works</span>
-            </h2>
-            <p className="text-sm text-slate-550 dark:text-slate-400 font-semibold">Convert or compress documents in three simple steps.</p>
-          </div>
-
-          <div className="space-y-6">
-            
-            <div className="flex gap-4">
-              <div className="w-7 h-7 rounded-full bg-violet-600 text-white font-bold text-xs flex items-center justify-center flex-shrink-0 shadow-sm shadow-violet-500/10">
-                1
-              </div>
-              <div className="space-y-0.5">
-                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">Choose a tool</h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">Select the utility matching your current optimization task from our list.</p>
-              </div>
+                <RotateCcw className="h-3.5 w-3.5" />
+                Clear
+              </button>
             </div>
 
-            <div className="flex gap-4">
-              <div className="w-7 h-7 rounded-full bg-violet-600 text-white font-bold text-xs flex items-center justify-center flex-shrink-0 shadow-sm shadow-violet-500/10">
-                2
-              </div>
-              <div className="space-y-0.5">
-                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">Upload your file</h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">Upload your file and our high-performance in-browser compilation takes care of the rest.</p>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <div className="w-7 h-7 rounded-full bg-violet-700 text-white font-bold text-xs flex items-center justify-center flex-shrink-0 shadow-sm shadow-violet-500/10">
-                3
-              </div>
-              <div className="space-y-0.5">
-                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">Get result instantly</h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">Download your compiled output file instantly, without wait times or watermarks.</p>
-              </div>
-            </div>
-
-          </div>
-        </div>
-
-        <div className="lg:col-span-6 flex justify-center z-10">
-          <div className="w-full max-w-[380px] bg-white dark:bg-slate-900/80 border border-slate-200/50 dark:border-slate-800/40 rounded-3xl p-5 shadow-lg relative text-left">
-            
-            <div className="flex items-center justify-between border-b border-slate-150 dark:border-slate-800 pb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-7.5 h-7.5 rounded-lg bg-red-100 dark:bg-red-950/20 flex items-center justify-center text-red-500">
-                  <FileText className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-xs font-black text-slate-800 dark:text-slate-200">Compressed.pdf</div>
-                  <div className="text-[10.5px] font-bold text-slate-400">2.7 MB</div>
-                </div>
-              </div>
-              <div className="text-xs font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 px-2 py-0.5 rounded-md flex items-center gap-0.5">
-                <TrendingDown className="w-3 h-3" />
-                82% smaller
-              </div>
-            </div>
-
-            <div className="my-5 space-y-2">
-              <div className="flex items-center justify-between text-xs font-bold text-slate-450">
-                <span>{getSimProgressText()}</span>
-                <span>{simProgress}%</span>
-              </div>
-              
-              <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden relative border border-slate-200/10">
-                <div 
-                  className="h-full bg-gradient-to-r from-violet-600 to-fuchsia-600 rounded-full transition-all duration-100"
-                  style={{ width: `${simProgress}%` }}
+            <div className="flex flex-wrap gap-2">
+              <div className="relative min-w-[180px] flex-1">
+                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--ck-text-muted)]" />
+                <input
+                  type="text"
+                  value={historySearch}
+                  onChange={e => setHistorySearch(e.target.value)}
+                  placeholder="Search activity..."
+                  className="w-full rounded-xl py-2.5 pl-9 pr-9 text-sm font-medium text-[var(--ck-text-primary)] outline-none transition-all focus:ring-4 focus:ring-violet-100 dark:focus:ring-violet-950/30"
+                  style={{ background: 'var(--ck-bg-muted)', border: '1px solid var(--ck-border)' }}
                 />
+                {historySearch && (
+                  <button
+                    onClick={() => setHistorySearch('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1 text-[var(--ck-text-muted)] hover:text-[var(--ck-text-primary)]"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
+
+              <div className="flex gap-1 overflow-x-auto">
+                {TOOL_FILTER_OPTIONS.map(opt => (
+                  <button
+                    key={opt}
+                    onClick={() => setHistoryFilter(opt)}
+                    className={`whitespace-nowrap rounded-xl px-3.5 py-2 text-xs font-bold transition-all ${
+                      historyFilter === opt
+                        ? 'bg-violet-600 text-white shadow-sm'
+                        : 'text-[var(--ck-text-secondary)] hover:bg-[var(--ck-bg-muted)]'
+                    }`}
+                    style={historyFilter !== opt ? { border: '1px solid var(--ck-border)' } : {}}
+                  >
+                    {opt}
+                  </button>
+                ))}
               </div>
             </div>
 
-            <div className="space-y-2 pt-1">
-              <button 
-                onClick={() => handleDummyClick('Download')}
-                className="w-full py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-violet-600 to-fuchsia-600 flex items-center justify-center gap-2 hover:opacity-95 transition-opacity cursor-pointer"
-              >
-                <FileDown className="w-4 h-4" />
-                Download File
-              </button>
-              
-              <button 
-                onClick={() => setSimProgress(0)}
-                className="w-full text-center text-xs font-bold text-slate-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors"
-              >
-                Compress another
-              </button>
-            </div>
+            {filteredHistory.length === 0 ? (
+              <div className="py-8 text-center text-sm font-medium text-[var(--ck-text-muted)]">No matching activity found.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm text-[var(--ck-text-secondary)]">
+                  <thead>
+                    <tr className="text-[10px] font-bold uppercase tracking-wider text-[var(--ck-text-muted)]" style={{ borderBottom: '1px solid var(--ck-border)' }}>
+                      <th className="py-3 pr-4">File</th>
+                      <th className="py-3 pr-4">Tool</th>
+                      <th className="py-3 pr-4">Result</th>
+                      <th className="py-3 pr-4">Time</th>
+                      <th className="py-3"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayedHistory.map(item => (
+                      <tr key={item.id} className="group transition-colors hover:bg-[var(--ck-bg-muted)]" style={{ borderBottom: '1px solid var(--ck-border)' }}>
+                        <td className="max-w-[180px] truncate py-3 pr-4 font-black text-[var(--ck-text-primary)]">{item.name}</td>
+                        <td className="py-3 pr-4">
+                          <span className="whitespace-nowrap rounded-lg px-2.5 py-1 text-[11px] font-bold text-[var(--ck-text-secondary)]" style={{ background: 'var(--ck-bg-muted)' }}>{item.tool}</span>
+                        </td>
+                        <td className="py-3 pr-4 font-mono text-sm font-bold text-emerald-600">{item.details}</td>
+                        <td className="flex items-center gap-1 whitespace-nowrap py-3 pr-4 text-sm font-medium text-[var(--ck-text-muted)]">
+                          <Clock className="h-3 w-3" />
+                          {item.date}
+                        </td>
+                        <td className="py-3">
+                          <button
+                            onClick={() => deleteEntry(item.id)}
+                            className="rounded-lg p-1.5 text-[var(--ck-text-muted)] opacity-0 transition-all hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-500 group-hover:opacity-100"
+                            title="Delete activity"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
 
+                {filteredHistory.length > 6 && (
+                  <button
+                    onClick={() => setShowAllHistory(!showAllHistory)}
+                    className="mt-3 w-full rounded-xl py-2.5 text-sm font-bold text-violet-600 transition-colors hover:bg-violet-50 dark:hover:bg-violet-950/20"
+                  >
+                    {showAllHistory ? 'Show less' : `Show all ${filteredHistory.length} entries`}
+                  </button>
+                )}
+              </div>
+            )}
+          </section>
+        </RevealSection>
+      )}
+
+      {/* =========== FAQ SECTION =========== */}
+      <RevealSection>
+        <section className="space-y-8 pt-4 text-left">
+          <div className="mx-auto max-w-2xl text-center">
+            <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-violet-600">
+              <HelpCircle className="h-3.5 w-3.5" />
+              FAQ
+            </div>
+            <h2 className="mt-2 text-2xl font-black text-[var(--ck-text-primary)]">
+              Frequently asked questions
+            </h2>
+            <p className="mt-2 text-[14px] font-medium leading-relaxed text-[var(--ck-text-secondary)]">
+              Quick answers for people who need a clean file without fuss.
+            </p>
           </div>
-        </div>
 
-      </section>
+          <div className="mx-auto max-w-3xl space-y-3">
+            {faqs.map((faq, idx) => {
+              const isOpen = activeFaq === idx;
+              return (
+                <div key={faq.question} className="ck-card overflow-hidden" style={{ transform: 'none' }}>
+                  <button
+                    onClick={() => setActiveFaq(isOpen ? null : idx)}
+                    className="flex w-full items-center justify-between p-5 text-left text-sm font-black text-[var(--ck-text-primary)] transition-colors hover:text-violet-600"
+                  >
+                    <span className="pr-4">{faq.question}</span>
+                    <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-all ${isOpen ? 'bg-violet-100 dark:bg-violet-900/40 text-violet-600' : 'bg-[var(--ck-bg-muted)] text-[var(--ck-text-muted)]'}`}>
+                      {isOpen ? <Minus className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                    </div>
+                  </button>
 
-      <section id="all-tools-section" className="space-y-8 border-t border-slate-200/50 dark:border-slate-900/60 pt-16">
-        <div className="text-center max-w-xl mx-auto space-y-2">
-          <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-slate-50">All Tool Utilities</h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 font-semibold leading-relaxed">Select any utility cataloged below to start optimization instantly in your browser sandbox.</p>
-        </div>
+                  <div className={`accordion-content ${isOpen ? 'open' : ''}`}>
+                    <p className="text-[13px] font-medium leading-7 text-[var(--ck-text-secondary)]">
+                      {faq.answer}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      </RevealSection>
 
-        <div className="space-y-12">
-          {categories.map((cat, idx) => (
-            <div key={idx} className="space-y-4">
-              <div className="border-b border-slate-200/60 dark:border-slate-800/40 pb-2 text-left">
-                <h3 className="text-base font-extrabold text-slate-900 dark:text-slate-100 uppercase tracking-wider">{cat.title}</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{cat.desc}</p>
+      {/* =========== BOTTOM TRUST STRIP =========== */}
+      <RevealSection stagger>
+        <section className="grid grid-cols-1 gap-5 pt-4 md:grid-cols-3">
+          {[
+            { title: 'Browser-first privacy', desc: 'Most tools run locally, so personal files stay on your device.', icon: ShieldCheck, accent: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/30' },
+            { title: 'Unlimited daily use', desc: 'No sign up, no watermark, and no forced account before export.', icon: Zap, accent: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-950/30' },
+            { title: 'Government portal friendly', desc: 'Resize photos, signatures, and documents to exact KB requirements.', icon: Check, accent: 'text-violet-600', bg: 'bg-violet-50 dark:bg-violet-950/30' }
+          ].map(({ title, desc, icon: Icon, accent, bg }) => (
+            <div key={title} className="flex items-start gap-4 text-left p-5 rounded-[var(--ck-radius-lg)]" style={{ background: 'var(--ck-bg-card)', border: '1px solid var(--ck-border)' }}>
+              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${bg}`}>
+                <Icon className={`h-5 w-5 ${accent}`} />
               </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                {cat.tools.map((tool, tIdx) => {
-                  const Icon = tool.icon;
-                  return (
-                    <Link
-                      key={tIdx}
-                      to={tool.path}
-                      className="p-5 rounded-2xl border border-slate-200/60 dark:border-slate-800/50 bg-white/40 dark:bg-slate-900/30 hover:bg-white dark:hover:bg-slate-900 hover:border-violet-500 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.99] transition-all text-left flex flex-col justify-between h-[135px] group cursor-pointer"
-                    >
-                      <div className="w-8.5 h-8.5 rounded-lg bg-slate-50 dark:bg-slate-950 flex items-center justify-center flex-shrink-0 group-hover:bg-violet-50 dark:group-hover:bg-violet-950/20 transition-colors">
-                        <Icon className={`w-4 h-4 ${tool.color} group-hover:scale-110 transition-transform`} />
-                      </div>
-                      <div className="space-y-1">
-                        <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 group-hover:text-violet-600 transition-colors truncate">{tool.name}</h4>
-                        <p className="text-xs text-slate-555 dark:text-slate-400 mt-1 leading-normal line-clamp-2">{tool.desc}</p>
-                      </div>
-                    </Link>
-                  );
-                })}
+              <div>
+                <h3 className="text-sm font-black text-[var(--ck-text-primary)]">{title}</h3>
+                <p className="mt-1 text-xs font-medium leading-5 text-[var(--ck-text-secondary)]">{desc}</p>
               </div>
             </div>
           ))}
-        </div>
-      </section>
-
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6">
-        {[
-          {
-            label: 'Privacy Sandbox Protection',
-            value: stats.privacyScore,
-            sub: 'Local operations inside browser container',
-            icon: ShieldCheck,
-            color: 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 border border-emerald-100/50 dark:border-emerald-900/20'
-          },
-          {
-            label: 'Files Optimizations',
-            value: stats.filesProcessed.toString(),
-            sub: 'Transient memory execution cycles',
-            icon: Upload,
-            color: 'bg-fuchsia-50 dark:bg-fuchsia-950/20 text-fuchsia-600 dark:text-fuchsia-400 border border-fuchsia-100/50 dark:border-fuchsia-900/20'
-          },
-          {
-            label: 'Disk Bytes Liberated',
-            value: `${stats.mbSaved.toFixed(2)} MB`,
-            sub: 'Storage capacity returned to your device',
-            icon: TrendingDown,
-            color: 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 border border-emerald-100/50 dark:border-emerald-900/20'
-          }
-        ].map(stat => {
-          const Icon = stat.icon;
-          return (
-            <div key={stat.label} className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800/80 bg-white/40 dark:bg-slate-900/40 flex items-center gap-4 text-left shadow-xs">
-              <div className={`p-3 rounded-xl flex-shrink-0 ${stat.color}`}>
-                <Icon className="w-5.5 h-5.5" />
-              </div>
-              <div>
-                <div className="text-xs text-slate-450 dark:text-slate-400 uppercase tracking-wider font-extrabold">{stat.label}</div>
-                <div className="text-2xl font-black text-slate-800 dark:text-slate-100 mt-0.5">{stat.value}</div>
-                <div className="text-xs text-slate-400 dark:text-slate-500 font-semibold leading-normal">{stat.sub}</div>
-              </div>
-            </div>
-          );
-        })}
-      </section>
-
-      {history.length > 0 && (
-        <section className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/30 dark:bg-slate-900/30 glass-panel space-y-4 text-left shadow-xs">
-          
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <h2 className="text-md font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
-              <History className="w-4 h-4 text-violet-500" />
-              <span>Recent Activity Logs</span>
-              <span className="text-xs font-normal text-slate-400">({history.length})</span>
-            </h2>
-            <button
-              onClick={handleClearHistory}
-              className="text-sm font-bold text-red-500 hover:text-red-650 dark:text-red-400 flex items-center gap-1 transition-colors cursor-pointer"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              Clear Logs
-            </button>
-          </div>
-
-          <div className="flex gap-2 flex-wrap">
-            <div className="relative flex-1 min-w-[160px]">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-450" />
-              <input
-                type="text"
-                value={historySearch}
-                onChange={e => setHistorySearch(e.target.value)}
-                placeholder="Search activity history..."
-                className="w-full pl-8 pr-3 py-1.5 text-sm rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-violet-500/40"
-              />
-              {historySearch && (
-                <button
-                  onClick={() => setHistorySearch('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-450 hover:text-slate-650"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-            <div className="flex gap-1 overflow-x-auto">
-              {TOOL_FILTER_OPTIONS.map(opt => (
-                <button
-                  key={opt}
-                  onClick={() => setHistoryFilter(opt)}
-                  className={`px-2.5 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap transition-all cursor-pointer ${
-                    historyFilter === opt
-                      ? 'bg-violet-600 text-white shadow-sm'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-450 hover:bg-slate-200 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  {opt}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {filteredHistory.length === 0 ? (
-            <div className="text-center py-6 text-xs text-slate-400 font-semibold">No activity logs recorded.</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-slate-600 dark:text-slate-400">
-                <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-800 text-sm font-semibold text-slate-450 uppercase">
-                    <th className="py-2 pr-4">File Descriptor</th>
-                    <th className="py-2 pr-4">Utility Type</th>
-                    <th className="py-2 pr-4">Result Details</th>
-                    <th className="py-2 pr-4">Timestamp</th>
-                    <th className="py-2"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100/50 dark:divide-slate-800/30">
-                  {displayedHistory.map(item => (
-                    <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition-colors group">
-                      <td className="py-2.5 pr-4 font-black text-slate-800 dark:text-slate-200 max-w-[180px] truncate">
-                        {item.name}
-                      </td>
-                      <td className="py-2.5 pr-4">
-                        <span className="px-2 py-0.5 rounded text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-655 dark:text-slate-350 whitespace-nowrap">
-                          {item.tool}
-                        </span>
-                      </td>
-                      <td className="py-2.5 pr-4 text-emerald-600 dark:text-emerald-400 font-bold text-sm font-mono">
-                        {item.details}
-                      </td>
-                      <td className="py-2.5 pr-4 text-sm text-slate-400 whitespace-nowrap flex items-center gap-1 font-semibold">
-                        <Clock className="w-3 h-3 text-slate-400" />
-                        {item.date}
-                      </td>
-                      <td className="py-2.5">
-                        <button
-                          onClick={() => deleteEntry(item.id)}
-                          className="opacity-0 group-hover:opacity-100 p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all cursor-pointer"
-                          title="Purge activity log"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
-              {filteredHistory.length > 6 && (
-                <button
-                  onClick={() => setShowAllHistory(!showAllHistory)}
-                  className="mt-3 w-full py-1.5 text-sm font-bold text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/20 rounded-lg transition-colors cursor-pointer"
-                >
-                  {showAllHistory ? 'Show less' : `Show all ${filteredHistory.length} entries`}
-                </button>
-              )}
-            </div>
-          )}
         </section>
-      )}
-
-      {/* FAQs Accordion Section */}
-      <section className="space-y-8 border-t border-slate-200/50 dark:border-slate-900/60 pt-16 text-left">
-        <div className="text-center max-w-xl mx-auto space-y-2">
-          <h2 className="text-xl md:text-2xl font-black text-slate-900 dark:text-slate-50 flex items-center justify-center gap-2">
-            <HelpCircle className="w-5.5 h-5.5 text-violet-500 animate-pulse" />
-            <span>Frequently Asked Questions</span>
-          </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 font-semibold leading-relaxed">
-            Everything you need to know about CompressKro's client-side privacy, tools, and constraints.
-          </p>
-        </div>
-
-        <div className="max-w-3xl mx-auto space-y-4 pt-4">
-          {faqs.map((faq, idx) => {
-            const isOpen = activeFaq === idx;
-            return (
-              <div 
-                key={idx}
-                className="rounded-2xl border border-slate-200/60 dark:border-slate-800/50 bg-white/40 dark:bg-slate-900/30 hover:bg-white dark:hover:bg-slate-900 transition-all duration-300 overflow-hidden shadow-xs"
-              >
-                <button
-                  onClick={() => setActiveFaq(isOpen ? null : idx)}
-                  className="w-full flex items-center justify-between p-5 text-left font-bold text-slate-850 dark:text-slate-100 hover:text-violet-600 dark:hover:text-violet-400 transition-colors cursor-pointer"
-                >
-                  <span className="text-sm md:text-base pr-4">{faq.question}</span>
-                  {isOpen ? (
-                    <ChevronUp className="w-5 h-5 text-violet-500 flex-shrink-0" />
-                  ) : (
-                    <ChevronDown className="w-5 h-5 text-slate-400 dark:text-slate-505 flex-shrink-0" />
-                  )}
-                </button>
-                
-                {isOpen && (
-                  <div className="px-5 pb-5 pt-1 text-xs md:text-sm text-slate-500 dark:text-slate-400 leading-relaxed border-t border-slate-150/50 dark:border-slate-800/30 animate-fade-in font-medium">
-                    {faq.answer}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-slate-200/50 dark:border-slate-900/60">
-        <div className="flex items-start gap-3 text-left">
-          <div className="p-2 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 rounded-xl text-emerald-650">
-            <ShieldCheck className="w-5.5 h-5.5" />
-          </div>
-          <div className="space-y-1">
-            <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">100% Client-Side Privacy</h4>
-            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">Most operations compile instantly in your browser sandbox. Your sensitive files never upload to our servers.</p>
-          </div>
-        </div>
-
-        <div className="flex items-start gap-3 text-left">
-          <div className="p-2 bg-blue-50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/30 rounded-xl text-blue-650">
-            <Zap className="w-5.5 h-5.5" />
-          </div>
-          <div className="space-y-1">
-            <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">No Registrations or Limits</h4>
-            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">Enjoy unlimited file tasks. No signups, no paywalls, and no watermarks on your compiled documents.</p>
-          </div>
-        </div>
-
-        <div className="flex items-start gap-3 text-left">
-          <div className="p-2 bg-purple-50 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-900/30 rounded-xl text-violet-600">
-            <LockKeyhole className="w-5.5 h-5.5" />
-          </div>
-          <div className="space-y-1">
-            <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">Secure Transmission Lines</h4>
-            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">When backend processing is required (like OCR or PDF repair), data routes are fully HTTPS encrypted.</p>
-          </div>
-        </div>
-      </section>
-
+      </RevealSection>
     </div>
   );
 }

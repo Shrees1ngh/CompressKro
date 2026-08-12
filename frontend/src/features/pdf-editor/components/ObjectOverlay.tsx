@@ -15,6 +15,7 @@ import type {
   ShapeObject,
   WhiteoutObject,
   SignatureObject,
+  FreehandObject,
   ViewportRect,
   ResizeHandle,
 } from '../core/types';
@@ -26,6 +27,7 @@ interface ObjectOverlayProps {
   isSelected: boolean;
   isEditing: boolean;
   viewportScale: number;
+  viewport?: any;
   onSelect: (id: string) => void;
   onStartDrag: (e: React.PointerEvent, id: string) => void;
   onStartResize: (e: React.PointerEvent, id: string, handle: ResizeHandle) => void;
@@ -42,6 +44,7 @@ export const ObjectOverlay = React.memo(function ObjectOverlay({
   isSelected,
   isEditing,
   viewportScale,
+  viewport,
   onSelect,
   onStartDrag,
   onStartResize,
@@ -100,6 +103,7 @@ export const ObjectOverlay = React.memo(function ObjectOverlay({
           obj={obj as ShapeObject}
           vRect={vRect}
           isSelected={isSelected}
+          viewport={viewport}
           onSelect={onSelect}
           onStartDrag={onStartDrag}
           onStartResize={onStartResize}
@@ -115,6 +119,18 @@ export const ObjectOverlay = React.memo(function ObjectOverlay({
           onSelect={onSelect}
           onStartDrag={onStartDrag}
           onStartResize={onStartResize}
+          onDelete={onDelete}
+        />
+      );
+    case 'freehand':
+      return (
+        <FreehandOverlay
+          obj={obj as FreehandObject}
+          vRect={vRect}
+          isSelected={isSelected}
+          viewport={viewport}
+          onSelect={onSelect}
+          onStartDrag={onStartDrag}
           onDelete={onDelete}
         />
       );
@@ -260,9 +276,13 @@ function TextOverlay({
         ...style,
         background: obj.isModified || obj.origin === 'inserted' || isEditing ? '#ffffff' : 'transparent',
       }}
-      onClick={(e) => { e.stopPropagation(); onSelect(obj.id); }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onSelect(obj.id);
+        onStartEditing(obj.id);
+      }}
       onPointerDown={(e) => { if (!isEditing && obj.origin === 'inserted') onStartDrag(e, obj.id); }}
-      onDoubleClick={(e) => { e.stopPropagation(); onStartEditing(obj.id); }}
+      onDoubleClick={(e) => { e.stopPropagation(); onSelect(obj.id); onStartEditing(obj.id); }}
     >
       {isEditing ? (
         <input
@@ -454,17 +474,20 @@ function WhiteoutOverlay({
 // ---- Shape Overlay ----
 
 function ShapeOverlay({
-  obj, vRect, isSelected,
+  obj, vRect, isSelected, viewport,
   onSelect, onStartDrag, onStartResize, onDelete,
 }: {
   obj: ShapeObject;
   vRect: ViewportRect;
   isSelected: boolean;
+  viewport: any;
   onSelect: (id: string) => void;
   onStartDrag: (e: React.PointerEvent, id: string) => void;
   onStartResize: (e: React.PointerEvent, id: string, handle: ResizeHandle) => void;
   onDelete: (id: string) => void;
 }) {
+  const isLineOrArrow = obj.shapeKind === 'line' || obj.shapeKind === 'arrow';
+
   return (
     <div
       className={`absolute cursor-move z-30 group ${isSelected ? 'ring-2 ring-pink-500' : ''}`}
@@ -473,19 +496,105 @@ function ShapeOverlay({
         top: vRect.top,
         width: vRect.width,
         height: vRect.height,
-        border: obj.strokeColor ? `${obj.strokeWidth}px solid ${obj.strokeColor}` : 'none',
-        backgroundColor: obj.fillColor || 'transparent',
         opacity: obj.opacity,
-        borderRadius: obj.shapeKind === 'circle' ? '50%' : 0,
+        ...(isLineOrArrow ? {} : {
+          border: obj.strokeColor ? `${obj.strokeWidth}px solid ${obj.strokeColor}` : 'none',
+          backgroundColor: obj.fillColor || 'transparent',
+          borderRadius: obj.shapeKind === 'circle' ? '50%' : 0,
+        })
       }}
       onPointerDown={(e) => onStartDrag(e, obj.id)}
       onClick={(e) => { e.stopPropagation(); onSelect(obj.id); }}
     >
+      {isLineOrArrow && viewport && (() => {
+        let x1 = 0, y1 = 0, x2 = vRect.width, y2 = vRect.height;
+        if (obj.startPoint && obj.endPoint) {
+          const startPt = viewport.convertToViewportPoint(obj.startPoint.x, obj.startPoint.y);
+          const endPt = viewport.convertToViewportPoint(obj.endPoint.x, obj.endPoint.y);
+          
+          x1 = startPt[0] - vRect.left;
+          y1 = startPt[1] - vRect.top;
+          x2 = endPt[0] - vRect.left;
+          y2 = endPt[1] - vRect.top;
+        }
+        const arrowMarkerId = `arrow-marker-${obj.id}`;
+        return (
+          <svg className="w-full h-full overflow-visible pointer-events-none">
+            {obj.shapeKind === 'arrow' && (
+              <defs>
+                <marker id={arrowMarkerId} viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill={obj.strokeColor || '#000'} />
+                </marker>
+              </defs>
+            )}
+            <line
+              x1={x1}
+              y1={y1}
+              x2={x2}
+              y2={y2}
+              stroke={obj.strokeColor || '#000'}
+              strokeWidth={obj.strokeWidth}
+              markerEnd={obj.shapeKind === 'arrow' ? `url(#${arrowMarkerId})` : undefined}
+            />
+          </svg>
+        );
+      })()}
+
       {isSelected && (
         <>
           <ResizeHandles onHandlePointerDown={(e, handle) => onStartResize(e, obj.id, handle)} />
           <DeleteButton onClick={() => onDelete(obj.id)} />
         </>
+      )}
+    </div>
+  );
+}
+
+// ---- Freehand Overlay ----
+
+function FreehandOverlay({
+  obj, vRect, isSelected, viewport,
+  onSelect, onStartDrag, onDelete,
+}: {
+  obj: FreehandObject;
+  vRect: ViewportRect;
+  isSelected: boolean;
+  viewport: any;
+  onSelect: (id: string) => void;
+  onStartDrag: (e: React.PointerEvent, id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const pathD = (() => {
+    if (!obj.points || obj.points.length === 0 || !viewport) return '';
+    const pts = obj.points.map(pt => {
+      const vpPt = viewport.convertToViewportPoint(pt.x, pt.y);
+      const lx = vpPt[0] - vRect.left;
+      const ly = vpPt[1] - vRect.top;
+      return `${lx},${ly}`;
+    });
+    return `M ${pts.join(' L ')}`;
+  })();
+
+  return (
+    <div
+      className={`absolute cursor-move z-30 group ${isSelected ? 'ring-2 ring-pink-500' : ''}`}
+      style={{ left: vRect.left, top: vRect.top, width: vRect.width, height: vRect.height }}
+      onPointerDown={(e) => onStartDrag(e, obj.id)}
+      onClick={(e) => { e.stopPropagation(); onSelect(obj.id); }}
+    >
+      <svg className="w-full h-full pointer-events-none overflow-visible">
+        <path
+          d={pathD}
+          fill="none"
+          stroke={obj.strokeColor}
+          strokeWidth={obj.strokeWidth}
+          opacity={obj.opacity}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+      {isSelected && (
+        <DeleteButton onClick={() => onDelete(obj.id)} />
       )}
     </div>
   );

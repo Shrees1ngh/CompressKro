@@ -209,8 +209,8 @@ export const PageCanvas = React.memo(function PageCanvas({
     // not bubbling events from clicking child text runs or object overlays.
     if (e.target !== e.currentTarget) return;
 
+    onClearSelection();
     if (activeTool === 'select') {
-      onClearSelection();
       return;
     }
 
@@ -252,21 +252,44 @@ export const PageCanvas = React.memo(function PageCanvas({
       return;
     }
 
-    if (activeTool === 'whiteout' || activeTool === 'shape') {
+    if (activeTool === 'whiteout' || activeTool === 'shape' || activeTool === 'ellipse' || activeTool === 'line' || activeTool === 'arrow' || activeTool === 'highlight' || activeTool === 'underline' || activeTool === 'strikeout') {
       setDrawingState({ pageIndex, startX: vx, startY: vy, currentX: vx, currentY: vy });
+    }
+
+    if (activeTool === 'freehand' || activeTool === 'freehand-highlight') {
+      const pdfPt = viewportPointToPdf(vx, vy, viewport);
+      setDrawingState({
+        pageIndex,
+        startX: vx,
+        startY: vy,
+        currentX: vx,
+        currentY: vy,
+        points: [{ x: pdfPt.x, y: pdfPt.y }]
+      });
     }
   }, [activeTool, viewport, pageIndex, fontSize, fontName, isBold, isItalic, textColor, pageObjects.length, onInsertObject, onStartEditing, onClearSelection]);
 
   const handlePointerMove = useCallback((e: React.MouseEvent) => {
     if (!drawingState) return;
     const rect = overlayRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    setDrawingState(prev => prev ? {
-      ...prev,
-      currentX: e.clientX - rect.left,
-      currentY: e.clientY - rect.top,
-    } : null);
-  }, [drawingState]);
+    if (!rect || !viewport) return;
+    const vx = e.clientX - rect.left;
+    const vy = e.clientY - rect.top;
+
+    setDrawingState(prev => {
+      if (!prev) return null;
+      const base = {
+        ...prev,
+        currentX: vx,
+        currentY: vy,
+      };
+      if (activeTool === 'freehand' || activeTool === 'freehand-highlight') {
+        const pdfPt = viewportPointToPdf(vx, vy, viewport);
+        base.points = [...(prev.points || []), { x: pdfPt.x, y: pdfPt.y }];
+      }
+      return base;
+    });
+  }, [drawingState, activeTool, viewport]);
 
   const handlePointerUp = useCallback(() => {
     if (!drawingState || !viewport) {
@@ -277,7 +300,37 @@ export const PageCanvas = React.memo(function PageCanvas({
     const dx = drawingState.currentX - drawingState.startX;
     const dy = drawingState.currentY - drawingState.startY;
 
-    if (Math.abs(dx) > MIN_DRAW_DISTANCE && Math.abs(dy) > MIN_DRAW_DISTANCE) {
+    if (activeTool === 'freehand' || activeTool === 'freehand-highlight') {
+      if (drawingState.points && drawingState.points.length >= 2) {
+        const xs = drawingState.points.map(pt => pt.x);
+        const ys = drawingState.points.map(pt => pt.y);
+        const minX = Math.min(...xs);
+        const maxX = Math.max(...xs);
+        const minY = Math.min(...ys);
+        const maxY = Math.max(...ys);
+
+        const pdfBounds = {
+          x: minX,
+          y: minY,
+          width: maxX - minX,
+          height: maxY - minY
+        };
+
+        onInsertObject({
+          id: generateId('frh'),
+          type: 'freehand',
+          pageIndex,
+          bounds: pdfBounds,
+          rotation: 0,
+          opacity: activeTool === 'freehand-highlight' ? 0.45 : 1,
+          zIndex: pageObjects.length,
+          locked: false,
+          points: drawingState.points,
+          strokeColor: shapeColor,
+          strokeWidth: activeTool === 'freehand-highlight' ? shapeStrokeWidth * 3.5 : shapeStrokeWidth,
+        });
+      }
+    } else if (Math.abs(dx) > MIN_DRAW_DISTANCE && Math.abs(dy) > MIN_DRAW_DISTANCE) {
       const left = Math.min(drawingState.startX, drawingState.currentX);
       const top = Math.min(drawingState.startY, drawingState.currentY);
       const width = Math.abs(dx);
@@ -296,7 +349,15 @@ export const PageCanvas = React.memo(function PageCanvas({
           zIndex: pageObjects.length,
           locked: false,
         });
-      } else if (activeTool === 'shape') {
+      } else if (activeTool === 'shape' || activeTool === 'ellipse' || activeTool === 'line' || activeTool === 'arrow') {
+        const shapeKind = 
+          activeTool === 'ellipse' ? 'circle' :
+          activeTool === 'line' ? 'line' :
+          activeTool === 'arrow' ? 'arrow' : 'rectangle';
+
+        const startPt = viewportPointToPdf(drawingState.startX, drawingState.startY, viewport);
+        const endPt = viewportPointToPdf(drawingState.currentX, drawingState.currentY, viewport);
+
         onInsertObject({
           id: generateId('shp'),
           type: 'shape',
@@ -306,10 +367,61 @@ export const PageCanvas = React.memo(function PageCanvas({
           opacity: 1,
           zIndex: pageObjects.length,
           locked: false,
-          shapeKind: 'rectangle',
-          fillColor: shapeFill ? shapeColor : null,
-          strokeColor: !shapeFill ? shapeColor : null,
+          shapeKind,
+          fillColor: (shapeKind === 'rectangle' || shapeKind === 'circle') && shapeFill ? shapeColor : null,
+          strokeColor: (!(shapeKind === 'rectangle' || shapeKind === 'circle') || !shapeFill) ? shapeColor : null,
           strokeWidth: shapeStrokeWidth,
+          startPoint: { x: startPt.x, y: startPt.y },
+          endPoint: { x: endPt.x, y: endPt.y }
+        });
+      } else if (activeTool === 'highlight') {
+        onInsertObject({
+          id: generateId('shp'),
+          type: 'shape',
+          pageIndex,
+          bounds: pdfBounds,
+          rotation: 0,
+          opacity: 0.35,
+          zIndex: pageObjects.length,
+          locked: false,
+          shapeKind: 'rectangle',
+          fillColor: shapeColor,
+          strokeColor: null,
+          strokeWidth: 0,
+        });
+      } else if (activeTool === 'underline') {
+        onInsertObject({
+          id: generateId('shp'),
+          type: 'shape',
+          pageIndex,
+          bounds: pdfBounds,
+          rotation: 0,
+          opacity: 1,
+          zIndex: pageObjects.length,
+          locked: false,
+          shapeKind: 'line',
+          fillColor: null,
+          strokeColor: shapeColor,
+          strokeWidth: shapeStrokeWidth,
+          startPoint: { x: pdfBounds.x, y: pdfBounds.y },
+          endPoint: { x: pdfBounds.x + pdfBounds.width, y: pdfBounds.y }
+        });
+      } else if (activeTool === 'strikeout') {
+        onInsertObject({
+          id: generateId('shp'),
+          type: 'shape',
+          pageIndex,
+          bounds: pdfBounds,
+          rotation: 0,
+          opacity: 1,
+          zIndex: pageObjects.length,
+          locked: false,
+          shapeKind: 'line',
+          fillColor: null,
+          strokeColor: shapeColor,
+          strokeWidth: shapeStrokeWidth,
+          startPoint: { x: pdfBounds.x, y: pdfBounds.y + pdfBounds.height / 2 },
+          endPoint: { x: pdfBounds.x + pdfBounds.width, y: pdfBounds.y + pdfBounds.height / 2 }
         });
       }
     }
@@ -350,7 +462,7 @@ export const PageCanvas = React.memo(function PageCanvas({
           className="absolute inset-0 z-10"
           style={{
             cursor: activeTool === 'text' ? 'text'
-              : activeTool === 'whiteout' || activeTool === 'shape' ? 'crosshair'
+              : activeTool === 'whiteout' || activeTool === 'shape' || activeTool === 'ellipse' || activeTool === 'line' || activeTool === 'arrow' || activeTool === 'highlight' || activeTool === 'underline' || activeTool === 'strikeout' || activeTool === 'freehand' || activeTool === 'freehand-highlight' ? 'crosshair'
               : 'default',
           }}
         >
@@ -367,6 +479,7 @@ export const PageCanvas = React.memo(function PageCanvas({
                 isSelected={selectedIds.has(obj.id)}
                 isEditing={editingTextId === obj.id}
                 viewportScale={zoom}
+                viewport={viewport}
                 onSelect={onSelect}
                 onStartDrag={onStartDrag}
                 onStartResize={onStartResize}
@@ -379,20 +492,113 @@ export const PageCanvas = React.memo(function PageCanvas({
             );
           })}
 
-          {/* Drawing preview rectangle */}
-          {drawingState && (
-            <div
-              className={`absolute border border-dashed z-50 pointer-events-none ${
-                activeTool === 'whiteout' ? 'border-slate-400 bg-slate-100/40' : 'border-pink-500 bg-pink-500/15'
-              }`}
-              style={{
-                left: Math.min(drawingState.startX, drawingState.currentX),
-                top: Math.min(drawingState.startY, drawingState.currentY),
-                width: Math.abs(drawingState.currentX - drawingState.startX),
-                height: Math.abs(drawingState.currentY - drawingState.startY),
-              }}
-            />
-          )}
+          {/* Drawing preview shape/rect */}
+          {drawingState && (() => {
+            const left = Math.min(drawingState.startX, drawingState.currentX);
+            const top = Math.min(drawingState.startY, drawingState.currentY);
+            const width = Math.max(1, Math.abs(drawingState.currentX - drawingState.startX));
+            const height = Math.max(1, Math.abs(drawingState.currentY - drawingState.startY));
+
+            if (activeTool === 'freehand' || activeTool === 'freehand-highlight') {
+              if (!drawingState.points || drawingState.points.length === 0) return null;
+              const pts = drawingState.points.map(pt => {
+                const vpPt = viewport.convertToViewportPoint(pt.x, pt.y);
+                return `${vpPt[0]},${vpPt[1]}`;
+              });
+              return (
+                <svg className="absolute inset-0 z-50 pointer-events-none w-full h-full">
+                  <path
+                    d={`M ${pts.join(' L ')}`}
+                    fill="none"
+                    stroke={shapeColor}
+                    strokeWidth={activeTool === 'freehand-highlight' ? shapeStrokeWidth * 3.5 : shapeStrokeWidth}
+                    opacity={activeTool === 'freehand-highlight' ? 0.45 : 1}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              );
+            }
+
+            if (activeTool === 'whiteout') {
+              return (
+                <div
+                  className="absolute border border-dashed border-slate-400 bg-white/80 z-50 pointer-events-none"
+                  style={{ left, top, width, height }}
+                />
+              );
+            }
+
+            if (activeTool === 'shape' || activeTool === 'highlight') {
+              return (
+                <div
+                  className="absolute border border-dashed border-pink-500 z-50 pointer-events-none"
+                  style={{
+                    left, top, width, height,
+                    backgroundColor: activeTool === 'highlight' ? shapeColor : (shapeFill ? shapeColor : 'transparent'),
+                    borderColor: activeTool === 'highlight' ? 'transparent' : shapeColor,
+                    opacity: activeTool === 'highlight' ? 0.35 : 1,
+                  }}
+                />
+              );
+            }
+
+            if (activeTool === 'ellipse') {
+              return (
+                <div
+                  className="absolute border border-dashed border-pink-500 rounded-full z-50 pointer-events-none"
+                  style={{
+                    left, top, width, height,
+                    borderColor: shapeColor,
+                    backgroundColor: shapeFill ? shapeColor : 'transparent',
+                  }}
+                />
+              );
+            }
+
+            if (activeTool === 'line' || activeTool === 'arrow' || activeTool === 'underline' || activeTool === 'strikeout') {
+              let x1 = 0, y1 = 0, x2 = width, y2 = height;
+              if (activeTool === 'underline') {
+                y1 = height;
+                y2 = height;
+              } else if (activeTool === 'strikeout') {
+                y1 = height / 2;
+                y2 = height / 2;
+              } else {
+                const isSlopeUp = (drawingState.currentX - drawingState.startX) * (drawingState.currentY - drawingState.startY) < 0;
+                if (isSlopeUp) {
+                  y1 = height;
+                  y2 = 0;
+                }
+              }
+
+              return (
+                <svg
+                  className="absolute z-50 pointer-events-none"
+                  style={{ left, top, width, height }}
+                >
+                  {activeTool === 'arrow' && (
+                    <defs>
+                      <marker id="preview-arrow-marker" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                        <path d="M 0 0 L 10 5 L 0 10 z" fill={shapeColor} />
+                      </marker>
+                    </defs>
+                  )}
+                  <line
+                    x1={x1}
+                    y1={y1}
+                    x2={x2}
+                    y2={y2}
+                    stroke={shapeColor}
+                    strokeWidth={shapeStrokeWidth}
+                    markerEnd={activeTool === 'arrow' ? 'url(#preview-arrow-marker)' : undefined}
+                  />
+                </svg>
+              );
+            }
+
+            return null;
+          })()}
         </div>
       )}
     </div>

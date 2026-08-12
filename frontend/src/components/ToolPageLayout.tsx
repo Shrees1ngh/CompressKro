@@ -140,18 +140,18 @@ export function ToolPageLayout({
       <script type="application/ld+json">{JSON.stringify(breadcrumbSchema)}</script>
 
       {/* Breadcrumbs Navigation */}
-      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 dark:text-slate-500">
+      <div className="flex items-center gap-2 text-xs font-semibold text-[var(--ck-text-muted)]">
         <Link to="/" className="hover:text-violet-600 transition-colors">Home</Link>
         <ChevronRight className="w-3 h-3" />
-        <span className="text-slate-600 dark:text-slate-300">{breadcrumbName}</span>
+        <span className="text-[var(--ck-text-primary)]">{breadcrumbName}</span>
       </div>
 
       {/* Header H1 Area */}
       <div className="text-center space-y-3 max-w-2xl mx-auto">
-        <h1 className="text-3xl md:text-5xl font-black text-slate-900 dark:text-slate-50 tracking-tight">
+        <h1 className="text-3xl md:text-5xl font-black text-[var(--ck-text-primary)] tracking-tight">
           {title}
         </h1>
-        <p className="text-xs sm:text-sm md:text-base text-slate-550 dark:text-slate-400 font-semibold">
+        <p className="text-xs sm:text-sm md:text-base text-[var(--ck-text-secondary)] font-semibold">
           {subtitle}
         </p>
       </div>
@@ -162,8 +162,8 @@ export function ToolPageLayout({
       </div>
 
       {/* Numbered Steps - How to Section */}
-      <div className="max-w-3xl mx-auto p-6 md:p-8 rounded-2xl border border-slate-200/50 dark:border-slate-800/40 bg-white/40 dark:bg-slate-900/30 glass-panel space-y-6 shadow-sm">
-        <h2 className="text-md sm:text-lg font-black text-slate-900 dark:text-slate-50">
+      <div className="max-w-3xl mx-auto p-6 md:p-8 rounded-[var(--ck-radius-xl)] ck-card space-y-6">
+        <h2 className="text-md sm:text-lg font-black text-[var(--ck-text-primary)]">
           How to {title.toLowerCase()} Online for Free:
         </h2>
         <ol className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -172,7 +172,7 @@ export function ToolPageLayout({
               <div className="w-7 h-7 rounded-full bg-violet-600 text-white font-bold text-xs flex items-center justify-center shadow-md shadow-violet-500/10">
                 {step.step}
               </div>
-              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-semibold">
+              <p className="text-xs text-[var(--ck-text-secondary)] leading-relaxed font-semibold">
                 {step.text}
               </p>
             </li>
@@ -182,17 +182,17 @@ export function ToolPageLayout({
 
       {/* Benefits Grid */}
       <div className="max-w-3xl mx-auto space-y-6">
-        <h2 className="text-md sm:text-lg font-black text-slate-900 dark:text-slate-50 text-center">
+        <h2 className="text-md sm:text-lg font-black text-[var(--ck-text-primary)] text-center">
           Why Choose CompressKro for {breadcrumbName}?
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {benefits.map((b, idx) => (
-            <div key={idx} className="p-5 rounded-2xl border border-slate-200/50 dark:border-slate-800/40 bg-white/40 dark:bg-slate-900/30 glass-panel space-y-2 text-left shadow-xs">
-              <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-450">
+            <div key={idx} className="p-5 rounded-[var(--ck-radius-lg)] ck-card space-y-2 text-left">
+              <div className="flex items-center gap-2 text-emerald-600">
                 <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
                 <h3 className="text-xs font-black">{b.title}</h3>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">
+              <p className="text-[11px] text-[var(--ck-text-secondary)] leading-relaxed font-semibold">
                 {b.desc}
               </p>
             </div>
@@ -201,17 +201,17 @@ export function ToolPageLayout({
       </div>
 
       {/* FAQ Accordion Section */}
-      <div className="max-w-3xl mx-auto p-6 md:p-8 rounded-2xl border border-slate-200/50 dark:border-slate-800/40 bg-white/40 dark:bg-slate-900/30 glass-panel space-y-6 shadow-sm">
-        <h2 className="text-md sm:text-lg font-black text-slate-900 dark:text-slate-50 text-center">
+      <div className="max-w-3xl mx-auto p-6 md:p-8 rounded-[var(--ck-radius-xl)] ck-card space-y-6">
+        <h2 className="text-md sm:text-lg font-black text-[var(--ck-text-primary)] text-center">
           Frequently Asked Questions (FAQ)
         </h2>
-        <div className="space-y-4 divide-y divide-slate-200/50 dark:divide-slate-800/40 text-left">
+        <div className="space-y-4 text-left" style={{ borderTop: '1px solid var(--ck-border)' }}>
           {faqs.map((faq, idx) => (
-            <div key={idx} className={`${idx > 0 ? 'pt-4' : ''} space-y-1.5`}>
-              <h3 className="text-xs font-black text-slate-800 dark:text-slate-200">
+            <div key={idx} className={`${idx > 0 ? 'pt-4' : 'pt-4'} space-y-1.5`} style={idx > 0 ? { borderTop: '1px solid var(--ck-border)' } : {}}>
+              <h3 className="text-xs font-black text-[var(--ck-text-primary)]">
                 {faq.question}
               </h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">
+              <p className="text-[11px] text-[var(--ck-text-secondary)] leading-relaxed font-semibold">
                 {faq.answer}
               </p>
             </div>
@@ -221,7 +221,7 @@ export function ToolPageLayout({
 
       {/* Related Tools List */}
       <div className="max-w-3xl mx-auto space-y-6">
-        <h2 className="text-md sm:text-lg font-black text-slate-900 dark:text-slate-50 text-center">
+        <h2 className="text-md sm:text-lg font-black text-[var(--ck-text-primary)] text-center">
           Related Tools
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -231,14 +231,14 @@ export function ToolPageLayout({
               <Link
                 key={idx}
                 to={tool.path}
-                className="p-4 rounded-xl border border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-950/20 hover:border-violet-500 hover:ring-2 hover:ring-violet-500/10 transition-all text-left flex gap-3 shadow-xs"
+                className="p-4 rounded-[var(--ck-radius-md)] ck-card hover:border-violet-500 transition-all text-left flex gap-3"
               >
                 <div className="w-8 h-8 rounded-lg bg-violet-50 dark:bg-violet-950/40 flex items-center justify-center flex-shrink-0">
                   <Icon className="w-4 h-4 text-violet-600 dark:text-violet-400" />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{tool.name}</h3>
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 leading-relaxed truncate">{tool.desc}</p>
+                  <h3 className="text-xs font-bold text-[var(--ck-text-primary)] truncate">{tool.name}</h3>
+                  <p className="text-[10px] text-[var(--ck-text-muted)] mt-0.5 leading-relaxed truncate">{tool.desc}</p>
                 </div>
               </Link>
             );
