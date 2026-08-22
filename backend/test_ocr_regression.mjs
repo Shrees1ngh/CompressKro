@@ -57,6 +57,16 @@ const REQUIRED_PARTIAL_PHRASES = [
   'Roll No',
 ];
 
+const REQUIRED_HINDI_PHRASES = [
+  'केन्द्रीय माध्यमिक शिक्षा',
+  'अंक विवरणिका',
+  'जन्म तिथि',
+  'माता का नाम',
+  'विद्यालय',
+  'शैक्षणिक',
+  'उपलब्धियां',
+];
+
 const HINDI_PATTERNS = [
   /[\u0900-\u097F]{2,}/, // At least 2 consecutive Devanagari chars
 ];
@@ -108,6 +118,7 @@ async function runRegressionTest() {
   });
 
   const page = await browser.newPage();
+  await page.setCacheEnabled(false);
   page.on('console', msg => {
     const text = msg.text();
     if (!text.includes('[vite]') && !text.includes('React DevTools') && !text.includes('Vercel Web Analytics')) {
@@ -169,6 +180,10 @@ async function runRegressionTest() {
   console.log('================================================================\n');
 
   // Section 1: Metrics
+  const hindiTokens = tokens.filter(t => /[\u0900-\u097F]/.test(t));
+  const englishTokens = tokens.filter(t => /[a-zA-Z]/.test(t));
+  const regionCount = debug?.regions?.length ?? 0;
+
   console.log('## 1. OCR Metrics');
   console.log(`Strategy:                        ${debug?.strategy ?? 'N/A'}`);
   console.log(`Quality Score:                   ${debug?.qualityScore?.toFixed(1) ?? 'N/A'}`);
@@ -176,10 +191,14 @@ async function runRegressionTest() {
   console.log(`Baseline Words:                  ${debug?.baselineWordsCount ?? 'N/A'}`);
   console.log(`Secondary Words:                 ${debug?.secondaryWordsCount ?? 'N/A'}`);
   console.log(`Table Cell Words:                ${debug?.tableCellWordsCount ?? 'N/A'}`);
+  console.log(`Total OCR Tokens:                ${(debug?.baselineWordsCount ?? 0) + (debug?.secondaryWordsCount ?? 0)}`);
+  console.log(`Total Valid Tokens:              ${debug?.insertedWordsCount ?? 'N/A'}`);
+  console.log(`Hindi Token Count (Extracted):   ${hindiTokens.length}`);
+  console.log(`English Token Count (Extracted): ${englishTokens.length}`);
   console.log(`Duplicates Removed:              ${debug?.duplicateCandidatesRemoved ?? 'N/A'}`);
   console.log(`Unique Words Added:              ${debug?.uniqueNewWordsAdded ?? 'N/A'}`);
   console.log(`Final Inserted Words:            ${debug?.insertedWordsCount ?? 'N/A'}`);
-  console.log(`Discarded Words:                 ${debug?.discardedWordsCount ?? 0}`);
+  console.log(`Discarded/Rejected Words:        ${debug?.discardedWordsCount ?? 0}`);
   console.log(`Coverage:                        ${debug?.coveragePercent ?? 0}%`);
   console.log('');
 
@@ -215,15 +234,16 @@ async function runRegressionTest() {
 
   console.log(`\n  Passed: ${passedAssertions}/${totalAssertions}\n`);
 
-  // Section 4: Hindi Unicode
-  console.log('## 4. Hindi Unicode Verification');
-  let hindiPassed = 0;
-  for (const pattern of HINDI_PATTERNS) {
-    const found = pattern.test(rawExtractedText);
-    console.log(`  [${found ? 'PASS' : 'FAIL'}] Pattern: ${pattern}`);
-    if (found) hindiPassed++;
+  // Section 4: Hindi Unicode & Anchor Verification
+  console.log('## 4. Hindi Unicode & Anchor Verification');
+  let hindiPhrasesPassed = 0;
+  for (const phrase of REQUIRED_HINDI_PHRASES) {
+    const found = rawExtractedText.includes(phrase);
+    const status = found ? 'PASS' : 'FAIL';
+    console.log(`  [${status}] "${phrase}"`);
+    if (found) hindiPhrasesPassed++;
   }
-  console.log('');
+  console.log(`\n  Hindi Anchors Passed: ${hindiPhrasesPassed}/${REQUIRED_HINDI_PHRASES.length}\n`);
 
   // Section 5: Table Values
   console.log('## 5. Table Value Recognition');
@@ -269,8 +289,9 @@ async function runRegressionTest() {
     'Multiple tokens exist': tokens.length > 20,
     'Hindi Unicode present': /[\u0900-\u097F]/.test(rawExtractedText),
     'Page count preserved': doc.numPages === 1,
-    'No catastrophic text loss': debug?.insertedWordsCount > 100,
+    'No catastrophic text loss': (debug?.insertedWordsCount ?? 0) > 100,
     'Phrase pass rate > 70%': passedAssertions / totalAssertions > 0.7,
+    'Hindi anchor pass rate > 70%': hindiPhrasesPassed / REQUIRED_HINDI_PHRASES.length > 0.7,
     'Table values pass rate > 50%': tableValuesPassed / TABLE_VALUES.length > 0.5,
     'No forbidden fusions': fusionsPassed === FORBIDDEN_FUSIONS.length,
   };
@@ -288,12 +309,13 @@ async function runRegressionTest() {
   doc.destroy();
 
   console.log('\n================================================================');
-  if (structuralPassed >= totalStructural - 2 && passedAssertions >= totalAssertions * 0.6) {
+  if (structuralPassed === totalStructural && passedAssertions === totalAssertions && hindiPhrasesPassed === REQUIRED_HINDI_PHRASES.length && tableValuesPassed === TABLE_VALUES.length) {
     console.log('  ✅ REGRESSION TEST PASSED');
   } else {
     console.log('  ❌ REGRESSION TEST FAILED');
     console.log(`     Structural: ${structuralPassed}/${totalStructural}`);
     console.log(`     Phrases: ${passedAssertions}/${totalAssertions}`);
+    console.log(`     Hindi Anchors: ${hindiPhrasesPassed}/${REQUIRED_HINDI_PHRASES.length}`);
     console.log(`     Table: ${tableValuesPassed}/${TABLE_VALUES.length}`);
     console.log(`     Fusions: ${fusionsPassed}/${FORBIDDEN_FUSIONS.length}`);
   }

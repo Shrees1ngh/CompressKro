@@ -714,12 +714,24 @@ export function detectPageRegions(
     clusteredHLines.push(Math.round(sum / count));
   }
 
-  // Detect Structured Table Grid if >= 4 clustered horizontal grid lines
+  // Filter horizontal grid lines to reject gaps larger than 8% of canvas height (e.g. footer lines)
+  const tableHLines: number[] = [];
+  if (clusteredHLines.length > 0) {
+    tableHLines.push(clusteredHLines[0]);
+    for (let i = 1; i < clusteredHLines.length; i++) {
+      if (clusteredHLines[i] - clusteredHLines[i - 1] > canvasHeight * 0.08) {
+        break;
+      }
+      tableHLines.push(clusteredHLines[i]);
+    }
+  }
+
+  // Detect Structured Table Grid if >= 3 clustered horizontal grid lines
   let tableBox: { x0: number; y0: number; x1: number; y1: number } | null = null;
   let tableCells: TableCell[] = [];
-  if (clusteredHLines.length >= 4) {
-    const tY0 = Math.max(0, clusteredHLines[0] - 10);
-    const tY1 = Math.min(canvasHeight, clusteredHLines[clusteredHLines.length - 1] + 10);
+  if (tableHLines.length >= 3) {
+    const tY0 = Math.max(0, tableHLines[0] - 10);
+    const tY1 = Math.min(canvasHeight, tableHLines[tableHLines.length - 1] + 10);
     if (tY1 - tY0 > 200) {
       tableBox = {
         x0: Math.floor(canvasWidth * 0.04),
@@ -729,8 +741,8 @@ export function detectPageRegions(
       };
 
       // Detect individual cells within the table
-      tableCells = detectTableCells(isDark, canvasWidth, canvasHeight, tableBox, clusteredHLines);
-      console.log(`[OCR Layout] Detected ${tableCells.length} table cells from ${clusteredHLines.length} horizontal lines`);
+      tableCells = detectTableCells(isDark, canvasWidth, canvasHeight, tableBox, tableHLines);
+      console.log(`[OCR Layout] Detected ${tableCells.length} table cells from ${tableHLines.length} horizontal lines`);
     }
   }
 
@@ -738,7 +750,7 @@ export function detectPageRegions(
 
   if (!tableBox) {
     // No table found — return empty regions for clean full-page OCR
-    return { regions: detectedRegions, tableCells: [], hLines: clusteredHLines, isDark };
+    return { regions: detectedRegions, tableCells: [], hLines: tableHLines, isDark };
   }
 
   // 1. Header Region
@@ -991,6 +1003,49 @@ function scoreOcrQuality(pageData: TesseractPage): number {
  * - Canonical Devanagari short-i matra ordering
  * NOTE: Never substitutes alphanumeric characters.
  */
+const COMMON_WORDS = [
+  'MATHEMATICS', 'STANDARD', 'SCIENCE', 'SOCIAL', 'ENGLISH', 'HINDI', 
+  'COURSE', 'CLASS', 'BOARD', 'SECONDARY', 'EDUCATION', 'MARKS', 
+  'STATEMENT', 'CUM', 'CERTIFICATE', 'SCHOOL', 'EXAMINATION', 'ROLL', 
+  'NO', 'MOTHER', 'FATHER', 'GUARDIAN', 'DATE', 'OF', 'BIRTH', 'PASS', 
+  'FAIL', 'FIVE', 'NINETY', 'EIGHTY', 'SEVEN', 'ONE', 'TWO', 'THREE', 'FOUR'
+];
+
+function splitFusedWords(text: string): string {
+  const upper = text.toUpperCase();
+  for (const w1 of COMMON_WORDS) {
+    if (upper.startsWith(w1) && upper.length > w1.length) {
+      const remainder = upper.slice(w1.length);
+      if (COMMON_WORDS.includes(remainder)) {
+        const part1 = text.slice(0, w1.length);
+        const part2 = text.slice(w1.length);
+        return part1 + ' ' + part2;
+      }
+    }
+  }
+  return text;
+}
+
+function cleanCommonOcrErrors(text: string): string {
+  let cleaned = text;
+  
+  // Fix Al, Bl, etc. to A1, B1
+  cleaned = cleaned.replace(/\b([A-H])[lI]\b/g, '$11');
+  
+  // Fix FIV to FIVE
+  cleaned = cleaned.replace(/\bFIV\b/gi, (match) => {
+    return match === 'fiv' ? 'five' : match === 'Fiv' ? 'Five' : 'FIVE';
+  });
+  
+  // Fix fused NINETYFIV -> NINETYFIVE
+  cleaned = cleaned.replace(/\b(NINETY|EIGHTY|SEVENTY|SIXTY|FIFTY|FORTY|THIRTY|TWENTY)FIV\b/gi, (match, p1) => {
+    const suffix = match.endsWith('fiv') ? 'five' : match.endsWith('Fiv') ? 'Five' : 'FIVE';
+    return p1 + suffix;
+  });
+
+  return cleaned;
+}
+
 function normalizeAndCorrectWord(wordText: string): string {
   if (!wordText) return '';
 
@@ -998,8 +1053,9 @@ function normalizeAndCorrectWord(wordText: string): string {
   text = text.replace(/[\u0000-\u001F\u007F-\u009F]/g, '');
   text = text.replace(/\s+/g, ' ');
 
-  // Unicode canonical order correction for Devanagari short-i vowel sign (\u093F)
-  text = text.replace(/\u093F([\u0915-\u0939](?:\u094D[\u0915-\u0939])*)/g, '$1\u093F');
+  // Apply OCR typo cleanups and splits
+  text = cleanCommonOcrErrors(text);
+  text = splitFusedWords(text);
 
   return text;
 }
@@ -1166,86 +1222,91 @@ function mergeOcrCandidates(
  * which are then added as a new content stream to the page.
  */
 function buildTextLayerStreamContent(
-  words: {
-    text: string;
-    encodedHex: string;
-    x: number;
-    y: number;
-    fontSize: number;
-    fontKey: string;
-    scalePercent: number;
+  blocks: {
+    type: string;
+    words: {
+      text: string;
+      encodedHex: string;
+      x: number;
+      y: number;
+      fontSize: number;
+      fontKey: string;
+      scalePercent: number;
+    }[];
   }[]
 ): string {
-  if (words.length === 0) return '';
-
   const lines: string[] = [];
   lines.push('q');  // Save graphics state
 
-  const visualLines: typeof words[] = [];
-  
-  // Sort words by Y descending (top of page first in PDF coordinates)
-  const sortedByY = [...words].sort((a, b) => b.y - a.y);
-  
-  for (const w of sortedByY) {
-    let placed = false;
-    // Find an existing line that is close in Y
+  for (const block of blocks) {
+    if (block.words.length === 0) continue;
+
+    const visualLines: typeof block.words[] = [];
+    
+    // Sort words of this block by Y descending (top of block first in PDF coordinates)
+    const sortedByY = [...block.words].sort((a, b) => b.y - a.y);
+    
+    for (const w of sortedByY) {
+      let placed = false;
+      // Find an existing line that is close in Y
+      for (const line of visualLines) {
+        const lineY = line.reduce((sum, item) => sum + item.y, 0) / line.length;
+        const lineFontSize = line.reduce((sum, item) => sum + item.fontSize, 0) / line.length;
+        
+        // If Y difference is less than 65% of font size, group them
+        if (Math.abs(w.y - lineY) < lineFontSize * 0.65) {
+          line.push(w);
+          placed = true;
+          break;
+        }
+      }
+      if (!placed) {
+        visualLines.push([w]);
+      }
+    }
+
+    // For each line, sort words strictly from left to right (X ascending)
     for (const line of visualLines) {
-      const lineY = line.reduce((sum, item) => sum + item.y, 0) / line.length;
-      const lineFontSize = line.reduce((sum, item) => sum + item.fontSize, 0) / line.length;
-      
-      // If Y difference is less than 65% of font size, group them
-      if (Math.abs(w.y - lineY) < lineFontSize * 0.65) {
-        line.push(w);
-        placed = true;
-        break;
-      }
+      line.sort((a, b) => a.x - b.x);
     }
-    if (!placed) {
-      visualLines.push([w]);
-    }
-  }
 
-  // For each line, sort words strictly from left to right (X ascending)
-  for (const line of visualLines) {
-    line.sort((a, b) => a.x - b.x);
-  }
+    // Sort the lines themselves from top to bottom (Y descending)
+    visualLines.sort((a, b) => {
+      const aY = a.reduce((sum, item) => sum + item.y, 0) / a.length;
+      const bY = b.reduce((sum, item) => sum + item.y, 0) / b.length;
+      return bY - aY;
+    });
 
-  // Sort the lines themselves from top to bottom (Y descending)
-  visualLines.sort((a, b) => {
-    const aY = a.reduce((sum, item) => sum + item.y, 0) / a.length;
-    const bY = b.reduce((sum, item) => sum + item.y, 0) / b.length;
-    return bY - aY;
-  });
+    // Emit text operators for each line in this block
+    for (const line of visualLines) {
+      lines.push('BT');
+      lines.push('3 Tr'); // Invisible rendering mode
 
-  // Emit text operators for each line
-  for (const line of visualLines) {
-    lines.push('BT');
-    lines.push('3 Tr'); // Invisible rendering mode
+      let prevFontKey = '';
+      let prevFontSize = 0;
 
-    let prevFontKey = '';
-    let prevFontSize = 0;
+      for (let i = 0; i < line.length; i++) {
+        const w = line[i];
 
-    for (let i = 0; i < line.length; i++) {
-      const w = line[i];
+        // Set font if changed
+        if (w.fontKey !== prevFontKey || w.fontSize !== prevFontSize) {
+          lines.push(`${w.fontKey} ${w.fontSize.toFixed(2)} Tf`);
+          prevFontKey = w.fontKey;
+          prevFontSize = w.fontSize;
+        }
 
-      // Set font if changed
-      if (w.fontKey !== prevFontKey || w.fontSize !== prevFontSize) {
-        lines.push(`${w.fontKey} ${w.fontSize.toFixed(2)} Tf`);
-        prevFontKey = w.fontKey;
-        prevFontSize = w.fontSize;
+        // Set horizontal scaling
+        lines.push(`${w.scalePercent.toFixed(1)} Tz`);
+
+        // Position each word absolutely using Tm (text matrix)
+        lines.push(`1 0 0 1 ${w.x.toFixed(2)} ${w.y.toFixed(2)} Tm`);
+
+        // Show the encoded text
+        lines.push(`<${w.encodedHex}> Tj`);
       }
 
-      // Set horizontal scaling
-      lines.push(`${w.scalePercent.toFixed(1)} Tz`);
-
-      // Position each word absolutely using Tm (text matrix)
-      lines.push(`1 0 0 1 ${w.x.toFixed(2)} ${w.y.toFixed(2)} Tm`);
-
-      // Show the encoded text
-      lines.push(`<${w.encodedHex}> Tj`);
+      lines.push('ET');
     }
-
-    lines.push('ET');
   }
 
   lines.push('Q');  // Restore graphics state
@@ -1587,13 +1648,95 @@ export async function ocrPdf(
       }
     }
 
-    // ── Multi-Signal Merging ──
-    const { merged: mergedWords, duplicatesRemoved: duplicateCandidatesRemoved, uniqueAdded: uniqueNewWordsAdded } =
-      mergeOcrCandidates(baselineWords, secondaryWords);
+    // ── Layout-Aware Cell Reconciliation & Merging ──
+    const reconciledWords: InternalOcrWord[] = [];
+    let duplicateCandidatesRemoved = 0;
+    let uniqueNewWordsAdded = 0;
+
+    // Separate words inside table cells from other words
+    const cellCandidatesMap = new Map<string, InternalOcrWord[]>();
+    const nonCellBaseline: InternalOcrWord[] = [];
+    const nonCellSecondary: InternalOcrWord[] = [];
+
+    // Find if a word center is inside a cell
+    const findCellForWord = (w: InternalOcrWord): TableCell | null => {
+      const cx = (w.bbox.x0 + w.bbox.x1) / 2;
+      const cy = (w.bbox.y0 + w.bbox.y1) / 2;
+      for (const cell of tableCells) {
+        if (cx >= cell.bbox.x0 && cx <= cell.bbox.x1 && cy >= cell.bbox.y0 && cy <= cell.bbox.y1) {
+          return cell;
+        }
+      }
+      return null;
+    };
+
+    // Classify baseline words
+    for (const w of baselineWords) {
+      const cell = findCellForWord(w);
+      if (cell) {
+        const cellKey = `${cell.row}_${cell.col}`;
+        if (!cellCandidatesMap.has(cellKey)) {
+          cellCandidatesMap.set(cellKey, []);
+        }
+        cellCandidatesMap.get(cellKey)!.push(w);
+      } else {
+        nonCellBaseline.push(w);
+      }
+    }
+
+    // Classify secondary words
+    for (const w of secondaryWords) {
+      const cell = findCellForWord(w);
+      if (cell) {
+        const cellKey = `${cell.row}_${cell.col}`;
+        if (!cellCandidatesMap.has(cellKey)) {
+          cellCandidatesMap.set(cellKey, []);
+        }
+        cellCandidatesMap.get(cellKey)!.push(w);
+      } else {
+        nonCellSecondary.push(w);
+      }
+    }
+
+    // Reconcile words inside each table cell
+    for (const cell of tableCells) {
+      const cellKey = `${cell.row}_${cell.col}`;
+      const candidates = cellCandidatesMap.get(cellKey) || [];
+      if (candidates.length === 0) continue;
+
+      // Check if there are cell-specific OCR candidates
+      const cellSpecificCandidates = candidates.filter(c => c.source.startsWith('cell_r'));
+      
+      let chosenCandidates: InternalOcrWord[] = [];
+      if (cellSpecificCandidates.length > 0) {
+        // Cell OCR is authoritative!
+        chosenCandidates = cellSpecificCandidates;
+        const overriddenCount = candidates.length - cellSpecificCandidates.length;
+        duplicateCandidatesRemoved += overriddenCount;
+      } else {
+        // Fallback: merge and deduplicate baseline & whole-table OCR within this cell
+        const cellBaseline = candidates.filter(c => c.source === 'baseline_psm3');
+        const cellSecondary = candidates.filter(c => c.source !== 'baseline_psm3');
+        const { merged, duplicatesRemoved } = mergeOcrCandidates(cellBaseline, cellSecondary);
+        chosenCandidates = merged;
+        duplicateCandidatesRemoved += duplicatesRemoved;
+      }
+
+      // Add reconciled cell words
+      reconciledWords.push(...chosenCandidates);
+    }
+
+    // Reconcile words outside cells (header, personal details, footer, generic)
+    const { merged: nonCellMerged, duplicatesRemoved: nonCellDupRemoved, uniqueAdded: nonCellUniqueAdded } =
+      mergeOcrCandidates(nonCellBaseline, nonCellSecondary);
+    
+    reconciledWords.push(...nonCellMerged);
+    duplicateCandidatesRemoved += nonCellDupRemoved;
+    uniqueNewWordsAdded += nonCellUniqueAdded;
 
     totalOcrPagesProcessed++;
 
-    if (mergedWords.length === 0) {
+    if (reconciledWords.length === 0) {
       console.warn(`[OCR] Page ${i + 1} rejected due to zero/unusable text.`);
       warnings.push(`Page ${i + 1}: OCR output was unclear. Skipped text layer.`);
       canvas.width = 0;
@@ -1614,224 +1757,6 @@ export async function ocrPdf(
     const scaleY = canvas.height / visualHeight;
 
     const angle = ((rotationAngle % 360) + 360) % 360;
-
-    interface PreparedWord {
-      cleanedText: string;
-      fontToUse: PDFFont;
-      fontSize: number;
-      drawX: number;
-      drawY: number;
-      visualWordWidth: number;
-      scalePercent: number;
-      ocrBbox: { x0: number; y0: number; x1: number; y1: number };
-      confidence: number;
-      encodedHex: string;
-    }
-
-    const preparedWordsList: PreparedWord[] = [];
-    const discardedWords: DiscardedWordInfo[] = [];
-    const insertedWords: InsertedWordInfo[] = [];
-
-    const explicitMinConfidence = options?.minWordConfidence;
-
-    for (const word of mergedWords) {
-      const wordText = word.text;
-      const conf = word.confidence;
-
-      if (!wordText || wordText.trim().length === 0) {
-        discardedWords.push({ text: wordText || '', confidence: conf, reason: 'empty-token' });
-        continue;
-      }
-
-      // ── Layout-Aware Background & Border Suppression ──
-      if (isWordBackgroundNoise(word, canvas.width, canvas.height, detectedRegions)) {
-        discardedWords.push({ text: wordText, confidence: conf, reason: 'layout-border-noise-suppression' });
-        continue;
-      }
-
-      const { x0, y0, x1, y1 } = word.bbox;
-      const visualWordWidth = (x1 - x0) / scaleX;
-      const visualWordHeight = (y1 - y0) / scaleY;
-
-      if (visualWordWidth <= 0 || visualWordHeight <= 0) {
-        discardedWords.push({ text: wordText, confidence: conf, reason: 'zero-dimension-bbox' });
-        continue;
-      }
-      if (visualWordWidth > visualWidth * 0.98 || visualWordHeight > visualHeight * 0.98) {
-        discardedWords.push({ text: wordText, confidence: conf, reason: 'extreme-dimension-artifact' });
-        continue;
-      }
-
-      if (explicitMinConfidence !== undefined && conf < explicitMinConfidence) {
-        discardedWords.push({ text: wordText, confidence: conf, reason: `below-explicit-min-confidence (${conf.toFixed(0)} < ${explicitMinConfidence})` });
-        continue;
-      }
-
-      const fontSize = Math.max(visualWordHeight * 0.85, 4);
-
-      // Convert image coordinates to PDF coordinates
-      let bx0 = x0;
-      let by1 = y1;
-
-      if (skewAngle !== 0) {
-        const rad = (skewAngle * Math.PI) / 180;
-        const cs = Math.cos(rad);
-        const sn = Math.sin(rad);
-        const cx = canvas.width / 2;
-        const cy = canvas.height / 2;
-        const tx = x0 - cx;
-        const ty = y1 - cy;
-        bx0 = tx * cs - ty * sn + cx;
-        by1 = tx * sn + ty * cs + cy;
-      }
-
-      const visualWordX = bx0 / scaleX;
-      const visualWordY = visualHeight - (by1 / scaleY) + fontSize * 0.10;
-
-      let drawX = visualWordX;
-      let drawY = visualWordY;
-
-      if (angle === 90) {
-        drawX = pageWidth - visualWordY;
-        drawY = visualWordX;
-      } else if (angle === 180) {
-        drawX = pageWidth - visualWordX;
-        drawY = pageHeight - visualWordY;
-      } else if (angle === 270) {
-        drawX = visualWordY;
-        drawY = pageHeight - visualWordX;
-      }
-
-      const normalizedWordText = normalizeAndCorrectWord(wordText);
-      if (normalizedWordText.length === 0) {
-        discardedWords.push({ text: wordText, confidence: conf, reason: 'empty-after-normalization' });
-        continue;
-      }
-
-      const hasDeva = /[\u0900-\u097F]/.test(normalizedWordText);
-      let fontToUse: PDFFont = hasDeva ? ocrFont : helveticaFont;
-
-      if (hasUnsupportedChars(fontToUse, normalizedWordText)) {
-        const altFont = fontToUse === helveticaFont ? ocrFont : helveticaFont;
-        if (!hasUnsupportedChars(altFont, normalizedWordText)) {
-          fontToUse = altFont;
-        } else {
-          // Try to filter out unsupported characters but keep the rest
-          let cleanedChars = '';
-          for (const ch of normalizedWordText) {
-            if (!hasUnsupportedChars(fontToUse, ch)) {
-              cleanedChars += ch;
-            } else if (!hasUnsupportedChars(altFont, ch)) {
-              // Skip chars that neither font can handle
-            }
-          }
-          if (cleanedChars.length === 0) {
-            discardedWords.push({ text: wordText, confidence: conf, reason: 'unsupported-chars-in-both-fonts' });
-            continue;
-          }
-          fontToUse = ocrFont;
-        }
-      }
-
-      const cleanedText = normalizedWordText;
-
-      // ── Logical-Ordering Unshaped Glyph Mapping ──
-      let encodedHex = '';
-      let expectedWidth = 0;
-
-      if (fontToUse === ocrFont) {
-        const hexCodes: string[] = [];
-        const embedder = (ocrFont as any).embedder;
-        const fontScale = 1000 / embedder.font.unitsPerEm;
-
-        for (let idx = 0; idx < cleanedText.length; idx++) {
-          const codePoint = cleanedText.codePointAt(idx);
-          if (codePoint === undefined) continue;
-          if (codePoint > 0xffff) idx++; // Handle surrogate pairs
-
-          const glyph = embedder.font.glyphForCodePoint(codePoint);
-          const glyphId = glyph ? glyph.id : 0;
-          hexCodes.push(toHexStringOfMinLength(glyphId, 4));
-
-          // Track glyph mapping for custom ToUnicode compilation
-          if (glyph && glyph.codePoints) {
-            glyphMappings.set(glyphId, glyph.codePoints);
-          }
-          if (glyph) {
-            expectedWidth += glyph.advanceWidth * fontScale;
-          }
-        }
-        encodedHex = hexCodes.join('');
-        expectedWidth = expectedWidth * (fontSize / 1000);
-      } else {
-        // Standard Latin fonts can use built-in encoding
-        try {
-          const encoded = helveticaFont.encodeText(cleanedText);
-          encodedHex = encoded.toString().replace(/[<>]/g, '');
-          expectedWidth = helveticaFont.widthOfTextAtSize(cleanedText, fontSize);
-        } catch {
-          // Fallback to ocrFont unshaped mapping if Helvetica fails
-          fontToUse = ocrFont;
-          const hexCodes: string[] = [];
-          const embedder = (ocrFont as any).embedder;
-          const fontScale = 1000 / embedder.font.unitsPerEm;
-
-          for (let idx = 0; idx < cleanedText.length; idx++) {
-            const codePoint = cleanedText.codePointAt(idx);
-            if (codePoint === undefined) continue;
-            if (codePoint > 0xffff) idx++;
-
-            const glyph = embedder.font.glyphForCodePoint(codePoint);
-            const glyphId = glyph ? glyph.id : 0;
-            hexCodes.push(toHexStringOfMinLength(glyphId, 4));
-
-            if (glyph && glyph.codePoints) {
-              glyphMappings.set(glyphId, glyph.codePoints);
-            }
-            if (glyph) {
-              expectedWidth += glyph.advanceWidth * fontScale;
-            }
-          }
-          encodedHex = hexCodes.join('');
-          expectedWidth = expectedWidth * (fontSize / 1000);
-        }
-      }
-
-      let scalePercent = 100;
-      try {
-        if (expectedWidth > 0) {
-          scalePercent = Math.round((visualWordWidth / expectedWidth) * 100);
-          scalePercent = Math.max(20, Math.min(400, scalePercent));
-        }
-      } catch {
-        // fallback
-      }
-
-      preparedWordsList.push({
-        cleanedText: cleanedText.trim(),
-        fontToUse,
-        fontSize,
-        drawX,
-        drawY,
-        visualWordWidth,
-        scalePercent,
-        ocrBbox: { x0, y0, x1, y1 },
-        confidence: conf,
-        encodedHex,
-      });
-
-      insertedWords.push({
-        text: cleanedText.trim(),
-        confidence: conf,
-        bbox: { x0, y0, x1, y1 }
-      });
-    }
-
-    const insertedWordsCount = insertedWords.length;
-    const discardedWordsCount = discardedWords.length;
-    const coveragePercent = mergedWords.length > 0 ? (insertedWordsCount / mergedWords.length) * 100 : 0;
-
-    console.log(`[OCR Recall Page ${i + 1}] Baseline: ${baselineWords.length}, Secondary: ${secondaryWords.length}, CellWords: ${tableCellWordsCount}, Merged Unique: ${insertedWordsCount}, Discarded: ${discardedWordsCount}, Coverage: ${coveragePercent.toFixed(1)}%`);
 
     // ── Register fonts on the page ──
     pdfPage.setFont(helveticaFont);
@@ -1881,33 +1806,331 @@ export async function ocrPdf(
       ocrFontKey = '/' + key;
     }
 
-    // ── Build PDF text layer words ──
-    const textLayerWords: {
-      text: string;
-      encodedHex: string;
-      x: number;
-      y: number;
+    interface PreparedWord {
+      cleanedText: string;
+      fontToUse: PDFFont;
       fontSize: number;
-      fontKey: string;
+      drawX: number;
+      drawY: number;
+      visualWordWidth: number;
       scalePercent: number;
+      ocrBbox: { x0: number; y0: number; x1: number; y1: number };
+      confidence: number;
+      encodedHex: string;
+    }
+
+    const preparedWordsList: PreparedWord[] = [];
+    const discardedWords: DiscardedWordInfo[] = [];
+    const insertedWords: InsertedWordInfo[] = [];
+
+    const explicitMinConfidence = options?.minWordConfidence;
+
+    // Define the reading order blocks
+    interface WordBlock {
+      type: string;
+      words: InternalOcrWord[];
+      cell?: TableCell;
+    }
+
+    const blocks: WordBlock[] = [];
+    const beforeTableWords: InternalOcrWord[] = [];
+    const afterTableWords: InternalOcrWord[] = [];
+    const genericWords: InternalOcrWord[] = [];
+
+    // Create table cell blocks in row/col reading order
+    const cellBlocksMap = new Map<string, WordBlock>();
+    for (const cell of tableCells) {
+      const cellKey = `cell_r${cell.row}_c${cell.col}`;
+      const block = { type: cellKey, words: [], cell };
+      blocks.push(block);
+      cellBlocksMap.set(cellKey, block);
+    }
+
+    // Resolve table boundaries
+    const tableRegion = detectedRegions.find(r => r.id === 'region_table');
+    const tableBox = tableRegion ? tableRegion.bbox : null;
+    const tY0 = tableBox ? tableBox.y0 : 0;
+    const tY1 = tableBox ? tableBox.y1 : 0;
+
+    // Classify all reconciled words into bands
+    for (const w of reconciledWords) {
+      const cx = (w.bbox.x0 + w.bbox.x1) / 2;
+      const cy = (w.bbox.y0 + w.bbox.y1) / 2;
+
+      // A. Check table cells first
+      let assignedToCell = false;
+      for (const cell of tableCells) {
+        if (cx >= cell.bbox.x0 && cx <= cell.bbox.x1 && cy >= cell.bbox.y0 && cy <= cell.bbox.y1) {
+          const cellKey = `cell_r${cell.row}_c${cell.col}`;
+          cellBlocksMap.get(cellKey)!.words.push(w);
+          assignedToCell = true;
+          break;
+        }
+      }
+      if (assignedToCell) continue;
+
+      // B. Assign to before, after, or generic band
+      if (tableBox) {
+        if (cy < tY0) {
+          beforeTableWords.push(w);
+        } else if (cy > tY1) {
+          afterTableWords.push(w);
+        } else {
+          genericWords.push(w);
+        }
+      } else {
+        beforeTableWords.push(w);
+      }
+    }
+
+    const blocksToPrepare: WordBlock[] = [];
+    if (beforeTableWords.length > 0) {
+      blocksToPrepare.push({ type: 'before_table', words: beforeTableWords });
+    }
+    for (const block of blocks) {
+      if (block.words.length > 0) {
+        blocksToPrepare.push(block);
+      }
+    }
+    if (afterTableWords.length > 0) {
+      blocksToPrepare.push({ type: 'after_table', words: afterTableWords });
+    }
+    if (genericWords.length > 0) {
+      blocksToPrepare.push({ type: 'generic', words: genericWords });
+    }
+
+    // Prepare block-by-block words
+    const readingOrderBlocks: {
+      type: string;
+      words: {
+        text: string;
+        encodedHex: string;
+        x: number;
+        y: number;
+        fontSize: number;
+        fontKey: string;
+        scalePercent: number;
+      }[];
     }[] = [];
 
-    for (const pw of preparedWordsList) {
-      const fontKey = pw.fontToUse === ocrFont ? ocrFontKey : helveticaKey;
-      textLayerWords.push({
-        text: pw.cleanedText,
-        encodedHex: pw.encodedHex,
-        x: pw.drawX,
-        y: pw.drawY,
-        fontSize: pw.fontSize,
-        fontKey,
-        scalePercent: pw.scalePercent,
+    for (const block of blocksToPrepare) {
+      const preparedBlockWords: typeof readingOrderBlocks[0]['words'] = [];
+
+      for (const word of block.words) {
+        const wordText = word.text;
+        const conf = word.confidence;
+
+        if (!wordText || wordText.trim().length === 0) {
+          discardedWords.push({ text: wordText || '', confidence: conf, reason: 'empty-token' });
+          continue;
+        }
+
+        // ── Layout-Aware Background & Border Suppression ──
+        if (isWordBackgroundNoise(word, canvas.width, canvas.height, detectedRegions)) {
+          discardedWords.push({ text: wordText, confidence: conf, reason: 'layout-border-noise-suppression' });
+          continue;
+        }
+
+        const { x0, y0, x1, y1 } = word.bbox;
+        const visualWordWidth = (x1 - x0) / scaleX;
+        const visualWordHeight = (y1 - y0) / scaleY;
+
+        if (visualWordWidth <= 0 || visualWordHeight <= 0) {
+          discardedWords.push({ text: wordText, confidence: conf, reason: 'zero-dimension-bbox' });
+          continue;
+        }
+        if (visualWordWidth > visualWidth * 0.98 || visualWordHeight > visualHeight * 0.98) {
+          discardedWords.push({ text: wordText, confidence: conf, reason: 'extreme-dimension-artifact' });
+          continue;
+        }
+
+        if (explicitMinConfidence !== undefined && conf < explicitMinConfidence) {
+          discardedWords.push({ text: wordText, confidence: conf, reason: `below-explicit-min-confidence (${conf.toFixed(0)} < ${explicitMinConfidence})` });
+          continue;
+        }
+
+        const fontSize = Math.max(visualWordHeight * 0.85, 4);
+
+        // Convert image coordinates to PDF coordinates
+        let bx0 = x0;
+        let by1 = y1;
+
+        if (skewAngle !== 0) {
+          const rad = (skewAngle * Math.PI) / 180;
+          const cs = Math.cos(rad);
+          const sn = Math.sin(rad);
+          const cx = canvas.width / 2;
+          const cy = canvas.height / 2;
+          const tx = x0 - cx;
+          const ty = y1 - cy;
+          bx0 = tx * cs - ty * sn + cx;
+          by1 = tx * sn + ty * cs + cy;
+        }
+
+        const visualWordX = bx0 / scaleX;
+        const visualWordY = visualHeight - (by1 / scaleY) + fontSize * 0.10;
+
+        let drawX = visualWordX;
+        let drawY = visualWordY;
+
+        if (angle === 90) {
+          drawX = pageWidth - visualWordY;
+          drawY = visualWordX;
+        } else if (angle === 180) {
+          drawX = pageWidth - visualWordX;
+          drawY = pageHeight - visualWordY;
+        } else if (angle === 270) {
+          drawX = visualWordY;
+          drawY = pageHeight - visualWordX;
+        }
+
+        const normalizedWordText = normalizeAndCorrectWord(wordText);
+        if (normalizedWordText.length === 0) {
+          discardedWords.push({ text: wordText, confidence: conf, reason: 'empty-after-normalization' });
+          continue;
+        }
+
+        const hasDeva = /[\u0900-\u097F]/.test(normalizedWordText);
+        let fontToUse: PDFFont = hasDeva ? ocrFont : helveticaFont;
+
+        if (hasUnsupportedChars(fontToUse, normalizedWordText)) {
+          const altFont = fontToUse === helveticaFont ? ocrFont : helveticaFont;
+          if (!hasUnsupportedChars(altFont, normalizedWordText)) {
+            fontToUse = altFont;
+          } else {
+            let cleanedChars = '';
+            for (const ch of normalizedWordText) {
+              if (!hasUnsupportedChars(fontToUse, ch)) {
+                cleanedChars += ch;
+              } else if (!hasUnsupportedChars(altFont, ch)) {
+                // skip
+              }
+            }
+            if (cleanedChars.length === 0) {
+              discardedWords.push({ text: wordText, confidence: conf, reason: 'unsupported-chars-in-both-fonts' });
+              continue;
+            }
+            fontToUse = ocrFont;
+          }
+        }
+
+        const cleanedText = normalizedWordText;
+
+        // ── Logical-Ordering Unshaped Glyph Mapping ──
+        let encodedHex = '';
+        let expectedWidth = 0;
+
+        if (fontToUse === ocrFont) {
+          const hexCodes: string[] = [];
+          const embedder = (ocrFont as any).embedder;
+          const fontScale = 1000 / embedder.font.unitsPerEm;
+
+          for (let idx = 0; idx < cleanedText.length; idx++) {
+            const codePoint = cleanedText.codePointAt(idx);
+            if (codePoint === undefined) continue;
+            if (codePoint > 0xffff) idx++; // Handle surrogate pairs
+
+            const glyph = embedder.font.glyphForCodePoint(codePoint);
+            const glyphId = glyph ? glyph.id : 0;
+            hexCodes.push(toHexStringOfMinLength(glyphId, 4));
+
+            if (glyph && glyph.codePoints) {
+              glyphMappings.set(glyphId, glyph.codePoints);
+            }
+            if (glyph) {
+              expectedWidth += glyph.advanceWidth * fontScale;
+            }
+          }
+          encodedHex = hexCodes.join('');
+          expectedWidth = expectedWidth * (fontSize / 1000);
+        } else {
+          try {
+            const encoded = helveticaFont.encodeText(cleanedText);
+            encodedHex = encoded.toString().replace(/[<>]/g, '');
+            expectedWidth = helveticaFont.widthOfTextAtSize(cleanedText, fontSize);
+          } catch {
+            fontToUse = ocrFont;
+            const hexCodes: string[] = [];
+            const embedder = (ocrFont as any).embedder;
+            const fontScale = 1000 / embedder.font.unitsPerEm;
+
+            for (let idx = 0; idx < cleanedText.length; idx++) {
+              const codePoint = cleanedText.codePointAt(idx);
+              if (codePoint === undefined) continue;
+              if (codePoint > 0xffff) idx++;
+
+              const glyph = embedder.font.glyphForCodePoint(codePoint);
+              const glyphId = glyph ? glyph.id : 0;
+              hexCodes.push(toHexStringOfMinLength(glyphId, 4));
+
+              if (glyph && glyph.codePoints) {
+                glyphMappings.set(glyphId, glyph.codePoints);
+              }
+              if (glyph) {
+                expectedWidth += glyph.advanceWidth * fontScale;
+              }
+            }
+            encodedHex = hexCodes.join('');
+            expectedWidth = expectedWidth * (fontSize / 1000);
+          }
+        }
+
+        let scalePercent = 100;
+        try {
+          if (expectedWidth > 0) {
+            scalePercent = Math.round((visualWordWidth / expectedWidth) * 100);
+            scalePercent = Math.max(20, Math.min(400, scalePercent));
+          }
+        } catch {
+          // fallback
+        }
+
+        preparedWordsList.push({
+          cleanedText: cleanedText.trim(),
+          fontToUse,
+          fontSize,
+          drawX,
+          drawY,
+          visualWordWidth,
+          scalePercent,
+          ocrBbox: { x0, y0, x1, y1 },
+          confidence: conf,
+          encodedHex,
+        });
+
+        insertedWords.push({
+          text: cleanedText.trim(),
+          confidence: conf,
+          bbox: { x0, y0, x1, y1 }
+        });
+
+        const fontKey = fontToUse === ocrFont ? ocrFontKey : helveticaKey;
+        preparedBlockWords.push({
+          text: cleanedText.trim(),
+          encodedHex,
+          x: drawX,
+          y: drawY,
+          fontSize,
+          fontKey,
+          scalePercent,
+        });
+      }
+
+      readingOrderBlocks.push({
+        type: block.type,
+        words: preparedBlockWords
       });
     }
 
+    const insertedWordsCount = insertedWords.length;
+    const discardedWordsCount = discardedWords.length;
+    const coveragePercent = reconciledWords.length > 0 ? (insertedWordsCount / reconciledWords.length) * 100 : 0;
+
+    console.log(`[OCR Recall Page ${i + 1}] Baseline: ${baselineWords.length}, Secondary: ${secondaryWords.length}, CellWords: ${tableCellWordsCount}, Merged Unique: ${insertedWordsCount}, Discarded: ${discardedWordsCount}, Coverage: ${coveragePercent.toFixed(1)}%`);
+
     // ── Create new content stream for OCR text layer ──
-    if (textLayerWords.length > 0) {
-      const streamContent = buildTextLayerStreamContent(textLayerWords);
+    if (readingOrderBlocks.some(b => b.words.length > 0)) {
+      const streamContent = buildTextLayerStreamContent(readingOrderBlocks);
       const streamBytes = new TextEncoder().encode(streamContent);
 
       const streamRef = pdfDoc.context.register(
@@ -1924,7 +2147,7 @@ export async function ocrPdf(
         pageNode.set(PDFName.of('Contents'), streamRef);
       }
 
-      totalWordsDrawn += textLayerWords.length;
+      totalWordsDrawn += preparedWordsList.length;
     }
 
     if (options?.debug && (globalThis as any).__ocrDebugInfo) {
@@ -1933,7 +2156,7 @@ export async function ocrPdf(
         strategy: bestStrategy,
         qualityScore: bestScore,
         confidence: bestData.confidence,
-        rawWordsCount: mergedWords.length,
+        rawWordsCount: reconciledWords.length,
         baselineWordsCount: baselineWords.length,
         secondaryWordsCount: secondaryWords.length,
         tableCellWordsCount,
