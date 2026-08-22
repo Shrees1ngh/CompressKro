@@ -276,9 +276,9 @@ async function runRegressionTest() {
   console.log('');
 
   // Section 8: Extracted Text Sample
-  console.log('## 8. Extracted Text Sample (First 500 chars):');
+  console.log('## 8. Extracted Text Sample (Full):');
   console.log('----------------------------------------------------------------');
-  console.log(rawExtractedText.slice(0, 500));
+  console.log(rawExtractedText);
   console.log('----------------------------------------------------------------\n');
 
   // ── Final Verdict ──
