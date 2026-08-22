@@ -9,7 +9,8 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import {
-  Upload, RefreshCw, PenTool, Sparkles, ShieldCheck, GripVertical, ChevronUp, ChevronDown,
+  Upload, RefreshCw, PenTool, Sparkles, ShieldCheck, GripVertical, ChevronUp, ChevronDown, X, AlertTriangle,
+  ZoomIn, ZoomOut, Maximize2,
 } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
 import { StorageService } from '../../services/storage.service';
@@ -95,6 +96,8 @@ export function PdfEditor() {
   const [outputBlob, setOutputBlob] = useState<Blob | null>(null);
   // ---- OCR Option (Phase 4) ----
   const [doOcr, setDoOcr] = useState(true);
+  const [showOcrWarning, setShowOcrWarning] = useState(false);
+  const [dontShowOcrWarningAgain, setDontShowOcrWarningAgain] = useState(false);
 
   // ---- History ----
   const historyRef = useRef(new HistoryEngine());
@@ -130,8 +133,29 @@ export function PdfEditor() {
 
   const { showSuccess, showError } = useToast();
 
-  // ---- Zoom (constant for now; will be wired to ZoomControls later) ----
-  const zoom = 1.3;
+  // ---- Zoom & Sizing ----
+  const [zoom, setZoom] = useState(1.0);
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
+
+  const fitToWidth = useCallback(() => {
+    if (document && document.pages.length > 0 && canvasContainerRef.current) {
+      const containerWidth = canvasContainerRef.current.clientWidth;
+      const firstPageWidth = document.pages[0].widthPts;
+      if (containerWidth && firstPageWidth) {
+        const fitZoom = (containerWidth - 48) / firstPageWidth;
+        const initialZoom = Math.max(0.3, Math.min(3.0, fitZoom));
+        setZoom(parseFloat(initialZoom.toFixed(2)));
+      }
+    }
+  }, [document]);
+
+  useEffect(() => {
+    if (document) {
+      fitToWidth();
+      window.addEventListener('resize', fitToWidth);
+      return () => window.removeEventListener('resize', fitToWidth);
+    }
+  }, [document, fitToWidth]);
 
   // ---- Helpers ----
   const clearOutputs = () => { setOutputUrl(''); setOutputSize(0); setOutputName(''); };
@@ -146,6 +170,7 @@ export function PdfEditor() {
     clearOutputs();
     setOutputBlob(null);
     historyRef.current.clear();
+    setShowOcrWarning(false);
   };
 
   /** Check if there are any user modifications. */
@@ -655,6 +680,17 @@ export function PdfEditor() {
       setObjects(objs);
       historyRef.current.clear();
       showSuccess('PDF loaded!', `${file instanceof File ? file.name : 'document.pdf'} — ${parsed.numPages} pages analyzed.`);
+
+      // Check if it's a scanned PDF (0 text objects)
+      const totalExtractedTextObjects = parsed.pages.reduce((acc, p) => acc + p.textObjects.length, 0);
+      const isScannedPdf = totalExtractedTextObjects === 0;
+      const hideOcrWarningPref = localStorage.getItem('ck-hide-ocr-warning') === 'true';
+      if (isScannedPdf && !hideOcrWarningPref) {
+        setShowOcrWarning(true);
+        setDontShowOcrWarningAgain(false);
+      } else {
+        setShowOcrWarning(false);
+      }
     } catch (err) {
       console.error(err);
       showError('PDF Parse Error', 'Could not parse this document.');
@@ -663,6 +699,13 @@ export function PdfEditor() {
       setIsLoading(false);
       setProgressMsg('');
     }
+  };
+
+  const dismissOcrWarning = () => {
+    if (dontShowOcrWarningAgain) {
+      localStorage.setItem('ck-hide-ocr-warning', 'true');
+    }
+    setShowOcrWarning(false);
   };
 
   // Auto-load file from workspace context
@@ -941,6 +984,54 @@ export function PdfEditor() {
             onOpenSignature={() => setSignModalOpen(true)}
           />
 
+          {/* Scanned/Non-OCR PDF Warning Banner */}
+          {showOcrWarning && (
+            <div className="w-full bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 rounded-2xl p-4 flex flex-col gap-3 relative animate-fade-in select-none">
+              {/* Close Button */}
+              <button
+                onClick={dismissOcrWarning}
+                className="absolute top-4 right-4 text-amber-500 hover:text-amber-700 dark:hover:text-amber-300 transition-colors cursor-pointer"
+              >
+                <X className="w-4.5 h-4.5" />
+              </button>
+
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-xl bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400 mt-0.5">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div className="flex-1 pr-6">
+                  <h4 className="font-bold text-amber-900 dark:text-amber-200 text-sm">
+                    Scanned documents are not supported
+                  </h4>
+                  <p className="text-xs text-amber-800 dark:text-amber-350 leading-relaxed font-semibold mt-1">
+                    <strong>Editing scanned documents is not supported.</strong> Changing existing text within scanned documents is not supported. However, you can still use other features such as adding new text, images, and annotations.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between mt-1 pt-2 border-t border-amber-200/50 dark:border-amber-900/20">
+                <label className="flex items-center gap-2 text-xs font-semibold text-amber-800 dark:text-amber-350 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={dontShowOcrWarningAgain}
+                    onChange={(e) => setDontShowOcrWarningAgain(e.target.checked)}
+                    className="w-3.5 h-3.5 rounded border-amber-300 dark:border-amber-800 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                  />
+                  <span>Don't show anymore</span>
+                </label>
+                <button
+                  onClick={() => {
+                    // Navigate to OCR PDF tool
+                    window.open('/ocr-pdf', '_blank');
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl border border-amber-300 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/30 text-amber-800 dark:text-amber-350 text-xs font-bold transition-all cursor-pointer"
+                >
+                  Learn more
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Split Workspace */}
           <div className={`flex-1 grid grid-cols-1 gap-6 min-h-0 overflow-hidden ${
             outputUrl && outputBlob ? 'lg:grid-cols-5' : 'lg:grid-cols-4'
@@ -1006,54 +1097,91 @@ export function PdfEditor() {
               </div>
             </div>
 
-            {/* Canvas Center */}
-            <div
-              onMouseDown={(e) => {
-                if (e.target === e.currentTarget) {
-                  handleClearSelection();
-                }
-              }}
-              className={`${
-                outputUrl && outputBlob ? 'lg:col-span-3' : 'lg:col-span-3'
-              } space-y-8 flex flex-col items-center overflow-x-auto h-full overflow-y-auto border border-slate-200/50 dark:border-slate-800/50 rounded-2xl bg-slate-950/5 p-4 shadow-inner`}
-            >
-              {document.pages.map((page, idx) => (
-                <PageCanvas
-                  key={page.pageIndex}
-                  pageIndex={page.pageIndex}
-                  pdfjsDoc={document.pdfjsDocument}
-                  zoom={zoom}
-                  pageWidthPts={page.widthPts}
-                  pageHeightPts={page.heightPts}
-                  pageObjects={getPageObjects(page.pageIndex)}
-                  activeTool={activeTool}
-                  selectedIds={selection}
-                  editingTextId={editingTextId}
-                  textColor={textColor}
-                  fontSize={fontSize}
-                  fontName={fontName}
-                  isBold={isBold}
-                  isItalic={isItalic}
-                  shapeColor={shapeColor}
-                  shapeFill={shapeFill}
-                  shapeStrokeWidth={shapeStrokeWidth}
-                  onSelect={handleSelect}
-                  onClearSelection={handleClearSelection}
-                  onStartDrag={handleStartDrag}
-                  onStartResize={handleStartResize}
-                  onDelete={handleDelete}
-                  onEditText={handleEditText}
-                  onStartEditing={handleStartEditing}
-                  onStopEditing={handleStopEditing}
-                  onInsertObject={handleInsertObject}
-                  onReplaceImage={handleReplaceImage}
-                  onBecameVisible={() => {
-                    if (currentPageIndex !== idx) setCurrentPageIndex(idx);
-                  }}
-                  onTextColorsExtracted={handleTextColorsExtracted}
-                  viewportsRef={viewportsRef}
-                />
-              ))}
+            {/* Canvas Center Wrapper with Floating Zoom Controls */}
+            <div className={`relative flex flex-col h-full min-h-0 ${
+              outputUrl && outputBlob ? 'lg:col-span-3' : 'lg:col-span-3'
+            }`}>
+              {/* Zoom controls */}
+              <div className="absolute top-4 right-4 bg-white/95 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-850 backdrop-blur-md rounded-full shadow-lg px-3 py-1.5 flex items-center gap-3 z-30 select-none">
+                <button
+                  type="button"
+                  onClick={() => setZoom(prev => Math.max(0.3, prev - 0.1))}
+                  disabled={zoom <= 0.3}
+                  className="p-1 rounded-full text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 cursor-pointer transition-colors"
+                  title="Zoom Out"
+                >
+                  <ZoomOut className="w-4 h-4" />
+                </button>
+                <span className="text-[11px] font-extrabold text-slate-700 dark:text-slate-350 font-mono w-10 text-center">
+                  {Math.round(zoom * 100)}%
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setZoom(prev => Math.min(3.0, prev + 0.1))}
+                  disabled={zoom >= 3.0}
+                  className="p-1 rounded-full text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 cursor-pointer transition-colors"
+                  title="Zoom In"
+                >
+                  <ZoomIn className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={fitToWidth}
+                  className="p-1 rounded-full text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer border-l border-slate-200 dark:border-slate-800 pl-2 ml-0.5 transition-colors"
+                  title="Fit to Width"
+                >
+                  <Maximize2 className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Scrollable Canvas Area */}
+              <div
+                ref={canvasContainerRef}
+                onMouseDown={(e) => {
+                  if (e.target === e.currentTarget) {
+                    handleClearSelection();
+                  }
+                }}
+                className="w-full h-full space-y-8 flex flex-col items-center overflow-x-auto overflow-y-auto border border-slate-200/50 dark:border-slate-800/50 rounded-2xl bg-slate-950/5 p-4 shadow-inner"
+              >
+                {document.pages.map((page, idx) => (
+                  <PageCanvas
+                    key={page.pageIndex}
+                    pageIndex={page.pageIndex}
+                    pdfjsDoc={document.pdfjsDocument}
+                    zoom={zoom}
+                    pageWidthPts={page.widthPts}
+                    pageHeightPts={page.heightPts}
+                    pageObjects={getPageObjects(page.pageIndex)}
+                    activeTool={activeTool}
+                    selectedIds={selection}
+                    editingTextId={editingTextId}
+                    textColor={textColor}
+                    fontSize={fontSize}
+                    fontName={fontName}
+                    isBold={isBold}
+                    isItalic={isItalic}
+                    shapeColor={shapeColor}
+                    shapeFill={shapeFill}
+                    shapeStrokeWidth={shapeStrokeWidth}
+                    onSelect={handleSelect}
+                    onClearSelection={handleClearSelection}
+                    onStartDrag={handleStartDrag}
+                    onStartResize={handleStartResize}
+                    onDelete={handleDelete}
+                    onEditText={handleEditText}
+                    onStartEditing={handleStartEditing}
+                    onStopEditing={handleStopEditing}
+                    onInsertObject={handleInsertObject}
+                    onReplaceImage={handleReplaceImage}
+                    onBecameVisible={() => {
+                      if (currentPageIndex !== idx) setCurrentPageIndex(idx);
+                    }}
+                    onTextColorsExtracted={handleTextColorsExtracted}
+                    viewportsRef={viewportsRef}
+                  />
+                ))}
+              </div>
             </div>
 
             {/* Task Completed Panel on the right */}

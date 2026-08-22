@@ -562,7 +562,16 @@ function MainLayout({ children }: { children: React.ReactNode }) {
 
         {/* =========== PAGE CONTENT =========== */}
         {(() => {
-          const isPdfWorkspace = ALL_PDF_TOOL_PATHS.includes(location.pathname);
+          const checkIsPdfWorkspace = (path: string) => {
+            const workspacePaths = [
+              '/compress-pdf', '/merge-pdf', '/split-pdf', '/rotate-pdf', '/crop-pdf',
+              '/pdf-to-jpg', '/images-to-pdf', '/extract-images', '/html-to-pdf',
+              '/edit-pdf', '/sign-pdf', '/add-watermark', '/remove-watermark',
+              '/page-numbers', '/ocr-pdf', '/lock-pdf', '/unlock-pdf', '/repair-pdf'
+            ];
+            return workspacePaths.includes(path);
+          };
+          const isPdfWorkspace = checkIsPdfWorkspace(location.pathname);
           if (isPdfWorkspace) {
             // PDF workspace pages: full-bleed, no container/padding wrapper
             return (
@@ -581,7 +590,26 @@ function MainLayout({ children }: { children: React.ReactNode }) {
         })()}
 
         {/* =========== PREMIUM FOOTER (hidden on PDF workspace pages) =========== */}
-        {!ALL_PDF_TOOL_PATHS.includes(location.pathname) && (
+        {!(
+          location.pathname === '/compress-pdf' ||
+          location.pathname === '/merge-pdf' ||
+          location.pathname === '/split-pdf' ||
+          location.pathname === '/rotate-pdf' ||
+          location.pathname === '/crop-pdf' ||
+          location.pathname === '/pdf-to-jpg' ||
+          location.pathname === '/images-to-pdf' ||
+          location.pathname === '/extract-images' ||
+          location.pathname === '/html-to-pdf' ||
+          location.pathname === '/edit-pdf' ||
+          location.pathname === '/sign-pdf' ||
+          location.pathname === '/add-watermark' ||
+          location.pathname === '/remove-watermark' ||
+          location.pathname === '/page-numbers' ||
+          location.pathname === '/ocr-pdf' ||
+          location.pathname === '/lock-pdf' ||
+          location.pathname === '/unlock-pdf' ||
+          location.pathname === '/repair-pdf'
+        ) && (
         <footer className="relative z-10 bg-[var(--ck-bg-card)] select-none flex-shrink-0" style={{ borderTop: '1px solid var(--ck-border)' }}>
           
           {/* Main Footer Content */}

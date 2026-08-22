@@ -5,7 +5,7 @@
 // Reads the active file(s) from PdfWorkspaceContext.
 // ============================================================
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
   ZoomIn,
@@ -23,6 +23,86 @@ import {
 import { loadPdfJs } from '../../utils/pdfLoader';
 import { usePdfWorkspace } from '../../context/PdfWorkspaceContext';
 import { getFriendlySize } from '../../utils/format';
+
+function getUploadTexts(pathname: string): { heading: string; description: string } {
+  switch (pathname) {
+    case '/compress-pdf':
+      return {
+        heading: 'Drag & Drop PDF here',
+        description: 'or click to browse your files. Upload a PDF to reduce its file size without losing quality.',
+      };
+    case '/merge-pdf':
+      return {
+        heading: 'Drag & Drop PDFs here',
+        description: 'or click to browse your files. Add multiple PDF files to combine them into a single document.',
+      };
+    case '/split-pdf':
+      return {
+        heading: 'Drag & Drop PDF here',
+        description: 'or click to browse your files. Upload a PDF to extract pages or split the document.',
+      };
+    case '/crop-pdf':
+      return {
+        heading: 'Drag & Drop PDF here',
+        description: 'or click to browse your files. Upload a PDF to crop margins and adjust page dimensions.',
+      };
+    case '/pdf-to-jpg':
+      return {
+        heading: 'Drag & Drop PDF here',
+        description: 'or click to browse your files. Upload a PDF to convert pages into high-quality JPEG images.',
+      };
+    case '/images-to-pdf':
+      return {
+        heading: 'Drag & Drop PNG/JPG Images here',
+        description: 'or click to browse your files. Add multiple images to compile them into a single PDF.',
+      };
+    case '/extract-images':
+      return {
+        heading: 'Drag & Drop PDF here',
+        description: 'or click to browse your files. Upload a PDF to extract all embedded images.',
+      };
+    case '/add-watermark':
+      return {
+        heading: 'Drag & Drop PDF here',
+        description: 'or click to browse your files. Upload a PDF to apply image or text watermarks.',
+      };
+    case '/remove-watermark':
+      return {
+        heading: 'Drag & Drop PDF here',
+        description: 'or click to browse your files. Upload a PDF to clean up or remove watermarks.',
+      };
+    case '/page-numbers':
+      return {
+        heading: 'Drag & Drop PDF here',
+        description: 'or click to browse your files. Upload a PDF to configure and add page numbers.',
+      };
+    case '/ocr-pdf':
+      return {
+        heading: 'Drag & Drop PDF here',
+        description: 'or click to browse your files. Upload a PDF to perform OCR and make text searchable.',
+      };
+    case '/lock-pdf':
+      return {
+        heading: 'Drag & Drop PDF here',
+        description: 'or click to browse your files. Upload a PDF to password-protect and encrypt it.',
+      };
+    case '/unlock-pdf':
+      return {
+        heading: 'Drag & Drop PDF here',
+        description: 'or click to browse your files. Upload a protected PDF to decrypt and remove its password.',
+      };
+    case '/repair-pdf':
+      return {
+        heading: 'Drag & Drop PDF here',
+        description: 'or click to browse your files. Upload a damaged PDF to attempt to repair and recover content.',
+      };
+    default:
+      return {
+        heading: 'Drag & Drop PDF here',
+        description: 'or click to browse your files. Select a tool from the sidebar, then upload a PDF to get started.',
+      };
+  }
+}
 
 export function PdfCenterCanvas() {
   const location = useLocation();
@@ -48,6 +128,37 @@ export function PdfCenterCanvas() {
   const [currentPageNum, setCurrentPageNum] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [zoom, setZoom] = useState(1.0);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const fitToWidth = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (pdfDoc && container) {
+      (async () => {
+        try {
+          const page = await pdfDoc.getPage(currentPageNum);
+          const pageVp = page.getViewport({ scale: 1.0 });
+          const pageWidth = pageVp.width;
+          const containerWidth = container.clientWidth;
+          if (containerWidth && pageWidth) {
+            const fitScale = (containerWidth - 48) / pageWidth;
+            const calculatedZoom = fitScale / 0.85;
+            const initialZoom = Math.max(0.3, Math.min(3.0, calculatedZoom));
+            setZoom(parseFloat(initialZoom.toFixed(2)));
+          }
+        } catch (e) {
+          console.warn('Error calculating dynamic zoom fit:', e);
+        }
+      })();
+    }
+  }, [pdfDoc, currentPageNum]);
+
+  useEffect(() => {
+    if (pdfDoc) {
+      fitToWidth();
+      window.addEventListener('resize', fitToWidth);
+      return () => window.removeEventListener('resize', fitToWidth);
+    }
+  }, [pdfDoc, fitToWidth]);
 
   // Drag-and-drop state
   const [isDragOver, setIsDragOver] = useState(false);
@@ -119,8 +230,6 @@ export function PdfCenterCanvas() {
 
           canvas.width = Math.floor(renderVp.width);
           canvas.height = Math.floor(renderVp.height);
-          canvas.style.width = `${viewport.width}px`;
-          canvas.style.height = `${viewport.height}px`;
           const ctx = canvas.getContext('2d');
           if (!ctx) continue;
 
@@ -180,9 +289,8 @@ export function PdfCenterCanvas() {
   }, [pdfDoc, currentPageNum, zoom]);
 
   // ── Zoom controls ──
-  const zoomIn = () => setZoom(prev => Math.min(2.0, prev + 0.15));
-  const zoomOut = () => setZoom(prev => Math.max(0.5, prev - 0.15));
-  const resetZoom = () => setZoom(1.0);
+  const zoomIn = () => setZoom(prev => Math.min(3.0, prev + 0.1));
+  const zoomOut = () => setZoom(prev => Math.max(0.3, prev - 0.1));
 
   // ── Upload handlers ──
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -379,12 +487,10 @@ export function PdfCenterCanvas() {
             <Upload className="w-7 h-7" />
           </div>
           <h3 className="font-bold text-[var(--ck-text-primary)] text-sm">
-            {isImagesToPdf ? 'Drag & Drop PNG/JPG Images here' : 'Drag & Drop PDF here'}
+            {getUploadTexts(location.pathname).heading}
           </h3>
           <p className="text-xs text-[var(--ck-text-muted)] mt-1.5 max-w-[280px] leading-relaxed font-semibold">
-            {isImagesToPdf
-              ? 'or click to browse your files. Add multiple images to compile them into a single PDF.'
-              : 'or click to browse your files. Select a tool from the sidebar, then upload a PDF to get started.'}
+            {getUploadTexts(location.pathname).description}
           </p>
         </div>
       </div>
@@ -410,7 +516,7 @@ export function PdfCenterCanvas() {
                 className="relative flex-shrink-0 flex flex-col items-center group cursor-pointer"
               >
                 <div
-                  className={`p-0.5 bg-[var(--ck-bg-muted)] rounded border transition-all ${
+                  className={`w-[80px] h-[100px] flex items-center justify-center p-0.5 bg-[var(--ck-bg-muted)] rounded border transition-all ${
                     isSelected
                       ? 'border-violet-500 ring-2 ring-violet-500/10 scale-105'
                       : 'border-[var(--ck-border)] group-hover:border-[var(--ck-border-hover)]'
@@ -420,7 +526,7 @@ export function PdfCenterCanvas() {
                     ref={(el) => {
                       thumbnailCanvasesRef.current[index] = el;
                     }}
-                    className="w-[70px] h-[98px] object-contain rounded"
+                    className="max-w-full max-h-full object-contain rounded"
                   />
                 </div>
                 <span
@@ -464,7 +570,7 @@ export function PdfCenterCanvas() {
         <div className="absolute top-3 right-3 bg-[var(--ck-bg-card)]/90 dark:bg-slate-900/90 border border-[var(--ck-border)] backdrop-blur-md rounded-full shadow-sm px-3 py-1 flex items-center gap-3 z-30">
           <button
             onClick={zoomOut}
-            disabled={zoom <= 0.5}
+            disabled={zoom <= 0.3}
             className="p-1 rounded-full text-[var(--ck-text-muted)] hover:text-[var(--ck-text-primary)] hover:bg-[var(--ck-bg-muted)] disabled:opacity-30 cursor-pointer"
             title="Zoom Out"
           >
@@ -475,23 +581,23 @@ export function PdfCenterCanvas() {
           </span>
           <button
             onClick={zoomIn}
-            disabled={zoom >= 2.0}
+            disabled={zoom >= 3.0}
             className="p-1 rounded-full text-[var(--ck-text-muted)] hover:text-[var(--ck-text-primary)] hover:bg-[var(--ck-bg-muted)] disabled:opacity-30 cursor-pointer"
             title="Zoom In"
           >
             <ZoomIn className="w-3.5 h-3.5" />
           </button>
           <button
-            onClick={resetZoom}
+            onClick={fitToWidth}
             className="p-1 rounded-full text-[var(--ck-text-muted)] hover:text-[var(--ck-text-primary)] hover:bg-[var(--ck-bg-muted)] cursor-pointer border-l border-[var(--ck-border)] pl-2 ml-1"
-            title="Reset Fit"
+            title="Fit to Width"
           >
             <Maximize2 className="w-3.5 h-3.5" />
           </button>
         </div>
 
         {/* Canvas display */}
-        <div className="w-full h-full flex overflow-auto pt-16 pb-4 px-4 thin-scrollbar">
+        <div ref={scrollContainerRef} className="w-full h-full flex overflow-auto pt-16 pb-4 px-4 thin-scrollbar">
           <div className="m-auto workspace-page-shadow rounded bg-white border border-[var(--ck-border)] p-2 transform transition-transform duration-200">
             <canvas ref={mainCanvasRef} className="block max-w-full h-auto rounded" />
           </div>

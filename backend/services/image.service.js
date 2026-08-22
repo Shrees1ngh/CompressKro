@@ -631,8 +631,12 @@ async function convertFormat(inputBuffer, targetFormat, quality = 90) {
     const width = rotatedMeta.width || meta.width;
     const height = rotatedMeta.height || meta.height;
 
+    const dpi = rotatedMeta.density || meta.density || 150;
+    const pageW = (width / dpi) * 72;
+    const pageH = (height / dpi) * 72;
+
     const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage([width, height]);
+    const page = pdfDoc.addPage([pageW, pageH]);
     
     let embeddedImg;
     if (formatToUse === 'png') {
@@ -644,8 +648,8 @@ async function convertFormat(inputBuffer, targetFormat, quality = 90) {
     page.drawImage(embeddedImg, {
       x: 0,
       y: 0,
-      width,
-      height
+      width: pageW,
+      height: pageH
     });
 
     const pdfBytes = await pdfDoc.save();

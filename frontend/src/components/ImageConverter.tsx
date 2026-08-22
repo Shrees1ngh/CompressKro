@@ -158,15 +158,18 @@ export default function ImageConverter({ initialFile, clearInitialFile }: ImageC
       if (!tempJpgBlob) throw new Error('PDF packaging intermediate conversion failed');
       
       const pdfDoc = await PDFDocument.create();
-      const page = pdfDoc.addPage([img.width, img.height]);
+      const DPI = 150;
+      const pageW = (img.width / DPI) * 72;
+      const pageH = (img.height / DPI) * 72;
+      const page = pdfDoc.addPage([pageW, pageH]);
       const arrayBuffer = await tempJpgBlob.arrayBuffer();
       const embeddedJpg = await pdfDoc.embedJpg(arrayBuffer);
       
       page.drawImage(embeddedJpg, {
         x: 0,
         y: 0,
-        width: img.width,
-        height: img.height
+        width: pageW,
+        height: pageH
       });
       
       const pdfBytes = await pdfDoc.save();

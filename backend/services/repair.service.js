@@ -135,14 +135,18 @@ async function repairPdfBuffer(pdfBuffer) {
       console.log(`[Repair Service] Disguised ${imageMetadata.format.toUpperCase()} image detected! Converting to valid PDF...`);
       const pngBuffer = await sharp(pdfBuffer).toFormat('png').toBuffer();
       
+      const dpi = imageMetadata.density || 150;
       const newDoc = await PDFDocument.create();
       const embeddedImg = await newDoc.embedPng(pngBuffer);
-      const page = newDoc.addPage([embeddedImg.width, embeddedImg.height]);
+      const pageW = (embeddedImg.width / dpi) * 72;
+      const pageH = (embeddedImg.height / dpi) * 72;
+      
+      const page = newDoc.addPage([pageW, pageH]);
       page.drawImage(embeddedImg, {
         x: 0,
         y: 0,
-        width: embeddedImg.width,
-        height: embeddedImg.height
+        width: pageW,
+        height: pageH
       });
       
       const repairedBytes = await newDoc.save();

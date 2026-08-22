@@ -18,7 +18,8 @@ import type {
 } from '../core/types';
 import { pdfBoundsToViewportRect } from '../utils/geometry';
 import { compressPdf } from '../../../services/pdf.service';
-import Tesseract from 'tesseract.js';
+import { createWorker } from 'tesseract.js';
+import type { Worker as TesseractWorker } from 'tesseract.js';
 
 /**
  * Progress callback for export operations.
@@ -130,7 +131,7 @@ export async function exportPdf(
   document: ParsedDocument,
   objects: Map<string, EditorObject>,
   onProgress?: ExportProgressCallback,
-  options?: { doOcr?: boolean }
+  options?: { doOcr?: boolean; ocrLanguage?: string }
 ): Promise<Uint8Array> {
   onProgress?.('Preparing document for export...', 0);
 
@@ -144,12 +145,42 @@ export async function exportPdf(
   const targetDpi = 300;
   const scale = targetDpi / 72;
 
+  // Create a single reusable Tesseract worker if OCR is requested (Phase 4)
+  let ocrWorker: TesseractWorker | null = null;
+  if (options?.doOcr) {
+    const lang = options?.ocrLanguage || 'eng';
+    onProgress?.(`Initializing OCR engine (${lang})...`, 0);
+    try {
+      ocrWorker = await createWorker(lang, 1, {
+        workerPath: '/tesseract/worker.min.js',
+        corePath: '/tesseract/',
+        langPath: '/tesseract/lang-data',
+      });
+    } catch {
+      ocrWorker = await createWorker(lang);
+    }
+  }
+
   // Process and flatten each page
   for (let pageIdx = 0; pageIdx < totalPages; pageIdx++) {
     onProgress?.(`Rendering and flattening page ${pageIdx + 1} of ${totalPages}...`, (pageIdx / totalPages) * 0.8);
 
     const pageData = document.pages[pageIdx];
     const page = await document.pdfjsDocument.getPage(pageData.pageIndex + 1);
+    
+    // Obtain original page size to calculate scale budget
+    const unscaledViewport = page.getViewport({ scale: 1.0 });
+    const w = unscaledViewport.width;
+    const h = unscaledViewport.height;
+
+    const maxPixels = 20 * 1000 * 1000; // 20M pixels sanity budget
+    const defaultScale = targetDpi / 72;
+    let scale = defaultScale;
+    const areaAtDefaultScale = (w * defaultScale) * (h * defaultScale);
+    if (areaAtDefaultScale > maxPixels) {
+      scale = Math.sqrt(maxPixels / (w * h));
+    }
+
     const viewport = page.getViewport({ scale });
 
     // Create an offscreen canvas
@@ -161,6 +192,10 @@ export async function exportPdf(
     if (!ctx) {
       throw new Error(`Failed to get canvas 2d context for page ${pageIdx + 1}`);
     }
+
+    // Fill with solid white background to avoid transparent canvas alpha channel issues in Tesseract/Leptonica
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // Render PDF page content using PDF.js
     const renderTask = page.render({ canvasContext: ctx, viewport });
@@ -348,35 +383,64 @@ export async function exportPdf(
     });
 
     // Run client-side OCR if requested (Phase 4)
-    if (options?.doOcr) {
+    if (ocrWorker) {
       onProgress?.(`Running OCR on page ${pageIdx + 1} of ${totalPages}...`, 0.8 + (pageIdx / totalPages) * 0.08);
       try {
-        const { data } = await Tesseract.recognize(dataUrl, 'eng', {
-          workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.0.5/dist/worker.min.js',
-          langPath: 'https://tessdata.projectnaptha.com/4.0.0',
-          corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.0.0/tesseract-core.wasm.js',
-        });
+        const { data } = await ocrWorker.recognize(dataUrl);
         const lines = (data as any).lines || [];
         
         for (const line of lines) {
-          const { x0, y0, y1 } = line.bbox;
-          
-          // Map canvas pixel coordinates to PDF point coordinates
-          const lineHeight = (y1 - y0) / scale;
-          const lineX = x0 / scale;
-          const lineY = originalHeight - (y1 / scale);
-          
-          newPage.drawText(line.text.trim(), {
-            x: lineX,
-            y: lineY,
-            size: lineHeight * 0.8, // size slightly smaller than box height
-            font: ocrFont,
-            opacity: 0.01, // 0.01 is invisible to the human eye but indexes perfectly on desktop & mobile (iOS/Android)
-          });
+          try {
+            // 1. Skip low-confidence noise / artifacts
+            if (line.confidence !== undefined && line.confidence < 60) {
+              continue;
+            }
+
+            const rawText = line.text ? line.text.trim() : '';
+            if (!rawText) continue;
+
+            // 2. Sanitize text for StandardFonts.Helvetica (WinAnsi / ASCII safe)
+            const sanitizedText = rawText
+              .replace(/[\u2018\u2019]/g, "'")
+              .replace(/[\u201C\u201D]/g, '"')
+              .replace(/[\u2013\u2014]/g, '-')
+              .replace(/[\u2026]/g, '...')
+              .replace(/[^\x20-\x7E\xA0-\xFF]/g, '')
+              .trim();
+
+            if (!sanitizedText) continue;
+
+            const { x0, y0, y1 } = line.bbox;
+            
+            // Map canvas pixel coordinates to PDF point coordinates
+            const lineHeight = (y1 - y0) / scale;
+            const lineX = x0 / scale;
+            const lineY = originalHeight - (y1 / scale);
+            
+            newPage.drawText(sanitizedText, {
+              x: lineX,
+              y: lineY,
+              size: Math.max(4, lineHeight * 0.8), // size slightly smaller than box height
+              font: ocrFont,
+              opacity: 0.01, // 0.01 is invisible to the human eye but indexes perfectly on desktop & mobile
+            });
+          } catch (lineErr) {
+            // Isolate errors to single line so one bad token doesn't kill the page text layer
+            console.warn(`[OCR Exporter] Skipped line due to draw error on page ${pageIdx + 1}:`, lineErr);
+          }
         }
       } catch (ocrErr) {
         console.error(`OCR failed on page ${pageIdx + 1}:`, ocrErr);
       }
+    }
+  }
+
+  // Terminate OCR worker if it was created
+  if (ocrWorker) {
+    try {
+      await ocrWorker.terminate();
+    } catch {
+      // Ignore termination errors
     }
   }
 

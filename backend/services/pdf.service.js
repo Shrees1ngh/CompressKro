@@ -41,12 +41,14 @@ async function runCliPipeline(inputBuffer, profile, category, options) {
     let currentFile = inputTemp;
 
     // SCANNED PDF WITH OCR ENABLED
+    let ocrExecutedSuccessfully = false;
     if (options.doOcr && hasOcr) {
       const ocrTemp = path.join(tempDir, `ocr_${uniqueId}.pdf`);
       createdFiles.push(ocrTemp);
       const ocrResult = await processOcr(currentFile, ocrTemp);
       if (ocrResult.success) {
         currentFile = ocrTemp;
+        ocrExecutedSuccessfully = true;
       }
     }
 
@@ -100,7 +102,7 @@ async function runCliPipeline(inputBuffer, profile, category, options) {
     }
 
     const finalBuffer = fs.readFileSync(currentFile);
-    if (finalBuffer.length < inputBuffer.length) {
+    if (ocrExecutedSuccessfully || finalBuffer.length < inputBuffer.length) {
       return finalBuffer;
     }
   } catch (err) {

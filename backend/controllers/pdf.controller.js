@@ -4,7 +4,6 @@ const os = require('os');
 const crypto = require('crypto');
 const { compressPdf } = require('../services/pdf.service');
 const { lockPdfWithGs, unlockPdfWithGs, cleanPdfWithGs } = require('../services/ghostscript.service');
-const { isOcrAvailable, processOcr } = require('../services/ocr.service');
 const { repairPdf, repairPdfBuffer } = require('../services/repair.service');
 const { convertHtmlToPdf } = require('../services/html.service');
 const { extractImagesFromPdf } = require('../services/extract.service');
@@ -145,43 +144,6 @@ async function handleCleanPdf(req, res, next) {
   }
 }
 
-async function handleOcrPdf(req, res, next) {
-  try {
-    if (!req.file) return res.status(400).json({ error: 'No PDF file provided' });
-
-    if (!isOcrAvailable()) {
-      return res.status(503).json({ error: 'OCR engine (ocrmypdf/tesseract) is not installed on this server' });
-    }
-
-    const tempDir = os.tmpdir();
-    const id = crypto.randomBytes(8).toString('hex');
-    const inputPath = path.join(tempDir, `in_${id}.pdf`);
-    const outputPath = path.join(tempDir, `ocr_${id}.pdf`);
-
-    fs.writeFileSync(inputPath, req.file.buffer);
-
-    const result = await processOcr(inputPath, outputPath);
-
-    try { if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath); } catch {}
-
-    if (!result.success || !fs.existsSync(outputPath)) {
-      return res.status(500).json({ error: result.error || 'OCR processing failed' });
-    }
-
-    const outputBuffer = fs.readFileSync(outputPath);
-    try { if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath); } catch {}
-
-    res.set({
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="ocr_${req.file.originalname}"`,
-      'Content-Length': outputBuffer.length
-    });
-    res.send(outputBuffer);
-  } catch (err) {
-    console.error('[OCR Controller] Unhandled error:', err);
-    next(err);
-  }
-}
 
 async function handleRepairPdf(req, res, next) {
   try {
@@ -270,7 +232,6 @@ module.exports = {
   handleLockPdf,
   handleUnlockPdf,
   handleCleanPdf,
-  handleOcrPdf,
   handleRepairPdf,
   handleHtmlToPdf,
   handleExtractImages

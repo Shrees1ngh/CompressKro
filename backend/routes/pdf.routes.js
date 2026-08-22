@@ -11,7 +11,6 @@ const {
   handleLockPdf,
   handleUnlockPdf,
   handleCleanPdf,
-  handleOcrPdf,
   handleRepairPdf,
   handleHtmlToPdf,
   handleExtractImages
@@ -24,7 +23,6 @@ router.post('/compress-pdf', upload.single('file'), limitConcurrency, handleComp
 router.post('/lock-pdf', upload.single('file'), limitConcurrency, handleLockPdf);
 router.post('/unlock-pdf', upload.single('file'), limitConcurrency, handleUnlockPdf);
 router.post('/clean-pdf', upload.single('file'), limitConcurrency, handleCleanPdf);
-router.post('/ocr-pdf', upload.single('file'), limitConcurrency, handleOcrPdf);
 router.post('/repair-pdf', upload.single('file'), limitConcurrency, handleRepairPdf);
 router.post('/html-to-pdf', limitConcurrency, handleHtmlToPdf);
 router.post('/extract-images', upload.single('file'), limitConcurrency, handleExtractImages);
